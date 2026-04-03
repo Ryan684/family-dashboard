@@ -18,12 +18,12 @@
           {
             "type": "command",
             "comment": "Block edits to .env files",
-            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.env ]]; then echo 'ERROR: Direct edits to .env are not permitted. Update .env.example and apply manually.'; exit 2; fi"
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -q '\\.env'; then echo 'ERROR: Direct edits to .env are not permitted. Update .env.example and apply manually.'; exit 2; fi"
           },
           {
             "type": "command",
             "comment": "Block writes directly on main branch",
-            "command": "branch=$(git branch --show-current); if [[ \"$branch\" == 'main' ]]; then echo 'ERROR: Direct writes to main are not permitted. Create a feature branch first.'; exit 2; fi"
+            "command": "branch=$(git branch --show-current); if [ \"$branch\" = 'main' ]; then echo 'ERROR: Direct writes to main are not permitted. Create a feature branch first.'; exit 2; fi"
           }
         ]
       },
@@ -50,12 +50,12 @@
           {
             "type": "command",
             "comment": "Auto-lint Python files on save",
-            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.py$ ]]; then cd backend && ruff check --fix \"$file\" && ruff format \"$file\"; fi"
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -q '\\.py$'; then cd backend && ruff check --fix \"$file\" && ruff format \"$file\"; fi"
           },
           {
             "type": "command",
             "comment": "Auto-lint JS/JSX files on save",
-            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.(jsx|js|ts|tsx)$ ]]; then cd frontend && npx eslint --fix \"$file\" && npx prettier --write \"$file\"; fi"
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -qE '\\.(jsx|js|ts|tsx)$'; then cd frontend && npx eslint --fix \"$file\" && npx prettier --write \"$file\"; fi"
           }
         ]
       }
