@@ -1,5 +1,66 @@
 import { useState, useEffect } from 'react'
 
+const STYLES_ID = 'clock-card-styles'
+
+function injectStyles() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById(STYLES_ID)) return
+  const style = document.createElement('style')
+  style.id = STYLES_ID
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300&display=swap');
+
+    :root {
+      --clock-time:  #F8F5EF;
+      --clock-date:  #7A756E;
+      --clock-rule:  #2A2622;
+    }
+
+    .cc-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 0;
+      background: transparent;
+    }
+
+    .cc-time {
+      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-size: 160px;
+      font-weight: 700;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: var(--clock-time);
+      animation: cc-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .cc-rule {
+      width: 72px;
+      height: 1px;
+      background: var(--clock-rule);
+      margin: 28px 0;
+      animation: cc-rise 0.7s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .cc-date {
+      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--clock-date);
+      animation: cc-rise 0.7s 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes cc-rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `
+  document.head.appendChild(style)
+}
+
 function formatTime(date) {
   const h = String(date.getHours()).padStart(2, '0')
   const m = String(date.getMinutes()).padStart(2, '0')
@@ -17,44 +78,18 @@ function ClockCard() {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
+    injectStyles()
     const id = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(id)
   }, [])
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.time}>{formatTime(now)}</div>
-      <div style={styles.date}>{formatDate(now)}</div>
+    <div className="cc-wrap">
+      <div className="cc-time">{formatTime(now)}</div>
+      <div className="cc-rule" aria-hidden="true" />
+      <div className="cc-date">{formatDate(now)}</div>
     </div>
   )
-}
-
-const styles = {
-  wrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '40px 0',
-    background: 'transparent',
-  },
-  time: {
-    fontFamily: "'DM Serif Display', 'Georgia', serif",
-    fontSize: '160px',
-    fontWeight: '400',
-    lineHeight: '1',
-    letterSpacing: '-4px',
-    color: '#F0EDE8',
-  },
-  date: {
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-    fontSize: '36px',
-    fontWeight: '300',
-    letterSpacing: '2px',
-    color: '#9A9590',
-    marginTop: '12px',
-    textTransform: 'uppercase',
-  },
 }
 
 export default ClockCard
