@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vite.config.js"
+  },
+  "mutate": [
+    "src/**/*.jsx",
+    "src/**/*.js",
+    "!src/**/*.test.jsx",
+    "!src/**/*.test.js",
+    "!src/setupTests.js",
+    "!src/main.jsx"
+  ],
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/html/index.html"
+  }
+}
