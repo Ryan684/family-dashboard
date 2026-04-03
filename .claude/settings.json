@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Print git context and last test results at session open",
+            "command": "echo '=== Session Start ===' && git status && git branch --show-current && echo '--- Last test results ---' && cat .last-test-results 2>/dev/null || echo 'No previous test results found'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Block edits to .env files",
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.env ]]; then echo 'ERROR: Direct edits to .env are not permitted. Update .env.example and apply manually.'; exit 2; fi"
+          },
+          {
+            "type": "command",
+            "comment": "Block writes directly on main branch",
+            "command": "branch=$(git branch --show-current); if [[ \"$branch\" == 'main' ]]; then echo 'ERROR: Direct writes to main are not permitted. Create a feature branch first.'; exit 2; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Block destructive shell commands",
+            "command": "json=$(cat); cmd=$(echo \"$json\" | jq -r '.command // empty'); if echo \"$cmd\" | grep -qE 'rm -rf|git push --force|git reset --hard'; then echo \"ERROR: Destructive command blocked: $cmd\"; exit 2; fi"
+          },
+          {
+            "type": "command",
+            "comment": "Block direct pushes to main",
+            "command": "json=$(cat); cmd=$(echo \"$json\" | jq -r '.command // empty'); if echo \"$cmd\" | grep -qE 'git push.*origin main|git push.*main'; then echo 'ERROR: Direct push to main blocked. Raise a PR instead.'; exit 2; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Auto-lint Python files on save",
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.py$ ]]; then cd backend && ruff check --fix \"$file\" && ruff format \"$file\"; fi"
+          },
+          {
+            "type": "command",
+            "comment": "Auto-lint JS/JSX files on save",
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if [[ \"$file\" =~ \\.(jsx|js|ts|tsx)$ ]]; then cd frontend && npx eslint --fix \"$file\" && npx prettier --write \"$file\"; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Log failures for post-session review",
+            "command": "json=$(cat); echo \"[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FAILURE: $(echo \"$json\" | jq -c '{tool: .tool_name, error: .error}')\" >> .claude-failures.jsonl"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Run full test suite when Claude finishes a task",
+            "command": "echo '--- Running full test suite ---' && cd backend && python -m pytest --tb=short 2>&1 | tee ../.last-test-results && cd ../frontend && npx vitest run 2>&1 | tee -a ../.last-test-results && echo '--- Test run complete ---'"
+          }
+        ]
+      }
+    ]
+  }
+}

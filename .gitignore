@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.pytest_cache/
+.mutmut-cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+
+# Claude Code runtime files
+.last-test-results
+.claude-failures.jsonl
+
+# Stryker reports
+reports/

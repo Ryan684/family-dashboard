@@ -388,32 +388,45 @@ refactor:         code change that does not affect behaviour
 
 ### CLAUDE.md
 
-The project `CLAUDE.md` reinforces all rules for every Claude Code session:
+Kept deliberately short — rules only for things Claude gets wrong or that need hard enforcement. Feature-specific context lives in `family-dashboard.md` and session prompts, not here.
 
 ```markdown
-# Family Dashboard — Claude Code Context
+# Family Dashboard
 
-See `family-dashboard.md` for full project specification.
+Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 
-## Build order (never skip or reorder)
-1. Write Gherkin feature file in `features/`
-2. Write failing tests derived from the feature file
-3. Write minimum implementation to pass tests
-4. Run mutation tests — no surviving mutants without documented justification
-5. Confirm all tests pass
+## Commands
+- Backend: `cd backend && uvicorn main:app --reload`
+- Frontend: `cd frontend && npm run dev`
+- Backend tests: `cd backend && python -m pytest --tb=short`
+- Frontend tests: `cd frontend && npx vitest run`
+- Lint check: `cd backend && ruff check . && cd ../frontend && npx eslint src/`
 
-## Git workflow
-- Always check current branch before starting: `git branch --show-current`
-- Never write files or commit on `main` — hooks will block this
-- Branch naming: `feature/<feature-name>`, cut from `main`
-- Commit atomically after each logical step with conventional commit messages
-- When a feature is complete and all tests pass, inform the user — do not merge or raise a PR autonomously
+## MUST follow — build order
+1. MUST write Gherkin feature file first, before any code
+2. MUST write failing tests before implementation
+3. MUST write minimum code to pass tests — nothing more
+4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification
+5. MUST confirm all tests pass before committing
 
-## General rules
-- Never edit `.env` directly — hooks will block this; update `.env.example` instead
-- Never use `rm -rf`, `git push --force`, or `git reset --hard` — hooks will block these
-- Hooks run ruff and eslint automatically on file save — do not run them manually
-- Read `/mnt/skills/public/frontend-design/SKILL.md` before writing any UI component
+## MUST follow — git
+- MUST check current branch before starting: `git branch --show-current`
+- MUST NEVER write files or commit on `main` — hooks enforce this and will block you
+- MUST name branches `feature/<name>` cut from `main`
+- MUST commit atomically with conventional commit messages after each logical step
+- MUST inform the user when a feature is complete — NEVER merge or raise a PR autonomously
+
+## NEVER do
+- NEVER edit `.env` — hooks will block this; update `.env.example` instead
+- NEVER run `rm -rf`, `git push --force`, or `git reset --hard` — hooks will block these
+- NEVER run ruff or eslint manually — hooks run them automatically on file save
+- NEVER implement behaviour not covered by a feature file
+
+## Before writing any UI component
+Read `/mnt/skills/public/frontend-design/SKILL.md` and apply screen size design notes from `family-dashboard.md`.
+
+## When compacting
+Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.
 ```
 
 ---
