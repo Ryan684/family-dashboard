@@ -9,6 +9,7 @@ __pycache__/
 .pytest_cache/
 .mutmut-cache/
 *.egg-info/
+/backend/mutants/
 
 # Node
 node_modules/
