@@ -51,6 +51,29 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Line 173–174: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
 | Line 176: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
 
+### `components/CalendarCard.jsx`
+
+14 surviving mutants across two accepted categories:
+
+**Style injection infrastructure (9 mutants — lines 3, 5–10)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 3: `STYLES_ID = 'calendar-card-styles'` | `→ ""` | Used only to tag and deduplicate the injected `<style>` element. JSDOM does not render CSS, so no test can observe whether the ID is correct. Infrastructure concern, not component behaviour. |
+| Line 5–10: `injectStyles()` body | Entire block removed | Function only injects a `<style>` tag into the real DOM. JSDOM does not apply or expose injected CSS, so no test can observe whether styles were injected. |
+| Line 6: `typeof document === 'undefined'` | `→ true / false / ""` / `!==` (4 variants) | SSR guard. JSDOM always defines `document`, so this branch can never be taken in tests, making all four mutations untestable. Same pattern as WeatherCard. |
+| Line 7: `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard. JSDOM does not apply styles, so injecting twice has no observable effect. |
+| Line 10: `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores injected stylesheets, so an empty string is indistinguishable from the real stylesheet in unit tests. |
+
+**React async cancellation/cleanup pattern (5 mutants — lines 157, 163, 169–170, 172)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 157: `if (!cancelled)` (success path) | `→ if (true)` | Cancellation guard on unmount. Killing requires resolving fetch after unmount; JSDOM/React 18 drops post-unmount state updates silently. Same pattern as WeatherCard. |
+| Line 163: `if (!cancelled)` (error path) | `→ if (true)` | Same as above, for the `.catch()` branch. |
+| Line 169–170: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup on unmount. Same reasoning as WeatherCard — not observably testable in single-render unit tests. |
+| Line 172: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Tests render once and do not re-render, so a mutated deps array cannot be observed. Accepted as a tool limitation. |
+
 ---
 
 ## Notes
