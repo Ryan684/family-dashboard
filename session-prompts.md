@@ -39,7 +39,7 @@ Implement the ClockCard feature only. Follow the build order from the spec exact
 
 Step 1: Write features/clock.feature
 Step 2: Write frontend/src/components/ClockCard.test.jsx — tests must fail before implementation
-Step 3: Read /mnt/skills/public/frontend-design/SKILL.md, then implement ClockCard.jsx applying the screen size design notes from the spec (24" landscape, 1-2m viewing distance, 48px+ primary text, dark theme, no hover states)
+Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement ClockCard.jsx applying the screen size design notes from the spec (24" landscape, 1-2m viewing distance, 48px+ primary text, dark theme, no hover states)
 Step 4: Confirm all ClockCard tests pass
 Step 5: Commit on a feature branch with a conventional commit message
 
@@ -76,7 +76,7 @@ Implement the TravelCard frontend component only. The backend /api/travel endpoi
 
 Step 1: Write features/travel_card.feature covering the frontend behaviour — two route options displayed, description shown, colour state (green/amber/red) rendered correctly, incident list shown only when incidents present
 Step 2: Write frontend/src/components/TravelCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/skills/public/frontend-design/SKILL.md, then implement TravelCard.jsx applying the screen size design notes from the spec
+Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement TravelCard.jsx applying the screen size design notes from the spec
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -114,7 +114,7 @@ Implement the WeatherCard frontend component only. The backend /api/weather endp
 
 Step 1: Write features/weather_card.feature
 Step 2: Write frontend/src/components/WeatherCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/skills/public/frontend-design/SKILL.md, then implement WeatherCard.jsx applying the screen size design notes from the spec
+Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement WeatherCard.jsx applying the screen size design notes from the spec
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -152,7 +152,7 @@ Implement the CalendarCard frontend component only. The backend /api/calendar en
 
 Step 1: Write features/calendar_card.feature
 Step 2: Write frontend/src/components/CalendarCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/skills/public/frontend-design/SKILL.md, then implement CalendarCard.jsx applying the screen size design notes from the spec. Events should be colour-coded per calendar. Today and tomorrow shown separately.
+Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement CalendarCard.jsx applying the screen size design notes from the spec. Events should be colour-coded per calendar. Today and tomorrow shown separately.
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -177,7 +177,7 @@ Step 4: Run vitest — all tests pass
 
 Part 2 — Layout:
 Step 5: Update App.jsx to compose ClockCard, TravelCard, WeatherCard, CalendarCard, and AlertBanner into the final dashboard layout. Apply the 2-3 column grid from the screen size design notes. ClockCard spans full width at top.
-Step 6: Read /mnt/skills/public/frontend-design/SKILL.md and review the overall layout for visual coherence — typography scale, spacing, dark theme consistency
+Step 6: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md and review the overall layout for visual coherence — typography scale, spacing, dark theme consistency
 Step 7: Run the full test suite (pytest + vitest) — all pass
 Step 8: Commit on a feature branch
 
