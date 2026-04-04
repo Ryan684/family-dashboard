@@ -10,17 +10,17 @@ function injectStyles() {
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
 
-    .cc-wrap {
+    .cal-wrap {
       font-family: 'Jost', 'Helvetica Neue', sans-serif;
       color: #F8F5EF;
       padding: 32px 40px;
     }
 
-    .cc-section {
+    .cal-section {
       margin-bottom: 36px;
     }
 
-    .cc-section-heading {
+    .cal-section-heading {
       font-family: 'Jost', sans-serif;
       font-size: 24px;
       font-weight: 400;
@@ -30,7 +30,7 @@ function injectStyles() {
       margin: 0 0 16px 0;
     }
 
-    .cc-event {
+    .cal-event {
       display: flex;
       align-items: center;
       gap: 16px;
@@ -41,14 +41,14 @@ function injectStyles() {
       margin-bottom: 10px;
     }
 
-    .cc-event-colour {
+    .cal-event-colour {
       width: 10px;
       height: 10px;
       border-radius: 50%;
       flex-shrink: 0;
     }
 
-    .cc-event-time {
+    .cal-event-time {
       font-size: 24px;
       font-weight: 400;
       color: #7A756E;
@@ -56,20 +56,20 @@ function injectStyles() {
       flex-shrink: 0;
     }
 
-    .cc-event-summary {
+    .cal-event-summary {
       font-size: 28px;
       font-weight: 300;
       color: #F8F5EF;
     }
 
-    .cc-empty {
+    .cal-empty {
       font-size: 24px;
       font-weight: 300;
       color: #7A756E;
       padding: 12px 0;
     }
 
-    .cc-loading {
+    .cal-loading {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -78,7 +78,7 @@ function injectStyles() {
       color: #7A756E;
     }
 
-    .cc-error {
+    .cal-error {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -113,24 +113,24 @@ function formatTime(event) {
 
 function CalendarEvent({ event }) {
   return (
-    <div className="cc-event">
+    <div className="cal-event">
       <span
-        className="cc-event-colour"
+        className="cal-event-colour"
         data-testid="event-colour"
         style={{ backgroundColor: event.calendar_color }}
       />
-      <span className="cc-event-time">{formatTime(event)}</span>
-      <span className="cc-event-summary">{event.summary}</span>
+      <span className="cal-event-time">{formatTime(event)}</span>
+      <span className="cal-event-summary">{event.summary}</span>
     </div>
   )
 }
 
 function EventSection({ heading, events, emptyMessage }) {
   return (
-    <section className="cc-section">
-      <h2 className="cc-section-heading">{heading}</h2>
+    <section className="cal-section">
+      <h2 className="cal-section-heading">{heading}</h2>
       {events.length === 0 ? (
-        <div className="cc-empty">{emptyMessage}</div>
+        <div className="cal-empty">{emptyMessage}</div>
       ) : (
         events.map((evt) => <CalendarEvent key={evt.id} event={evt} />)
       )}
@@ -173,7 +173,7 @@ function CalendarCard() {
 
   if (loading) {
     return (
-      <div className="cc-loading" role="status">
+      <div className="cal-loading" role="status">
         Loading calendar…
       </div>
     )
@@ -181,7 +181,7 @@ function CalendarCard() {
 
   if (error) {
     return (
-      <div className="cc-error" role="alert">
+      <div className="cal-error" role="alert">
         Unable to load calendar data
       </div>
     )
@@ -194,7 +194,7 @@ function CalendarCard() {
   const tomorrowEvents = data.events.filter((e) => eventDateString(e) === tomorrow)
 
   return (
-    <div className="cc-wrap">
+    <div className="cal-wrap">
       <EventSection
         heading="Today"
         events={todayEvents}
