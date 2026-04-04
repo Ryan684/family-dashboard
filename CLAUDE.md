@@ -15,6 +15,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 3. MUST write minimum code to pass tests — nothing more
 4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification
 5. MUST confirm all tests pass before committing
+6. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
 
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
