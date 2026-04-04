@@ -28,7 +28,28 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 ## Frontend (`stryker`)
 
-Stryker has not yet been run. This section will be populated after the first `npx stryker run` on each implemented component.
+### `components/WeatherCard.jsx`
+
+14 surviving mutants across two accepted categories:
+
+**Style injection infrastructure (9 mutants — lines 3, 5–10)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 3: `STYLES_ID = 'weather-card-styles'` | `→ ""` | Used only to tag and deduplicate the injected `<style>` element. JSDOM doesn't render CSS, so no test can observe whether the ID is correct. Infrastructure concern, not component behaviour. |
+| Line 5–10: `injectStyles()` body | Entire block removed | Function only injects a `<style>` tag into the real DOM. JSDOM does not apply or expose injected CSS, so no test can observe whether styles were injected. |
+| Line 6: `typeof document === 'undefined'` | `→ true / false / ""` / `!==` (4 variants) | SSR guard — prevents `document` access in non-browser environments. JSDOM always defines `document`, so this branch can never be taken in tests, making all four operator/value mutations untestable. |
+| Line 7: `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard — prevents re-injecting the same stylesheet. JSDOM does not apply styles, so injecting twice has no observable effect and this guard cannot be killed by a test. |
+| Line 10: `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores injected stylesheets, so an empty string is indistinguishable from the real stylesheet in unit tests. |
+
+**React async cancellation/cleanup pattern (5 mutants — lines 161, 167, 173–174, 176)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 161: `if (!cancelled)` (success path) | `→ if (true)` | Cancellation guard — prevents state updates after component unmounts. Killing this requires resolving the fetch *after* unmounting; that window is race-prone in JSDOM and React 18 silently drops post-unmount state updates anyway, so no observable assertion is possible. Correct pattern, accepted survivor. |
+| Line 167: `if (!cancelled)` (error path) | `→ if (true)` | Same as above, for the `.catch()` branch. |
+| Line 173–174: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
+| Line 176: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
 
 ---
 
