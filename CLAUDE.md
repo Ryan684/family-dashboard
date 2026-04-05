@@ -21,6 +21,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - Fetch deferred tools before starting any task:
   `ToolSearch: "select:AskUserQuestion,TodoWrite"`
 - Confirm both tools are available before proceeding
+- Check that `frontend-design` is listed in the available skills (it appears in the system-reminder skills list); if it is absent, warn the user before doing any UI component work — they may need to install it from the Claude Code marketplace
 
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
