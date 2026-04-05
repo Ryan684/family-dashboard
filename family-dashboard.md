@@ -112,7 +112,7 @@ With the freestanding arm, run both power cables (monitor + Pi) down the back of
 
 ### Design Approach
 
-Use the **Anthropic frontend-design skill** when building the UI (`/mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md`). Key principles:
+Use the **Anthropic frontend-design skill** when building the UI (invoke via `/frontend-design`). Key principles:
 
 - Commit to a bold, specific aesthetic direction — e.g. refined dark theme with strong typographic hierarchy and generous spacing
 - Distinctive font pairing (avoid Inter/Roboto/system fonts)
@@ -510,7 +510,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - NEVER implement behaviour not covered by a feature file
 
 ## Before writing any UI component
-Read `/mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md` and apply screen size design notes from `family-dashboard.md`.
+Invoke the `/frontend-design` skill and apply screen size design notes from `family-dashboard.md`.
 
 ## When compacting
 Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.

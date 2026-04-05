@@ -37,7 +37,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - NEVER implement behaviour not covered by a feature file
 
 ## Before writing any UI component
-Use the `/frontend-design` skill and apply screen size design notes from `family-dashboard.md`.
+Invoke the `/frontend-design` skill and apply screen size design notes from `family-dashboard.md`.
 
 ## When compacting
 Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.
