@@ -17,6 +17,11 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 5. MUST confirm all tests pass before committing
 6. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
 
+## Session startup (cloud/web only)
+- Fetch deferred tools before starting any task:
+  `ToolSearch: "select:AskUserQuestion,TodoWrite"`
+- Confirm both tools are available before proceeding
+
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
 - MUST NEVER write files or commit on `main` — hooks enforce this and will block you
