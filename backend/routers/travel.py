@@ -1,5 +1,6 @@
-"""Travel router — TomTom Routing and Traffic Incident API integration."""
+"""Travel router — per-commuter dynamic routing via TomTom Routing and Incidents APIs."""
 
+import os
 import re
 from datetime import datetime
 from typing import Any
@@ -8,10 +9,12 @@ import httpx
 from fastapi import APIRouter
 
 from config import settings
+from services.commute_schedule import build_waypoints, load_schedule, resolve_commuter_day
 
 router = APIRouter(prefix="/api/travel", tags=["travel"])
 
 TOMTOM_BASE = "https://api.tomtom.com"
+_SCHEDULE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "commute-schedule.json")
 
 # Module-level cache: holds last successful response dict
 _cache: dict | None = None
@@ -21,8 +24,12 @@ def _get_now() -> datetime:
     return datetime.now()
 
 
+def _get_weekday() -> str:
+    return _get_now().strftime("%A").lower()
+
+
 # ---------------------------------------------------------------------------
-# Pure logic functions
+# Pure logic functions (unchanged)
 # ---------------------------------------------------------------------------
 
 
@@ -162,19 +169,38 @@ def _extract_traffic_model_id(routes_response: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Config helpers (injectable for testing)
+# ---------------------------------------------------------------------------
+
+
+def get_coords() -> dict:
+    """Return coordinate lookup dict built from settings."""
+    home = (settings.home_lat, settings.home_lon)
+    return {
+        "home": home,
+        "work": {
+            # Keyed by commuter index; matched to schedule commuters[] by position
+            "Commuter1": (settings.commuter_1_work_lat, settings.commuter_1_work_lon),
+            "Commuter2": (settings.commuter_2_work_lat, settings.commuter_2_work_lon),
+        },
+        "nursery": (settings.nursery_lat, settings.nursery_lon),
+        "dog_daycare": (settings.dog_daycare_lat, settings.dog_daycare_lon),
+    }
+
+
+# ---------------------------------------------------------------------------
 # TomTom HTTP calls
 # ---------------------------------------------------------------------------
 
 
 async def fetch_routes(
     client: httpx.AsyncClient,
-    origin: tuple[float, float],
-    destination: tuple[float, float],
+    waypoints: list[tuple[float, float]],
     api_key: str,
 ) -> dict:
-    origin_str = f"{origin[0]},{origin[1]}"
-    dest_str = f"{destination[0]},{destination[1]}"
-    url = f"{TOMTOM_BASE}/routing/1/calculateRoute/{origin_str}:{dest_str}/json"
+    """Fetch routes for an ordered list of waypoints (origin + optional stops + dest)."""
+    locations = ":".join(f"{lat},{lon}" for lat, lon in waypoints)
+    url = f"{TOMTOM_BASE}/routing/1/calculateRoute/{locations}/json"
     resp = await client.get(
         url,
         params={"maxAlternatives": 1, "traffic": "true", "key": api_key},
@@ -221,43 +247,75 @@ async def get_travel():
 
     is_stale = not _scheduler_in_window(_get_now())
     if _cache is None:
-        return {
-            "home_to_work": [],
-            "home_to_nursery": [],
-            "incidents": [],
-            "is_stale": is_stale,
-        }
+        return {"commuters": [], "is_stale": is_stale}
     return {**_cache, "is_stale": is_stale}
 
 
 async def fetch_travel_data() -> dict:
-    """Fetch live travel data from TomTom. Called by the scheduler."""
-    home = (settings.home_lat, settings.home_lon)
-    work = (settings.work_lat, settings.work_lon)
-    nursery = (settings.nursery_lat, settings.nursery_lon)
+    """Fetch live travel data for all active commuters. Called by the scheduler."""
+    schedule = load_schedule(_SCHEDULE_PATH)
+    coords = get_coords()
+    weekday = _get_weekday()
+
+    # Build per-commuter work coord lookup by name
+    work_by_name = {
+        c["name"]: coords["work"].get(c["name"], coords["work"].get("Commuter1"))
+        for c in schedule["commuters"]
+    }
+    # Fall back: map by position for names not matching the hardcoded keys
+    for i, commuter in enumerate(schedule["commuters"]):
+        key = f"Commuter{i + 1}"
+        if commuter["name"] not in coords["work"] and key in coords["work"]:
+            work_by_name[commuter["name"]] = coords["work"][key]
+
+    commuter_results = []
 
     async with httpx.AsyncClient() as http:
-        work_routes_raw, nursery_routes_raw = (
-            await fetch_routes(http, home, work, settings.tomtom_api_key),
-            await fetch_routes(http, home, nursery, settings.tomtom_api_key),
-        )
+        all_route_points: list[dict] = []
+        all_traffic_model_ids: list[str] = []
+        commuter_routes_raw: list[tuple[dict, dict]] = []  # (commuter, routes_response)
 
-        all_points = _build_all_points(work_routes_raw) + _build_all_points(
-            nursery_routes_raw
-        )
-        bbox = expand_bounding_box(calculate_bounding_box(all_points))
-        traffic_model_id = _extract_traffic_model_id(work_routes_raw)
+        for commuter in schedule["commuters"]:
+            day = resolve_commuter_day(commuter, weekday, schedule)
+            waypoints = build_waypoints(
+                mode=day["mode"],
+                drops=day["drops"],
+                home=coords["home"],
+                work=work_by_name[commuter["name"]],
+                nursery=coords["nursery"],
+                dog_daycare=coords["dog_daycare"],
+            )
 
+            if not waypoints:
+                # WFH or off with no drops — omit commuter entirely
+                continue
+
+            routes_raw = await fetch_routes(http, waypoints, settings.tomtom_api_key)
+            all_route_points.extend(_build_all_points(routes_raw))
+            all_traffic_model_ids.append(_extract_traffic_model_id(routes_raw))
+            commuter_routes_raw.append((commuter, day, routes_raw))
+
+        if not commuter_routes_raw:
+            return {"commuters": []}
+
+        # Fetch incidents once covering all active routes
+        bbox = expand_bounding_box(calculate_bounding_box(all_route_points))
+        traffic_model_id = next((t for t in all_traffic_model_ids if t), "")
         raw_incidents = await fetch_incidents(
             http, bbox, traffic_model_id, settings.tomtom_api_key
         )
 
-    return {
-        "home_to_work": [
-            _build_route_option(r) for r in work_routes_raw.get("routes", [])
-        ],
-        "home_to_nursery": [
-            _build_route_option(r) for r in nursery_routes_raw.get("routes", [])
-        ],
-        "incidents": parse_incidents(raw_incidents),
-    }
+    incidents = parse_incidents(raw_incidents)
+
+    for commuter, day, routes_raw in commuter_routes_raw:
+        commuter_results.append(
+            {
+                "name": commuter["name"],
+                "mode": day["mode"],
+                "drops": day["drops"],
+                "routes": [_build_route_option(r) for r in routes_raw.get("routes", [])],
+                "incidents": incidents,
+            }
+        )
+
+    return {"commuters": commuter_results}
