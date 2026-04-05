@@ -9,6 +9,15 @@
             "command": "echo '=== Session Start ===' && git status && git branch --show-current && echo '--- Last test results ---' && cat .last-test-results 2>/dev/null || echo 'No previous test results found'"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Install Python 3.14 + backend venv + frontend node_modules (web only)",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
