@@ -20,7 +20,7 @@ Reference: see `family-dashboard.md` for the full project specification.
 | 8 | CalendarCard Frontend | ✅ Complete |
 | 9 | AlertBanner + Layout Integration | ✅ Complete |
 | 10 | Scheduler and Polling | ✅ Complete |
-| 11 | Dynamic Commutes Backend | ⬜ Pending |
+| 11 | Dynamic Commutes Backend | ✅ Complete |
 | 12 | Dynamic Commutes Frontend | ⬜ Pending |
 
 ---

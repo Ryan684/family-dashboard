@@ -23,9 +23,13 @@ cd "$CLAUDE_PROJECT_DIR/frontend"
 npm install --silent
 
 echo "=== Installing Claude Code skills ==="
-# Clone the Anthropic skills marketplace (public repo) and install frontend-design
-# Disable credential helper so the public repo clones without interactive prompts
-if git -c credential.helper= clone --depth 1 \
+# Clone the Anthropic skills marketplace (public repo) and install frontend-design.
+# github.com is whitelisted in the sandbox proxy, but git needs http.proxy set explicitly —
+# the sandbox only sets GLOBAL_AGENT_HTTP_PROXY which git does not read automatically.
+if git \
+    -c "http.proxy=${GLOBAL_AGENT_HTTP_PROXY:-}" \
+    -c credential.helper= \
+    clone --depth 1 \
     https://github.com/anthropics/anthropic-agent-skills.git \
     /tmp/anthropic-agent-skills 2>/dev/null; then
   claude plugins marketplace add /tmp/anthropic-agent-skills --scope user 2>/dev/null || true
