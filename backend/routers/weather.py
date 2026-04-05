@@ -1,11 +1,20 @@
 """Weather router — Open-Meteo integration (no API key required)."""
 
+from datetime import datetime
+
 import httpx
 from fastapi import APIRouter
 
 from config import settings
 
 router = APIRouter(prefix="/api/weather", tags=["weather"])
+
+# Module-level cache: holds last successful response dict
+_cache: dict | None = None
+
+
+def _get_now() -> datetime:
+    return datetime.now()
 
 OPEN_METEO_BASE = "https://api.open-meteo.com/v1"
 
@@ -116,6 +125,16 @@ async def fetch_weather(client: httpx.AsyncClient, lat: float, lon: float) -> di
 
 @router.get("")
 async def get_weather():
+    from scheduler import is_within_poll_window as _scheduler_in_window
+
+    is_stale = not _scheduler_in_window(_get_now())
+    if _cache is None:
+        return {"current": {}, "forecast": [], "is_stale": is_stale}
+    return {**_cache, "is_stale": is_stale}
+
+
+async def fetch_weather_data() -> dict:
+    """Fetch live weather data from Open-Meteo. Called by the scheduler."""
     async with httpx.AsyncClient() as http:
         data = await fetch_weather(http, settings.home_lat, settings.home_lon)
 

@@ -23,6 +23,22 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Mutant | Mutation | Justification |
 |--------|----------|---------------|
 | `x_parse_forecast__mutmut_1` | `count: int = 6` → `count: int = 7` | Default parameter — unreachable via mutmut 3.x trampoline. The wrapper function retains the original default (6) and always passes `count` explicitly when calling the mutant. The mutant's default of 7 is never invoked through the test path. |
+| `x_fetch_weather__mutmut_1–29` (29 mutants) | Various mutations inside `fetch_weather()` | HTTP client function making live Open-Meteo API calls. Untestable in isolation without a live network — mocking at this level would test the mock, not the logic. Integration tested end-to-end in Step 6. |
+| `x_fetch_weather_data__mutmut_1–50` (50 mutants) | Various mutations inside `fetch_weather_data()` | Scheduler fetch function that calls `fetch_weather()`. No tests because it requires live HTTP calls; scheduler integration is tested via `test_scheduler.py` using mock fetch functions that stand in for this function. |
+
+### `routers/travel.py` — live HTTP functions
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x_fetch_routes__mutmut_1–22` (22 mutants) | Various mutations inside `fetch_routes()` | HTTP client function making live TomTom API calls. Untestable in isolation — requires a live network and valid API key. Integration tested end-to-end in Step 6. |
+| `x_fetch_incidents__mutmut_1–48` (48 mutants) | Various mutations inside `fetch_incidents()` | Same as `fetch_routes` — live HTTP client function. |
+| `x_fetch_travel_data__mutmut_1–59` (59 mutants) | Various mutations inside `fetch_travel_data()` | Scheduler fetch orchestrator that calls `fetch_routes` and `fetch_incidents`. Untestable without live API calls. Scheduler integration tested via mocks in `test_scheduler.py`. |
+
+### `scheduler.py`
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x_run_scheduler__mutmut_1–19` (19 mutants) | Various mutations inside `run_scheduler()` | Infinite background loop — cannot be run in tests as it would block forever. The loop logic resolves to `poll_if_in_window()` + `asyncio.sleep()`, both of which are fully tested separately. The wiring in `run_scheduler` (lazy import resolution, `get_now` passthrough) is integration-tested in Step 6 (live stack). |
 
 ---
 

@@ -34,6 +34,6 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.mutmut]
-paths_to_mutate = ["routers/travel.py", "routers/weather.py"]
+paths_to_mutate = ["routers/travel.py", "routers/weather.py", "scheduler.py"]
 tests_dir = ["tests/"]
-also_copy = ["main.py", "config.py", "routers/__init__.py"]
+also_copy = ["main.py", "config.py", "routers/__init__.py", "routers/calendar.py"]

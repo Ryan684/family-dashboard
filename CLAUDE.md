@@ -23,8 +23,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - MUST name branches `feature/<name>` cut from `main`
 - MUST commit atomically with conventional commit messages after each logical step
 - MUST inform the user when a feature is complete — NEVER merge or raise a PR autonomously
-- MUST ask me any clarifying questions you have before writing any code.
-Do not guess. If anything in the spec is ambiguous, surface it now.
+- MUST use the AskUserQuestion tool to ask clarifying questions before writing any code if anything in the current task is ambiguous. Do not guess. If the session prompt is explicit and complete, proceed without asking.
 
 ## NEVER do
 - NEVER edit `.env` — hooks will block this; update `.env.example` instead

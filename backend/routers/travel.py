@@ -217,23 +217,21 @@ async def fetch_incidents(
 
 @router.get("")
 async def get_travel():
-    global _cache
+    from scheduler import is_within_poll_window as _scheduler_in_window
 
-    now = _get_now()
-    within_window = is_within_poll_window(
-        now, settings.poll_window_start, settings.poll_window_end
-    )
-
-    if not within_window:
-        if _cache is not None:
-            return {**_cache, "is_stale": True}
+    is_stale = not _scheduler_in_window(_get_now())
+    if _cache is None:
         return {
             "home_to_work": [],
             "home_to_nursery": [],
             "incidents": [],
-            "is_stale": True,
+            "is_stale": is_stale,
         }
+    return {**_cache, "is_stale": is_stale}
 
+
+async def fetch_travel_data() -> dict:
+    """Fetch live travel data from TomTom. Called by the scheduler."""
     home = (settings.home_lat, settings.home_lon)
     work = (settings.work_lat, settings.work_lon)
     nursery = (settings.nursery_lat, settings.nursery_lon)
@@ -254,18 +252,12 @@ async def get_travel():
             http, bbox, traffic_model_id, settings.tomtom_api_key
         )
 
-    home_to_work = [
-        _build_route_option(r) for r in work_routes_raw.get("routes", [])
-    ]
-    home_to_nursery = [
-        _build_route_option(r) for r in nursery_routes_raw.get("routes", [])
-    ]
-    incidents = parse_incidents(raw_incidents)
-
-    _cache = {
-        "home_to_work": home_to_work,
-        "home_to_nursery": home_to_nursery,
-        "incidents": incidents,
-        "is_stale": False,
+    return {
+        "home_to_work": [
+            _build_route_option(r) for r in work_routes_raw.get("routes", [])
+        ],
+        "home_to_nursery": [
+            _build_route_option(r) for r in nursery_routes_raw.get("routes", [])
+        ],
+        "incidents": parse_incidents(raw_incidents),
     }
-    return _cache
