@@ -22,4 +22,18 @@ echo "=== Installing frontend dependencies ==="
 cd "$CLAUDE_PROJECT_DIR/frontend"
 npm install --silent
 
+echo "=== Installing Claude Code skills ==="
+# Clone the Anthropic skills marketplace (public repo) and install frontend-design
+# Disable credential helper so the public repo clones without interactive prompts
+if git -c credential.helper= clone --depth 1 \
+    https://github.com/anthropics/anthropic-agent-skills.git \
+    /tmp/anthropic-agent-skills 2>/dev/null; then
+  claude plugins marketplace add /tmp/anthropic-agent-skills --scope user 2>/dev/null || true
+  claude plugins install frontend-design --scope user 2>/dev/null || true
+  rm -rf /tmp/anthropic-agent-skills
+  echo "frontend-design skill installed"
+else
+  echo "Warning: Could not reach skills marketplace — frontend-design skill unavailable this session"
+fi
+
 echo "=== Environment ready ==="
