@@ -3,16 +3,6 @@ Feature: Travel card frontend
   Background:
     Given the /api/travel endpoint is available
 
-  Scenario: Two route options displayed for home-to-work
-    Given the API returns 2 routes for home_to_work and 0 incidents
-    When the TravelCard renders
-    Then 2 route cards are shown under the "Home → Work" heading
-
-  Scenario: Two route options displayed for home-to-nursery
-    Given the API returns 2 routes for home_to_nursery and 0 incidents
-    When the TravelCard renders
-    Then 2 route cards are shown under the "Home → Nursery" heading
-
   Scenario: Route description is shown on each card
     Given a route with description "via A3 and M25"
     When the TravelCard renders

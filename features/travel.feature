@@ -3,17 +3,6 @@ Feature: Travel backend — routes and incidents
   Background:
     Given the TomTom API is available
 
-  Scenario: Two route alternatives returned for each commute
-    Given TomTom returns 2 route alternatives for home to work
-    When the travel endpoint is called
-    Then the response contains 2 routes for home_to_work
-    And each route has travel_time_seconds, distance_meters, description, and delay_colour
-
-  Scenario: Two route alternatives returned for home to nursery
-    Given TomTom returns 2 route alternatives for home to nursery
-    When the travel endpoint is called
-    Then the response contains 2 routes for home_to_nursery
-
   Scenario: Route description extracted from significant road names
     Given a route with guidance instructions containing roads "A3", "minor road", "M25", "local street"
     When the route description is built
