@@ -1,6 +1,7 @@
 """Tests for weather backend — Open-Meteo integration."""
 
-from unittest.mock import AsyncMock, patch
+from datetime import datetime
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -346,30 +347,95 @@ _OPEN_METEO_RESPONSE = {
 # ---------------------------------------------------------------------------
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_returns_200(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+_CACHED_CURRENT = {
+    "temperature_celsius": 8.5,
+    "apparent_temperature_celsius": 6.0,
+    "weather_description": "Light rain",
+    "wind_speed_kmh": 20.0,
+    "humidity_percent": 75,
+}
+
+_CACHED_FORECAST = [
+    {
+        "time": "2025-01-01T08:00",
+        "temperature_celsius": 7.0,
+        "weather_description": "Partly cloudy",
+        "precipitation_probability": 10,
+    },
+    {
+        "time": "2025-01-01T09:00",
+        "temperature_celsius": 8.0,
+        "weather_description": "Light rain",
+        "precipitation_probability": 50,
+    },
+    {
+        "time": "2025-01-01T10:00",
+        "temperature_celsius": 9.0,
+        "weather_description": "Moderate rain",
+        "precipitation_probability": 60,
+    },
+    {
+        "time": "2025-01-01T11:00",
+        "temperature_celsius": 10.0,
+        "weather_description": "Overcast",
+        "precipitation_probability": 20,
+    },
+    {
+        "time": "2025-01-01T12:00",
+        "temperature_celsius": 11.0,
+        "weather_description": "Clear sky",
+        "precipitation_probability": 0,
+    },
+    {
+        "time": "2025-01-01T13:00",
+        "temperature_celsius": 12.0,
+        "weather_description": "Mainly clear",
+        "precipitation_probability": 5,
+    },
+]
+
+_CACHED_WEATHER_DATA = {"current": _CACHED_CURRENT, "forecast": _CACHED_FORECAST}
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_returns_200(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert resp.status_code == 200
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_response_has_current_key(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_response_has_current_key(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert "current" in resp.json()
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_response_has_forecast_key(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_response_has_forecast_key(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert "forecast" in resp.json()
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_current_fields_present(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_current_fields_present(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     current = resp.json()["current"]
     assert "temperature_celsius" in current
@@ -377,32 +443,48 @@ def test_endpoint_current_fields_present(mock_fetch):
     assert "weather_description" in current
     assert "wind_speed_kmh" in current
     assert "humidity_percent" in current
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_current_temperature_value(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_current_temperature_value(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert resp.json()["current"]["temperature_celsius"] == 8.5
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_current_weather_description(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_current_weather_description(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert resp.json()["current"]["weather_description"] == "Light rain"
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_forecast_contains_six_entries(mock_fetch):
-    # current time "2025-01-01T08:00" is at index 2; 6 entries remain (2–7)
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_forecast_contains_six_entries(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert len(resp.json()["forecast"]) == 6
+    weather_module._cache = None
 
 
-@patch("routers.weather.fetch_weather", new_callable=AsyncMock)
-def test_endpoint_forecast_first_entry_matches_current_hour(mock_fetch):
-    mock_fetch.return_value = _OPEN_METEO_RESPONSE
+@patch("routers.weather._get_now")
+def test_endpoint_forecast_first_entry_matches_current_hour(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert resp.json()["forecast"][0]["time"] == "2025-01-01T08:00"
+    weather_module._cache = None

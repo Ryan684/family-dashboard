@@ -22,6 +22,7 @@ class Settings:
     nursery_lat: float = float(os.getenv("NURSERY_LAT", "0"))
     nursery_lon: float = float(os.getenv("NURSERY_LON", "0"))
 
+    poll_interval_seconds: int = int(os.getenv("POLL_INTERVAL_SECONDS", "120"))
     poll_window_start: time = _parse_time(
         os.getenv("POLL_WINDOW_START", ""), "06:30"
     )

@@ -644,14 +644,40 @@ _INCIDENTS_RESPONSE = [
 # ---------------------------------------------------------------------------
 
 
+_CACHED_ROUTE_A = {
+    "travel_time_seconds": 1800,
+    "delay_seconds": 90,
+    "distance_meters": 25000,
+    "description": "via A3 and M25",
+    "delay_colour": "green",
+}
+
+_CACHED_ROUTE_B = {
+    "travel_time_seconds": 1950,
+    "delay_seconds": 300,
+    "distance_meters": 27000,
+    "description": "via A316",
+    "delay_colour": "amber",
+}
+
+_CACHED_INCIDENT = {
+    "type": "ACCIDENT",
+    "description": "Multi-vehicle accident",
+    "road": "M25",
+}
+
+_CACHED_TRAVEL_DATA = {
+    "home_to_work": [_CACHED_ROUTE_A, _CACHED_ROUTE_B],
+    "home_to_nursery": [_CACHED_ROUTE_A, _CACHED_ROUTE_B],
+    "incidents": [_CACHED_INCIDENT],
+}
+
+
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_returns_two_routes_for_each_commute(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = _INCIDENTS_RESPONSE
+def test_endpoint_returns_two_routes_for_each_commute(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
@@ -659,16 +685,14 @@ def test_endpoint_returns_two_routes_for_each_commute(
     data = resp.json()
     assert len(data["home_to_work"]) == 2
     assert len(data["home_to_nursery"]) == 2
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_route_fields_present(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = []
+def test_endpoint_route_fields_present(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
@@ -678,31 +702,26 @@ def test_endpoint_route_fields_present(
     assert "distance_meters" in route
     assert "description" in route
     assert "delay_colour" in route
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_route_description_extracted(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = []
+def test_endpoint_route_description_extracted(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
-    route = resp.json()["home_to_work"][0]
-    assert route["description"] == "via A3 and M25"
+    assert resp.json()["home_to_work"][0]["description"] == "via A3 and M25"
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_incidents_returned(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = _INCIDENTS_RESPONSE
+def test_endpoint_incidents_returned(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
@@ -710,34 +729,31 @@ def test_endpoint_incidents_returned(
     assert len(data["incidents"]) == 1
     assert data["incidents"][0]["type"] == "ACCIDENT"
     assert data["incidents"][0]["road"] == "M25"
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_no_incidents_when_empty(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = []
+def test_endpoint_no_incidents_when_empty(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = {**_CACHED_TRAVEL_DATA, "incidents": []}
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
     assert resp.json()["incidents"] == []
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_not_stale_within_poll_window(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = []
+def test_endpoint_not_stale_within_poll_window(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
     assert resp.json()["is_stale"] is False
+    travel_module._cache = None
 
 
 @patch("routers.travel._get_now")
@@ -773,19 +789,15 @@ def test_endpoint_stale_outside_poll_window_with_cache(mock_now):
 
 
 @patch("routers.travel._get_now")
-@patch("routers.travel.fetch_incidents", new_callable=AsyncMock)
-@patch("routers.travel.fetch_routes", new_callable=AsyncMock)
-def test_endpoint_delay_colour_in_route(
-    mock_fetch_routes, mock_fetch_incidents, mock_now
-):
-    mock_fetch_routes.return_value = _ROUTES_RESPONSE
-    mock_fetch_incidents.return_value = []
+def test_endpoint_delay_colour_in_route(mock_now):
+    import routers.travel as travel_module
+
+    travel_module._cache = _CACHED_TRAVEL_DATA
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
 
     resp = client.get("/api/travel")
-    route = resp.json()["home_to_work"][0]
-    # 90 delay / 1650 no-traffic = 5.5% → green
-    assert route["delay_colour"] == "green"
-    # alt route: 300 / 1650 = 18.2% → amber
-    alt_route = resp.json()["home_to_work"][1]
-    assert alt_route["delay_colour"] == "amber"
+    # 90 delay / 1650 no-traffic = 5.5% → green (from cached data)
+    assert resp.json()["home_to_work"][0]["delay_colour"] == "green"
+    # 300 delay / 1650 no-traffic = 18.2% → amber
+    assert resp.json()["home_to_work"][1]["delay_colour"] == "amber"
+    travel_module._cache = None
