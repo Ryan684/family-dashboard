@@ -6,6 +6,25 @@ Reference: see `family-dashboard.md` for the full project specification.
 
 ---
 
+## Session status
+
+| Session | Feature | Status |
+|---|---|---|
+| 1 | Project Scaffold | ✅ Complete |
+| 2 | ClockCard | ✅ Complete |
+| 3 | Travel Backend | ✅ Complete |
+| 4 | TravelCard Frontend | ✅ Complete |
+| 5 | Weather Backend | ✅ Complete |
+| 6 | WeatherCard Frontend | ✅ Complete |
+| 7 | Calendar Backend | ✅ Complete |
+| 8 | CalendarCard Frontend | ✅ Complete |
+| 9 | AlertBanner + Layout Integration | ✅ Complete |
+| 10 | Scheduler and Polling | ✅ Complete |
+| 11 | Dynamic Commutes Backend | ✅ Complete |
+| 12 | Dynamic Commutes Frontend | ⬜ Pending |
+
+---
+
 ## Session 1 — Project Scaffold
 
 ```
@@ -39,7 +58,7 @@ Implement the ClockCard feature only. Follow the build order from the spec exact
 
 Step 1: Write features/clock.feature
 Step 2: Write frontend/src/components/ClockCard.test.jsx — tests must fail before implementation
-Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement ClockCard.jsx applying the screen size design notes from the spec (24" landscape, 1-2m viewing distance, 48px+ primary text, dark theme, no hover states)
+Step 3: Invoke the `/frontend-design` skill, then implement ClockCard.jsx applying the screen size design notes from the spec (24" landscape, 1-2m viewing distance, 48px+ primary text, dark theme, no hover states)
 Step 4: Confirm all ClockCard tests pass
 Step 5: Commit on a feature branch with a conventional commit message
 
@@ -76,7 +95,7 @@ Implement the TravelCard frontend component only. The backend /api/travel endpoi
 
 Step 1: Write features/travel_card.feature covering the frontend behaviour — two route options displayed, description shown, colour state (green/amber/red) rendered correctly, incident list shown only when incidents present
 Step 2: Write frontend/src/components/TravelCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement TravelCard.jsx applying the screen size design notes from the spec
+Step 3: Invoke the `/frontend-design` skill, then implement TravelCard.jsx applying the screen size design notes from the spec
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -114,7 +133,7 @@ Implement the WeatherCard frontend component only. The backend /api/weather endp
 
 Step 1: Write features/weather_card.feature
 Step 2: Write frontend/src/components/WeatherCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement WeatherCard.jsx applying the screen size design notes from the spec
+Step 3: Invoke the `/frontend-design` skill, then implement WeatherCard.jsx applying the screen size design notes from the spec
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -152,7 +171,7 @@ Implement the CalendarCard frontend component only. The backend /api/calendar en
 
 Step 1: Write features/calendar_card.feature
 Step 2: Write frontend/src/components/CalendarCard.test.jsx — mock the API response, tests must fail before implementation
-Step 3: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md, then implement CalendarCard.jsx applying the screen size design notes from the spec. Events should be colour-coded per calendar. Today and tomorrow shown separately.
+Step 3: Invoke the `/frontend-design` skill, then implement CalendarCard.jsx applying the screen size design notes from the spec. Events should be colour-coded per calendar. Today and tomorrow shown separately.
 Step 4: Run vitest — all tests must pass
 Step 5: Run Stryker — address surviving mutants
 Step 6: Commit on a feature branch
@@ -177,7 +196,7 @@ Step 4: Run vitest — all tests pass
 
 Part 2 — Layout:
 Step 5: Update App.jsx to compose ClockCard, TravelCard, WeatherCard, CalendarCard, and AlertBanner into the final dashboard layout. Apply the 2-3 column grid from the screen size design notes. ClockCard spans full width at top.
-Step 6: Read /mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md and review the overall layout for visual coherence — typography scale, spacing, dark theme consistency
+Step 6: Invoke the `/frontend-design` skill and review the overall layout for visual coherence — typography scale, spacing, dark theme consistency
 Step 7: Run the full test suite (pytest + vitest) — all pass
 Step 8: Commit on a feature branch
 
@@ -202,6 +221,118 @@ Step 6: Confirm the full stack runs end-to-end on localhost with live data
 Step 7: Commit on a feature branch
 
 Stop after the commit.
+```
+
+---
+
+## Session 11 — Dynamic Commutes Backend
+
+```
+@family-dashboard.md
+
+Refactor the travel backend to support per-commuter dynamic commutes driven by a static weekly
+schedule config. The existing /api/travel endpoint shape will be replaced entirely.
+
+Context — commute rules:
+- Each commuter has a mode per weekday: "office" | "wfh" | "off"
+- Each commuter has a nursery_drop boolean per weekday
+- Dog daycare has its own days list and a weekly_dropper field naming who does it that week
+- Nursery gate: if today is not in nursery.days, no nursery drop occurs for anyone
+- Dog gate: if today is not in dog_daycare.days, no dog drop occurs
+- Drop order is per-commuter config (e.g. ["dog", "nursery"])
+- Route destination: office → ends at work; wfh or off → returns home (out-and-back)
+- If mode is wfh or off and no drops: commuter is omitted from response entirely
+
+Config files:
+- commute-schedule.json: committed to repo, contains schedule, drop_order, nursery.days,
+  dog_daycare.days, dog_daycare.weekly_dropper (no coordinates)
+- .env / .env.example: add COMMUTER_1_WORK_LAT, COMMUTER_1_WORK_LON, COMMUTER_2_WORK_LAT,
+  COMMUTER_2_WORK_LON, NURSERY_LAT, NURSERY_LON, DOG_DAYCARE_LAT, DOG_DAYCARE_LON
+  (HOME_LAT and HOME_LON already exist)
+
+New /api/travel response shape:
+{
+  "commuters": [
+    {
+      "name": "string",
+      "mode": "office" | "wfh" | "off",
+      "drops": ["dog", "nursery"],          // ordered list of drops active today
+      "routes": [ ...2 alternatives... ],   // same route object shape as before
+      "incidents": [ ... ]
+    }
+  ],
+  "is_stale": false
+}
+
+If commuters array is empty (everyone inactive), return {"commuters": [], "is_stale": false}.
+
+Routes use a single TomTom calculateRoute call with ordered waypoints:
+  office:   home → [drops in order] → work
+  wfh/off:  home → [drops in order] → home   (only if drops non-empty)
+
+Step 1: Write features/dynamic_commutes.feature — cover: office no drops, office with nursery,
+        office with dog, office with both drops, wfh no drops (omitted), wfh with dog (out-and-back),
+        wfh with both drops (out-and-back), day-off with drops, nursery gate (not a nursery day),
+        dog gate (not a dog daycare day), dog gate (not weekly_dropper)
+Step 2: Add COMMUTER_1_WORK_LAT etc. to .env.example only — never edit .env
+Step 3: Create commute-schedule.json with example data (placeholder coordinates already excluded)
+Step 4: Write backend/tests/test_commute_schedule.py and backend/tests/test_travel_dynamic.py —
+        mock all TomTom calls, tests must fail before implementation
+Step 5: Implement backend/services/commute_schedule.py — loads config, resolves today's per-commuter
+        drops and mode, applies nursery/dog gates
+Step 6: Refactor backend/routers/travel.py — use schedule resolver, build ordered waypoint lists,
+        make single TomTom call per commuter, return new response shape. Remove old flat response.
+Step 7: Run pytest — all tests must pass
+Step 8: Run mutmut — address surviving mutants; document any acceptable survivors in MUTANTS.md
+Step 9: Commit on feature/dynamic-commutes with a conventional commit message
+
+Do not touch the frontend. Do not make live API calls during testing. Stop after the commit.
+```
+
+---
+
+## Session 12 — Dynamic Commutes Frontend
+
+```
+@family-dashboard.md
+
+Refactor the TravelCard frontend and dashboard layout to consume the new per-commuter /api/travel
+response from Session 11. The old flat response shape no longer exists.
+
+Context — new API shape:
+{
+  "commuters": [
+    {
+      "name": "string",
+      "mode": "office" | "wfh" | "off",
+      "drops": ["dog", "nursery"],
+      "routes": [ ...2 alternatives... ],
+      "incidents": [ ... ]
+    }
+  ],
+  "is_stale": false
+}
+
+Display rules:
+- Render one TravelCard per entry in commuters[] — absent from array means no card rendered
+- Card header shows the commuter's name
+- Route display is identical to current TravelCard (description, delay colour, incidents)
+- When commuters[] is empty, the travel section is hidden entirely and the grid reflows
+- The dashboard grid must reflow gracefully for 0, 1, or 2 active commuter cards
+
+Step 1: Write features/dynamic_travel_card.feature — cover: two commuters shown, one commuter
+        shown (other WFH/off), no commuters shown (grid reflows), incident display per card,
+        commuter name shown in card header, out-and-back route label distinct from office route
+Step 2: Write frontend/src/components/TravelCard.test.jsx updates and any new layout tests —
+        mock the new API response shape, tests must fail before implementation
+Step 3: Invoke the `/frontend-design` skill,
+        then update TravelCard.jsx and App.jsx layout to match the new response shape and grid rules
+Step 4: Run vitest — all tests must pass
+Step 5: Run Stryker — address surviving mutants
+Step 6: Confirm the dashboard layout renders correctly for all three card-count states (0, 1, 2)
+Step 7: Commit on feature/dynamic-commutes with a conventional commit message
+
+Do not modify the backend. Stop after the commit.
 ```
 
 ---
@@ -235,6 +366,8 @@ Switch mid-session if you hit a genuinely tricky design decision:
 | 8 — CalendarCard | Sonnet | Frontend implementation |
 | 9 — AlertBanner + layout | Sonnet | Component composition |
 | 10 — Scheduler | Sonnet + Opus /plan if needed | Cache design, poll window enforcement, startup coordination |
+| 11 — Dynamic Commutes Backend | Sonnet + Opus /plan if needed | Schedule resolver design, multi-waypoint routing, breaking API change |
+| 12 — Dynamic Commutes Frontend | Sonnet | Dynamic grid, per-commuter card rendering |
 
 ---
 

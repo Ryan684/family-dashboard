@@ -84,7 +84,7 @@ With the freestanding arm, run both power cables (monitor + Pi) down the back of
 ## Features
 
 - **Clock & date** — large, always-visible time and date display; the most prominent element on the screen, legible from across the room at a glance
-- **Travel ETAs** — for each commute route (home → work, home → nursery): the 2 fastest alternative routes with travel time, a brief route description (e.g. "via M25 and A3"), and colour-coded delay status (green / amber / red). Traffic incident warnings for any incidents on or near either route are shown beneath.
+- **Travel ETAs** — per-commuter, schedule-driven routing. Each active commuter gets a card showing 2 fastest route alternatives with travel time, a brief route description (e.g. "via M25 and A3"), and colour-coded delay status (green / amber / red). Routes are multi-waypoint where applicable (e.g. home → dog daycare → nursery → work). Commuters who are WFH or off with no drops are hidden; the grid reflows. Traffic incident warnings for any incidents on or near a commuter's route are shown beneath their card.
 - **Weather** — current conditions and short forecast for home and commute destination locations
 - **Calendar** — upcoming events from shared family Google Calendar (today + tomorrow)
 - **Morning alert banner** — contextual message if a route has significant delay (e.g. "Leave 15 mins early")
@@ -112,7 +112,7 @@ With the freestanding arm, run both power cables (monitor + Pi) down the back of
 
 ### Design Approach
 
-Use the **Anthropic frontend-design skill** when building the UI (`/mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md`). Key principles:
+Use the **Anthropic frontend-design skill** when building the UI (invoke via `/frontend-design`). Key principles:
 
 - Commit to a bold, specific aesthetic direction — e.g. refined dark theme with strong typographic hierarchy and generous spacing
 - Distinctive font pairing (avoid Inter/Roboto/system fonts)
@@ -150,9 +150,67 @@ Family members can continue using the native iOS Calendar app — Google Calenda
 
 ### Travel Feature — Implementation Detail
 
+#### Commute schedule config
+
+Routing is driven by `commute-schedule.json` (committed to the repo) combined with coordinate env vars. No routing logic is hardcoded.
+
+**`commute-schedule.json` structure:**
+```json
+{
+  "commuters": [
+    {
+      "name": "Ryan",
+      "drop_order": ["dog", "nursery"],
+      "schedule": {
+        "monday":    { "mode": "office", "nursery_drop": true },
+        "tuesday":   { "mode": "office", "nursery_drop": false },
+        "wednesday": { "mode": "off",    "nursery_drop": false },
+        "thursday":  { "mode": "office", "nursery_drop": true },
+        "friday":    { "mode": "wfh",    "nursery_drop": false }
+      }
+    },
+    {
+      "name": "Emily",
+      "drop_order": ["nursery", "dog"],
+      "schedule": { ... }
+    }
+  ],
+  "nursery": {
+    "days": ["monday", "tuesday", "thursday"]
+  },
+  "dog_daycare": {
+    "days": ["wednesday"],
+    "weekly_dropper": "Ryan"
+  }
+}
+```
+
+`weekly_dropper` is the only field that needs editing week-to-week (when dog drop responsibility alternates).
+
+**Day states per commuter:** `"office"` | `"wfh"` | `"off"`
+
+**Drop gate rules:**
+- Nursery drop only occurs if today is in `nursery.days` AND the commuter has `nursery_drop: true` in their schedule
+- Dog drop only occurs if today is in `dog_daycare.days` AND the commuter matches `weekly_dropper`
+
 #### Route data (TomTom Routing API)
 
-A single `calculateRoute` call with `maxAlternatives=1` returns 2 route options ranked by travel time. From each route the backend extracts:
+For each active commuter the backend resolves their waypoints and makes a single `calculateRoute` call with ordered waypoints and `maxAlternatives=1` (returns 2 route options).
+
+**Waypoint ordering:**
+
+| mode | drops | waypoints |
+|---|---|---|
+| office | none | home → work |
+| office | [dog] | home → dog daycare → work |
+| office | [nursery] | home → nursery → work |
+| office | [dog, nursery] | home → dog daycare → nursery → work |
+| wfh / off | none | *commuter omitted — no card* |
+| wfh / off | [any] | home → [drops in drop_order] → home |
+
+Drop order within a route follows the commuter's `drop_order` config.
+
+From each route the backend extracts:
 
 - `travelTimeInSeconds` — used for ETA display and delay status
 - `trafficDelayInSeconds` — used to determine colour state
@@ -172,32 +230,51 @@ A single `calculateRoute` call with `maxAlternatives=1` returns 2 route options 
 
 The guidance instructions in the routing response include named road segments. The backend extracts the most significant road names (motorways and A-roads prioritised, limited to 2–3) and formats them as "via [Road1] and [Road2]". Generated server-side — no NLP required.
 
+#### API response shape
+
+```json
+{
+  "commuters": [
+    {
+      "name": "Ryan",
+      "mode": "office",
+      "drops": ["dog", "nursery"],
+      "routes": [ ...2 alternatives... ],
+      "incidents": [ ... ]
+    }
+  ],
+  "is_stale": false
+}
+```
+
+If both commuters are inactive (wfh/off with no drops), `commuters` is an empty array and the travel section is hidden on the frontend.
+
 #### Incident warnings (TomTom Traffic Incidents API)
 
-After fetching routes, the backend:
+After fetching routes for each commuter, the backend:
 
-1. Extracts the polyline coordinates from both routes
-2. Calculates a bounding box encompassing both route polylines
+1. Extracts the polyline coordinates from both route alternatives
+2. Calculates a bounding box encompassing the polylines
 3. Expands the bounding box by ~0.02 degrees (~1.5km) in all directions
 4. Fetches a fresh Traffic Model ID (required — valid for 2 minutes only; must be refreshed each poll cycle)
 5. Queries the `incidentDetails` endpoint with the bounding box
 6. Filters to meaningful severity levels only (excludes minor flow data)
 7. Returns incident type, short description, and road name for display
 
-Incidents render as a compact warning list beneath the route cards, only shown when incidents are present.
+Incidents render as a compact warning list beneath each commuter's route card, only shown when incidents are present.
 
 #### API request budget
 
-With two commute routes polled every 2 minutes during a morning window (06:30–09:30):
+With up to 2 active commuters polled every 2 minutes during a morning window (06:30–09:30):
 
-| Call | Per cycle | Daily count (3hr window) |
+| Call | Per cycle (2 commuters) | Daily count (3hr window) |
 |---|---|---|
-| `calculateRoute` (x2 routes) | 2 | ~180 |
-| Traffic Model ID fetch | 1 | ~90 |
-| `incidentDetails` | 1 | ~90 |
-| **Total** | | **~360/day** |
+| `calculateRoute` (1 per active commuter) | up to 2 | up to ~180 |
+| Traffic Model ID fetch (1 per commuter) | up to 2 | up to ~180 |
+| `incidentDetails` (1 per commuter) | up to 2 | up to ~180 |
+| **Total** | | **up to ~540/day** |
 
-This is well within the 2,500 free tier limit. Outside the configured poll window, the backend serves the last cached result with a stale-data indicator on the frontend.
+This is well within the 2,500 free tier limit. On days with one or both commuters inactive, the budget is lower. Outside the configured poll window, the backend serves the last cached result with a stale-data indicator on the frontend.
 
 Add to `.env`:
 ```
@@ -248,6 +325,15 @@ All hooks are configured in `.claude/settings.json` at the project root. They ru
             "type": "command",
             "comment": "Print git context and last test results at session open",
             "command": "echo '=== Session Start ===' && git status && git branch --show-current && echo '--- Last test results ---' && cat .last-test-results 2>/dev/null || echo 'No previous test results found'"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Install Python 3.14 + backend venv + frontend node_modules (web only)",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
           }
         ]
       }
@@ -332,6 +418,7 @@ All hooks are configured in `.claude/settings.json` at the project root. They ru
 | Event | Matcher | Purpose |
 |---|---|---|
 | `SessionStart` | — | Print git status, current branch, last test results |
+| `SessionStart` | — | Install Python 3.14 + venv + npm deps (web/cloud sessions only) |
 | `PreToolUse` | Write/Edit | Block `.env` edits; block all writes on `main` |
 | `PreToolUse` | Bash | Block `rm -rf`, `--force`, direct push to `main` |
 | `PostToolUse` | Write/Edit | Auto-run `ruff` / `eslint` + `prettier` on changed file |
@@ -423,7 +510,7 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - NEVER implement behaviour not covered by a feature file
 
 ## Before writing any UI component
-Read `/mnt/wslg/distro/home/ryank/.claude/plugins/marketplaces/anthropic-agent-skills/skills/frontend-design/SKILL.md` and apply screen size design notes from `family-dashboard.md`.
+Invoke the `/frontend-design` skill and apply screen size design notes from `family-dashboard.md`.
 
 ## When compacting
 Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.
@@ -489,27 +576,40 @@ The `Stop` hook runs the full test suite automatically. Before marking a feature
 ```
 family-dashboard/
 ├── .claude/
-│   └── settings.json                # Claude Code hooks (all hook config lives here)
+│   ├── settings.json                # Claude Code hooks (all hook config lives here)
+│   └── hooks/
+│       └── session-start.sh         # Web session env setup (Python 3.14 + deps; no-op locally)
 ├── .claude-failures.jsonl           # Auto-populated by PostToolUseFailure hook (gitignored)
 ├── .last-test-results               # Auto-populated by Stop hook (gitignored)
 ├── CLAUDE.md                        # Claude Code rules for this project
 ├── .env.example                     # Committed template — never commit .env itself
+├── commute-schedule.json            # Weekly commute schedule (names, modes, drop assignments)
 ├── features/                        # Gherkin feature files (written before any code)
 │   ├── clock.feature
 │   ├── travel.feature
+│   ├── travel_card.feature
 │   ├── weather.feature
+│   ├── weather_card.feature
 │   ├── calendar.feature
-│   └── alert_banner.feature
+│   ├── calendar_card.feature
+│   ├── alert_banner.feature
+│   ├── scheduler.feature
+│   ├── dynamic_commutes.feature     # Per-commuter schedule-driven routing (backend)
+│   └── dynamic_travel_card.feature  # Per-commuter cards and grid reflow (frontend)
 ├── backend/
 │   ├── main.py                      # FastAPI app, routes, startup, serves frontend static files
 │   ├── scheduler.py                 # Background polling / cache refresh tasks
 │   ├── routers/
-│   │   ├── travel.py                # TomTom Routing API integration
+│   │   ├── travel.py                # TomTom Routing API integration (per-commuter)
 │   │   ├── weather.py               # Open-Meteo integration
 │   │   └── calendar.py              # Google Calendar API integration
+│   ├── services/
+│   │   └── commute_schedule.py      # Schedule resolver — reads config, applies gates, builds waypoints
 │   ├── config.py                    # Settings loaded from .env
 │   ├── tests/
 │   │   ├── test_travel.py
+│   │   ├── test_commute_schedule.py
+│   │   ├── test_travel_dynamic.py
 │   │   ├── test_weather.py
 │   │   └── test_calendar.py
 │   ├── .env                         # API keys and config (gitignored — never commit)
@@ -521,7 +621,7 @@ family-dashboard/
 │   │   └── components/
 │   │       ├── ClockCard.jsx
 │   │       ├── ClockCard.test.jsx
-│   │       ├── TravelCard.jsx
+│   │       ├── TravelCard.jsx        # Per-commuter card; handles office and out-and-back routes
 │   │       ├── TravelCard.test.jsx
 │   │       ├── WeatherCard.jsx
 │   │       ├── WeatherCard.test.jsx
@@ -547,13 +647,21 @@ Never commit `.env`. Commit `.env.example` with placeholder values only.
 ```
 TOMTOM_API_KEY=your_key_here
 
-# Commute routes (lat/lon pairs)
+# Shared home location
 HOME_LAT=51.XXXX
 HOME_LON=-0.XXXX
-WORK_LAT=51.XXXX
-WORK_LON=-0.XXXX
+
+# Per-commuter work locations
+COMMUTER_1_WORK_LAT=51.XXXX
+COMMUTER_1_WORK_LON=-0.XXXX
+COMMUTER_2_WORK_LAT=51.XXXX
+COMMUTER_2_WORK_LON=-0.XXXX
+
+# Drop locations
 NURSERY_LAT=51.XXXX
 NURSERY_LON=-0.XXXX
+DOG_DAYCARE_LAT=51.XXXX
+DOG_DAYCARE_LON=-0.XXXX
 
 # Google Calendar
 GOOGLE_CALENDAR_ID=your_family_calendar_id@group.calendar.google.com
@@ -565,6 +673,8 @@ POLL_INTERVAL_SECONDS=120
 POLL_WINDOW_START=06:30
 POLL_WINDOW_END=09:30
 ```
+
+Commuter names, schedules, drop assignments, and drop ordering are configured in `commute-schedule.json` (committed to the repo — no secrets). The `weekly_dropper` field in `dog_daycare` is the only entry that changes week-to-week.
 
 ---
 

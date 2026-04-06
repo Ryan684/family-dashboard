@@ -17,10 +17,14 @@ class Settings:
 
     home_lat: float = float(os.getenv("HOME_LAT", "0"))
     home_lon: float = float(os.getenv("HOME_LON", "0"))
-    work_lat: float = float(os.getenv("WORK_LAT", "0"))
-    work_lon: float = float(os.getenv("WORK_LON", "0"))
+    commuter_1_work_lat: float = float(os.getenv("COMMUTER_1_WORK_LAT", "0"))
+    commuter_1_work_lon: float = float(os.getenv("COMMUTER_1_WORK_LON", "0"))
+    commuter_2_work_lat: float = float(os.getenv("COMMUTER_2_WORK_LAT", "0"))
+    commuter_2_work_lon: float = float(os.getenv("COMMUTER_2_WORK_LON", "0"))
     nursery_lat: float = float(os.getenv("NURSERY_LAT", "0"))
     nursery_lon: float = float(os.getenv("NURSERY_LON", "0"))
+    dog_daycare_lat: float = float(os.getenv("DOG_DAYCARE_LAT", "0"))
+    dog_daycare_lon: float = float(os.getenv("DOG_DAYCARE_LON", "0"))
 
     poll_interval_seconds: int = int(os.getenv("POLL_INTERVAL_SECONDS", "120"))
     poll_window_start: time = _parse_time(

@@ -46,11 +46,10 @@ function injectStyles() {
 
 function hasRedRoute(travelData) {
   if (!travelData) return false
-  const allRoutes = [
-    ...(travelData.home_to_work || []),
-    ...(travelData.home_to_nursery || []),
-  ]
-  return allRoutes.some((route) => route.delay_colour === 'red')
+  const commuters = travelData.commuters || []
+  return commuters.some((commuter) =>
+    (commuter.routes || []).some((route) => route.delay_colour === 'red')
+  )
 }
 
 function AlertBanner({ travelData }) {

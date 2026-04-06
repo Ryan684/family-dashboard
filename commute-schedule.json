@@ -1,0 +1,33 @@
+{
+  "commuters": [
+    {
+      "name": "Commuter1",
+      "drop_order": ["dog", "nursery"],
+      "schedule": {
+        "monday":    { "mode": "office", "nursery_drop": true },
+        "tuesday":   { "mode": "office", "nursery_drop": false },
+        "wednesday": { "mode": "off",    "nursery_drop": false },
+        "thursday":  { "mode": "office", "nursery_drop": true },
+        "friday":    { "mode": "wfh",    "nursery_drop": false }
+      }
+    },
+    {
+      "name": "Commuter2",
+      "drop_order": ["nursery", "dog"],
+      "schedule": {
+        "monday":    { "mode": "office", "nursery_drop": false },
+        "tuesday":   { "mode": "office", "nursery_drop": true },
+        "wednesday": { "mode": "office", "nursery_drop": false },
+        "thursday":  { "mode": "wfh",    "nursery_drop": false },
+        "friday":    { "mode": "off",    "nursery_drop": false }
+      }
+    }
+  ],
+  "nursery": {
+    "days": ["monday", "tuesday", "thursday"]
+  },
+  "dog_daycare": {
+    "days": ["wednesday"],
+    "weekly_dropper": "Commuter1"
+  }
+}
