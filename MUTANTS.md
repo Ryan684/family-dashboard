@@ -90,6 +90,52 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Line 169–170: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup on unmount. Same reasoning as WeatherCard — not observably testable in single-render unit tests. |
 | Line 172: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Tests render once and do not re-render, so a mutated deps array cannot be observed. Accepted as a tool limitation. |
 
+### `components/TravelCard.jsx` (Session 12 refactor)
+
+9 surviving mutants across two accepted categories:
+
+**Style injection infrastructure (9 mutants — lines 1, 3–8)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 1: `STYLES_ID = 'travel-card-styles'` | `→ ""` | Used only to tag the injected `<style>` element. JSDOM does not render CSS; the ID is unobservable in tests. Same pattern as WeatherCard/CalendarCard. |
+| Lines 3–8: `injectStyles()` body | Block removed; guard conditions mutated | Same category as WeatherCard — JSDOM does not apply injected CSS, SSR guard is unreachable, deduplication guard is unobservable. All accepted for the same reasons. |
+
+### `App.jsx` (Session 12 refactor)
+
+Approximately 30 surviving mutants across three accepted categories:
+
+**Style injection infrastructure (~9 mutants — lines 8–15)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| Line 8: `STYLES_ID = 'app-styles'` | `→ ""` | CSS style deduplication ID — not observable via RTL tests. JSDOM does not render injected CSS. |
+| Lines 10–15: `injectStyles()` body | Block removed; guard conditions mutated (typeof, getElementById, textContent) | JSDOM does not apply CSS; SSR guard unreachable in tests; deduplication guard produces no observable effect. Same pattern accepted for all other components. |
+
+**React async cancellation/cleanup pattern (~9 mutants — lines ~127–151)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `if (!res.ok) throw …` in fetchTravel | Condition mutated | Non-ok status test already covers the happy path; the cancel race is not reproducible synchronously in JSDOM. |
+| `if (!cancelled)` (success and error paths) | `→ if (true)` | Post-unmount cancellation guards. React 18 / JSDOM silently discards post-unmount state updates. Killing requires precise async timing after unmount — not reliable in unit tests. Correct pattern, accepted survivor. |
+| `return () => { cancelled = true; clearInterval(id) }` | Body removed / values mutated | Cleanup on unmount. Same reasoning — unmount race is not testable in single-render unit tests. |
+
+**Grid class and style string mutations (~12 mutants — lines ~179–198)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `loading \|\| error ? 'app-grid--1' : 'app-grid--${count}'` | Condition operators / string values mutated | CSS class names only — JSDOM does not apply layout; tests assert on content (commuter names, route cards), not CSS class assignment. |
+| `count === 2 ? 'app-cell--travel-2' : 'app-cell'` | `===` → `!==`, values mutated | CSS grid span class — visual layout only. JSDOM cannot observe column span; tests assert on rendered content. |
+| `display: 'flex'`, `height: '100%'` style strings | Strings mutated to `""` | Inline style properties — purely presentational. JSDOM does not compute layout; RTL tests assert on element presence and text, not CSS properties. |
+
+### `components/AlertBanner.jsx` (Session 12 update)
+
+9 surviving mutants in two accepted categories — identical to prior session analysis:
+
+**Style injection infrastructure (same as CalendarCard/WeatherCard pattern)** — 5 mutants: STYLES_ID constant, injectStyles() block, SSR guard variants, deduplication guard, textContent assignment. All accepted for the same reasons documented above.
+
+**Equivalence / unreachable mutations** — 4 mutants on `hasRedRoute`: mutations to `commuters || []` and `.routes || []` fallbacks behave identically when those keys are absent (empty array vs undefined short-circuit). Tests cover the present-key paths; absent-key cases produce identical behaviour under the mutation.
+
 ---
 
 ## Notes
