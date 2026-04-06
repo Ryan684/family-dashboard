@@ -51,7 +51,7 @@ def build_waypoints(
     nursery: tuple[float, float],
     dog_daycare: tuple[float, float],
 ) -> list[tuple[float, float]]:
-    """Build an ordered waypoint list for a TomTom calculateRoute call.
+    """Build an ordered waypoint list for a computeRoutes call.
 
     office + no drops  → [home, work]
     office + drops     → [home, ...drops..., work]

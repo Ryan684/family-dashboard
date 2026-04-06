@@ -10,7 +10,7 @@ Full project spec and design rationale: [`family-dashboard.md`](family-dashboard
 
 - Python 3.14
 - Node.js 20+
-- A [TomTom Developer](https://developer.tomtom.com/) account (free tier — 2,500 requests/day)
+- A Google Cloud project with the [Routes API](https://console.cloud.google.com/apis/library/routes.googleapis.com) enabled and an API key
 - A Google Calendar API project with OAuth credentials ([setup guide](https://developers.google.com/calendar/api/quickstart/python))
 
 ---
@@ -37,7 +37,7 @@ Edit `.env` and fill in your values:
 
 | Variable | Required | Description |
 |---|---|---|
-| `TOMTOM_API_KEY` | Yes | From the TomTom Developer portal |
+| `GOOGLE_MAPS_API_KEY` | Yes | Google Cloud API key with Routes API enabled |
 | `HOME_LAT` / `HOME_LON` | Yes | Your home coordinates |
 | `COMMUTER_1_WORK_LAT/LON` | Yes | Work location for the first commuter |
 | `COMMUTER_2_WORK_LAT/LON` | If 2 commuters | Work location for the second commuter |

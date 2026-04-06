@@ -1,7 +1,7 @@
 Feature: Travel backend — routes and incidents
 
   Background:
-    Given the TomTom API is available
+    Given the routing API is available
 
   Scenario: Route description extracted from significant road names
     Given a route with guidance instructions containing roads "A3", "minor road", "M25", "local street"
@@ -44,18 +44,18 @@ Feature: Travel backend — routes and incidents
     Then the colour is "red"
 
   Scenario: Incident warnings returned when incidents are present
-    Given TomTom incident API returns 2 incidents of significant severity
+    Given the incident data contains 2 incidents of significant severity
     When the travel endpoint is called
     Then the response contains 2 incidents
     And each incident has type, description, and road fields
 
   Scenario: No incident warnings when none are present
-    Given TomTom incident API returns no incidents
+    Given the incident data contains no incidents
     When the travel endpoint is called
     Then the response contains 0 incidents
 
   Scenario: Minor incidents are filtered out
-    Given TomTom incident API returns an incident with magnitudeOfDelay 1
+    Given the incident data contains an incident with magnitudeOfDelay 1
     When incidents are parsed
     Then the incident is excluded from the result
 

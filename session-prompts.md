@@ -75,8 +75,8 @@ Do not touch any other component or backend file. Stop after the commit.
 Implement the travel backend route only. Do not touch the frontend.
 
 Step 1: Write features/travel.feature covering: two routes returned, route description format, delay colour logic thresholds, and incident warnings
-Step 2: Write backend/tests/test_travel.py — mock all TomTom API calls, tests must fail before implementation
-Step 3: Implement backend/routers/travel.py — calculateRoute with maxAlternatives=1, route description extracted from guidance road names, bounding box derived from polyline for incident query, poll window enforcement from config
+Step 2: Write backend/tests/test_travel.py — mock all routing API calls, tests must fail before implementation
+Step 3: Implement backend/routers/travel.py — computeRoutes with computeAlternativeRoutes=true, route description extracted from step navigation instruction text (regex on A/M road names), poll window enforcement from config
 Step 4: Run pytest — all tests must pass
 Step 5: Run mutmut — address any surviving mutants
 Step 6: Commit on a feature branch
@@ -266,7 +266,7 @@ New /api/travel response shape:
 
 If commuters array is empty (everyone inactive), return {"commuters": [], "is_stale": false}.
 
-Routes use a single TomTom calculateRoute call with ordered waypoints:
+Routes use a single Google Maps Routes API computeRoutes call with ordered waypoints:
   office:   home → [drops in order] → work
   wfh/off:  home → [drops in order] → home   (only if drops non-empty)
 
@@ -277,11 +277,11 @@ Step 1: Write features/dynamic_commutes.feature — cover: office no drops, offi
 Step 2: Add COMMUTER_1_WORK_LAT etc. to .env.example only — never edit .env
 Step 3: Create commute-schedule.json with example data (placeholder coordinates already excluded)
 Step 4: Write backend/tests/test_commute_schedule.py and backend/tests/test_travel_dynamic.py —
-        mock all TomTom calls, tests must fail before implementation
+        mock all routing API calls, tests must fail before implementation
 Step 5: Implement backend/services/commute_schedule.py — loads config, resolves today's per-commuter
         drops and mode, applies nursery/dog gates
 Step 6: Refactor backend/routers/travel.py — use schedule resolver, build ordered waypoint lists,
-        make single TomTom call per commuter, return new response shape. Remove old flat response.
+        make single Google Maps Routes API call per commuter, return new response shape. Remove old flat response.
 Step 7: Run pytest — all tests must pass
 Step 8: Run mutmut — address surviving mutants; document any acceptable survivors in MUTANTS.md
 Step 9: Commit on feature/dynamic-commutes with a conventional commit message

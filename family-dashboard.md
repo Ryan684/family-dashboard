@@ -137,8 +137,8 @@ Pass these notes to the frontend-design skill as context when building any UI co
 
 | Purpose | Provider | Notes |
 |---|---|---|
-| Travel — routes & ETAs | TomTom Routing API (`calculateRoute`) | Single call with `maxAlternatives=1` returns 2 fastest routes. Each route includes travel time, distance, traffic delay, and turn-by-turn guidance — road names extracted from guidance to form a brief route description. Free tier: 2,500 requests/day. |
-| Travel — incident warnings | TomTom Traffic Incidents API (`incidentDetails`) | Bounding box derived from route polyline (expanded ~1–2km) queried for active incidents. Returns type, description, and severity. A fresh Traffic Model ID must be fetched before each incident call to keep data in sync with the routing response. Free tier included in the same 2,500 request allowance. |
+| Travel — routes & ETAs | Google Maps Routes API (`computeRoutes`) | POST request with `computeAlternativeRoutes: true` returns 2 fastest routes. Each route includes travel time, static (no-traffic) duration, distance, and step-by-step navigation — road names extracted from step instructions to form a brief route description. Free tier: $200/month credit (well within personal dashboard usage). |
+| Travel — incident warnings | N/A | Google Maps Routes API does not provide a direct traffic incident endpoint. Incidents are always returned as an empty array. The frontend incident display remains in place for potential future provider additions. |
 | Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Hourly forecast + current conditions. |
 | Calendar | Google Calendar API | REST API, OAuth 2.0. Free. Official Python client library (`google-api-python-client`). Shared family Google Calendar. |
 
@@ -193,9 +193,9 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
 - Nursery drop only occurs if today is in `nursery.days` AND the commuter has `nursery_drop: true` in their schedule
 - Dog drop only occurs if today is in `dog_daycare.days` AND the commuter matches `weekly_dropper`
 
-#### Route data (TomTom Routing API)
+#### Route data (Google Maps Routes API)
 
-For each active commuter the backend resolves their waypoints and makes a single `calculateRoute` call with ordered waypoints and `maxAlternatives=1` (returns 2 route options).
+For each active commuter the backend resolves their waypoints and makes a single `computeRoutes` POST call with ordered waypoints and `computeAlternativeRoutes: true` (returns 2 route options).
 
 **Waypoint ordering:**
 
@@ -212,11 +212,11 @@ Drop order within a route follows the commuter's `drop_order` config.
 
 From each route the backend extracts:
 
-- `travelTimeInSeconds` — used for ETA display and delay status
-- `trafficDelayInSeconds` — used to determine colour state
-- `noTrafficTravelTimeInSeconds` — baseline for delay percentage calculation
-- `lengthInMeters` — shown as secondary info
-- Road names from the guidance instructions array — joined to form a short description e.g. "via A3 and M25"
+- `duration` (normalized to `travelTimeInSeconds`) — used for ETA display and delay status
+- Traffic delay — computed as `duration - staticDuration`, used to determine colour state
+- `staticDuration` (normalized to `noTrafficTravelTimeInSeconds`) — baseline for delay percentage calculation
+- `distanceMeters` — shown as secondary info
+- Road names extracted from step navigation instruction text (regex match on A/M road patterns) — joined to form a short description e.g. "via A3 and M25"
 
 **Delay colour logic:**
 
@@ -249,19 +249,9 @@ The guidance instructions in the routing response include named road segments. T
 
 If both commuters are inactive (wfh/off with no drops), `commuters` is an empty array and the travel section is hidden on the frontend.
 
-#### Incident warnings (TomTom Traffic Incidents API)
+#### Incident warnings
 
-After fetching routes for each commuter, the backend:
-
-1. Extracts the polyline coordinates from both route alternatives
-2. Calculates a bounding box encompassing the polylines
-3. Expands the bounding box by ~0.02 degrees (~1.5km) in all directions
-4. Fetches a fresh Traffic Model ID (required — valid for 2 minutes only; must be refreshed each poll cycle)
-5. Queries the `incidentDetails` endpoint with the bounding box
-6. Filters to meaningful severity levels only (excludes minor flow data)
-7. Returns incident type, short description, and road name for display
-
-Incidents render as a compact warning list beneath each commuter's route card, only shown when incidents are present.
+Google Maps Routes API does not provide a traffic incident endpoint comparable to TomTom's `incidentDetails`. The `fetch_incidents` function returns an empty list for all calls. The incident display in the frontend remains in place — the warning list simply does not render when the array is empty (which is always the case with the current provider).
 
 #### API request budget
 
@@ -269,12 +259,10 @@ With up to 2 active commuters polled every 2 minutes during a morning window (06
 
 | Call | Per cycle (2 commuters) | Daily count (3hr window) |
 |---|---|---|
-| `calculateRoute` (1 per active commuter) | up to 2 | up to ~180 |
-| Traffic Model ID fetch (1 per commuter) | up to 2 | up to ~180 |
-| `incidentDetails` (1 per commuter) | up to 2 | up to ~180 |
-| **Total** | | **up to ~540/day** |
+| `computeRoutes` (1 per active commuter) | up to 2 | up to ~180 |
+| **Total** | | **up to ~180/day** |
 
-This is well within the 2,500 free tier limit. On days with one or both commuters inactive, the budget is lower. Outside the configured poll window, the backend serves the last cached result with a stale-data indicator on the frontend.
+This is well within Google's $200/month free credit. At standard Routes API pricing (~$0.005–0.01 per request), 180 requests/day costs less than $0.02/day. On days with one or both commuters inactive, the budget is lower. Outside the configured poll window, the backend serves the last cached result with a stale-data indicator on the frontend.
 
 Add to `.env`:
 ```
@@ -530,7 +518,7 @@ Example:
 ```gherkin
 Feature: Travel ETA card
   Scenario: Route has significant delay
-    Given the TomTom API returns a journey time 20% longer than the free-flow time
+    Given the routing API returns a journey time 20% longer than the free-flow time
     When the dashboard renders the travel card
     Then the ETA card is shown in amber
     And the alert banner displays "Leave earlier — traffic on your route"
@@ -600,7 +588,7 @@ family-dashboard/
 │   ├── main.py                      # FastAPI app, routes, startup, serves frontend static files
 │   ├── scheduler.py                 # Background polling / cache refresh tasks
 │   ├── routers/
-│   │   ├── travel.py                # TomTom Routing API integration (per-commuter)
+│   │   ├── travel.py                # Google Maps Routes API integration (per-commuter)
 │   │   ├── weather.py               # Open-Meteo integration
 │   │   └── calendar.py              # Google Calendar API integration
 │   ├── services/
@@ -645,7 +633,7 @@ family-dashboard/
 Never commit `.env`. Commit `.env.example` with placeholder values only.
 
 ```
-TOMTOM_API_KEY=your_key_here
+GOOGLE_MAPS_API_KEY=your_key_here
 
 # Shared home location
 HOME_LAT=51.XXXX
@@ -754,7 +742,7 @@ This project follows the same conventions as the existing home automation script
 
 ### MCP Server Integration
 
-Once the core dashboard integrations (TomTom, Open-Meteo, Google Calendar) are stable, consider wrapping them as **MCP (Model Context Protocol) servers** using the Anthropic mcp-builder skill (`/mnt/skills/examples/mcp-builder/SKILL.md`).
+Once the core dashboard integrations (Google Maps Routes API, Open-Meteo, Google Calendar) are stable, consider wrapping them as **MCP (Model Context Protocol) servers** using the Anthropic mcp-builder skill (`/mnt/skills/examples/mcp-builder/SKILL.md`).
 
 Benefits:
 - Claude Code can call the live integrations directly during development and debugging

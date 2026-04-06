@@ -1,5 +1,6 @@
-"""Tests for travel backend — TomTom route and incident integration."""
+"""Tests for travel backend — Google Maps Routes API integration."""
 
+import re
 from datetime import datetime, time
 from unittest.mock import AsyncMock, patch
 
@@ -13,6 +14,8 @@ from routers.travel import (
     _collect_instructions,
     _collect_points,
     _extract_traffic_model_id,
+    _normalize_google_response,
+    _parse_duration,
     calculate_bounding_box,
     classify_delay,
     expand_bounding_box,
@@ -539,6 +542,126 @@ def test_parse_incidents_event_without_description_key():
     ]
     result = parse_incidents(raw)
     assert result[0]["description"] == ""
+
+
+# ---------------------------------------------------------------------------
+# _parse_duration
+# ---------------------------------------------------------------------------
+
+
+def test_parse_duration_standard():
+    assert _parse_duration("1800s") == 1800
+
+
+def test_parse_duration_zero():
+    assert _parse_duration("0s") == 0
+
+
+def test_parse_duration_non_s_suffix_returns_zero():
+    assert _parse_duration("1800") == 0
+
+
+# ---------------------------------------------------------------------------
+# _normalize_google_response
+# ---------------------------------------------------------------------------
+
+_GOOGLE_ROUTE = {
+    "duration": "1800s",
+    "staticDuration": "1650s",
+    "distanceMeters": 25000,
+    "legs": [
+        {
+            "startLocation": {"latLng": {"latitude": 51.5, "longitude": -0.1}},
+            "endLocation": {"latLng": {"latitude": 51.55, "longitude": -0.15}},
+            "steps": [
+                {"navigationInstruction": {"instructions": "Head north on A3"}},
+                {"navigationInstruction": {"instructions": "Join the M25"}},
+                {"navigationInstruction": {"instructions": "Turn onto High Street"}},
+            ],
+        }
+    ],
+}
+
+_GOOGLE_RESPONSE = {"routes": [_GOOGLE_ROUTE]}
+
+
+def test_normalize_google_response_travel_time():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    assert result["routes"][0]["summary"]["travelTimeInSeconds"] == 1800
+
+
+def test_normalize_google_response_no_traffic_time():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    assert result["routes"][0]["summary"]["noTrafficTravelTimeInSeconds"] == 1650
+
+
+def test_normalize_google_response_delay():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    assert result["routes"][0]["summary"]["trafficDelayInSeconds"] == 150
+
+
+def test_normalize_google_response_delay_never_negative():
+    resp = {
+        "routes": [
+            {
+                "duration": "1600s",
+                "staticDuration": "1650s",
+                "distanceMeters": 10000,
+                "legs": [],
+            }
+        ]
+    }
+    result = _normalize_google_response(resp)
+    assert result["routes"][0]["summary"]["trafficDelayInSeconds"] == 0
+
+
+def test_normalize_google_response_distance():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    assert result["routes"][0]["summary"]["lengthInMeters"] == 25000
+
+
+def test_normalize_google_response_traffic_model_id_empty():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    assert result["routes"][0]["summary"]["trafficModelId"] == ""
+
+
+def test_normalize_google_response_extracts_motorway_and_a_road():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    road_names = [i["roadName"] for i in result["routes"][0]["legs"][0]["guidance"]["instructions"]]
+    assert "A3" in road_names
+    assert "M25" in road_names
+
+
+def test_normalize_google_response_excludes_minor_roads():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    road_names = [i["roadName"] for i in result["routes"][0]["legs"][0]["guidance"]["instructions"]]
+    # "High Street" should not appear — not an A or M road
+    assert all(re.match(r"^[AM]\d", r) for r in road_names)
+
+
+def test_normalize_google_response_points_from_start_end():
+    result = _normalize_google_response(_GOOGLE_RESPONSE)
+    points = result["routes"][0]["legs"][0]["points"]
+    assert len(points) == 2
+    assert points[0]["latitude"] == pytest.approx(51.5)
+    assert points[1]["latitude"] == pytest.approx(51.55)
+
+
+def test_normalize_google_response_empty_routes():
+    result = _normalize_google_response({"routes": []})
+    assert result["routes"] == []
+
+
+def test_normalize_google_response_multiple_routes():
+    resp = {
+        "routes": [
+            {"duration": "1800s", "staticDuration": "1650s", "distanceMeters": 25000, "legs": []},
+            {"duration": "1950s", "staticDuration": "1700s", "distanceMeters": 27000, "legs": []},
+        ]
+    }
+    result = _normalize_google_response(resp)
+    assert len(result["routes"]) == 2
+    assert result["routes"][1]["summary"]["travelTimeInSeconds"] == 1950
 
 
 def test_parse_incidents_incident_without_icon_category_key():
