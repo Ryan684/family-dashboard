@@ -23,18 +23,19 @@ cd "$CLAUDE_PROJECT_DIR/frontend"
 npm install --silent
 
 echo "=== Installing Claude Code skills ==="
-# Clone the Anthropic skills marketplace (public repo) and install frontend-design.
+# Clone anthropics/skills and copy frontend-design into ~/.claude/skills/.
+# Skills are plain markdown directories — no plugin CLI needed.
 # github.com is whitelisted in the sandbox proxy, but git needs http.proxy set explicitly —
 # the sandbox only sets GLOBAL_AGENT_HTTP_PROXY which git does not read automatically.
 if git \
     -c "http.proxy=${GLOBAL_AGENT_HTTP_PROXY:-}" \
     -c credential.helper= \
     clone --depth 1 \
-    https://github.com/anthropics/anthropic-agent-skills.git \
-    /tmp/anthropic-agent-skills 2>/dev/null; then
-  claude plugins marketplace add /tmp/anthropic-agent-skills --scope user 2>/dev/null || true
-  claude plugins install frontend-design --scope user 2>/dev/null || true
-  rm -rf /tmp/anthropic-agent-skills
+    https://github.com/anthropics/skills.git \
+    /tmp/anthropic-skills 2>/dev/null; then
+  mkdir -p ~/.claude/skills
+  cp -r /tmp/anthropic-skills/skills/frontend-design ~/.claude/skills/frontend-design
+  rm -rf /tmp/anthropic-skills
   echo "frontend-design skill installed"
 else
   echo "Warning: Could not reach skills marketplace — frontend-design skill unavailable this session"
