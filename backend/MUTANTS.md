@@ -80,12 +80,12 @@ mocking `settings`, adding no meaningful coverage of business logic.
 ### `x_fetch_routes__mutmut_*` and `x_fetch_incidents__mutmut_*` (no tests)
 
 **What was mutated:** URL string construction, HTTP parameter names, and response parsing
-inside the TomTom HTTP wrapper functions.
+inside the routing API HTTP wrapper functions.
 
 **Why acceptable:** These functions make live HTTP calls and are always replaced with
 `AsyncMock` in tests. Testing the URL construction would require network access or a
 test server, which is out of scope for unit tests. The integration is covered by manual
-smoke testing against the real TomTom API.
+smoke testing against the live routing API.
 
 ### `x_fetch_travel_data__mutmut_*` (survived — orchestration glue)
 

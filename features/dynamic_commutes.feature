@@ -1,7 +1,7 @@
 Feature: Dynamic commutes backend — per-commuter schedule-driven routing
 
   Background:
-    Given the TomTom API is available
+    Given the routing API is available
     And a commute schedule config with two commuters "Ryan" and "Emily"
     And today is a weekday
 

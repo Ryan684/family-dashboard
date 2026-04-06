@@ -13,7 +13,7 @@ def _parse_time(value: str, default: str) -> time:
 
 
 class Settings:
-    tomtom_api_key: str = os.getenv("TOMTOM_API_KEY", "")
+    google_maps_api_key: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
     home_lat: float = float(os.getenv("HOME_LAT", "0"))
     home_lon: float = float(os.getenv("HOME_LON", "0"))

@@ -1,9 +1,8 @@
-"""Travel router — per-commuter dynamic routing via TomTom Routing and Incidents APIs."""
+"""Travel router — per-commuter dynamic routing via Google Maps Routes API."""
 
 import os
 import re
 from datetime import datetime
-from typing import Any
 
 import httpx
 from fastapi import APIRouter
@@ -13,7 +12,7 @@ from services.commute_schedule import build_waypoints, load_schedule, resolve_co
 
 router = APIRouter(prefix="/api/travel", tags=["travel"])
 
-TOMTOM_BASE = "https://api.tomtom.com"
+GOOGLE_ROUTES_BASE = "https://routes.googleapis.com"
 _SCHEDULE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "commute-schedule.json")
 
 # Module-level cache: holds last successful response dict
@@ -95,7 +94,7 @@ def is_within_poll_window(now: datetime, start, end) -> bool:
 
 
 def parse_incidents(raw_incidents: list[dict]) -> list[dict]:
-    """Filter and normalise TomTom incident objects. Excludes minor (<=1) incidents."""
+    """Filter and normalise incident objects. Excludes minor (<=1) incidents."""
     result = []
     for incident in raw_incidents:
         props = incident.get("properties", {})
@@ -117,7 +116,7 @@ def parse_incidents(raw_incidents: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Route building from TomTom response
+# Route building from normalized response
 # ---------------------------------------------------------------------------
 
 
@@ -189,8 +188,71 @@ def get_coords() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# TomTom HTTP calls
+# Google Maps Routes API helpers
 # ---------------------------------------------------------------------------
+
+
+def _parse_duration(duration_str: str) -> int:
+    """Parse Google duration string like '1800s' to integer seconds."""
+    return int(duration_str.rstrip("s")) if duration_str.endswith("s") else 0
+
+
+def _normalize_google_response(google_resp: dict) -> dict:
+    """Normalize Google Routes API response to internal format.
+
+    Produces the same dict shape used by the rest of the module so that
+    _build_route_option, _collect_points, etc. work without modification.
+    """
+    normalized_routes = []
+    for route in google_resp.get("routes", []):
+        travel_secs = _parse_duration(route.get("duration", "0s"))
+        no_traffic_secs = _parse_duration(route.get("staticDuration", "0s"))
+        delay_secs = max(0, travel_secs - no_traffic_secs)
+
+        legs = []
+        for leg in route.get("legs", []):
+            points = []
+            start = leg.get("startLocation", {}).get("latLng", {})
+            end = leg.get("endLocation", {}).get("latLng", {})
+            if start:
+                points.append({"latitude": start["latitude"], "longitude": start["longitude"]})
+            if end:
+                points.append({"latitude": end["latitude"], "longitude": end["longitude"]})
+
+            instructions = []
+            for step in leg.get("steps", []):
+                text = step.get("navigationInstruction", {}).get("instructions", "")
+                for match in re.finditer(r"\b([AM]\d+\w*)\b", text):
+                    instructions.append({"roadName": match.group(1)})
+
+            legs.append({
+                "points": points,
+                "guidance": {"instructions": instructions},
+            })
+
+        normalized_routes.append({
+            "summary": {
+                "travelTimeInSeconds": travel_secs,
+                "noTrafficTravelTimeInSeconds": no_traffic_secs,
+                "trafficDelayInSeconds": delay_secs,
+                "lengthInMeters": route.get("distanceMeters", 0),
+                "trafficModelId": "",
+            },
+            "legs": legs,
+        })
+
+    return {"routes": normalized_routes}
+
+
+# ---------------------------------------------------------------------------
+# Google Maps Routes API HTTP calls
+# ---------------------------------------------------------------------------
+
+_FIELD_MASK = (
+    "routes.duration,routes.staticDuration,routes.distanceMeters,"
+    "routes.legs.startLocation,routes.legs.endLocation,"
+    "routes.legs.steps.navigationInstruction"
+)
 
 
 async def fetch_routes(
@@ -198,15 +260,31 @@ async def fetch_routes(
     waypoints: list[tuple[float, float]],
     api_key: str,
 ) -> dict:
-    """Fetch routes for an ordered list of waypoints (origin + optional stops + dest)."""
-    locations = ":".join(f"{lat},{lon}" for lat, lon in waypoints)
-    url = f"{TOMTOM_BASE}/routing/1/calculateRoute/{locations}/json"
-    resp = await client.get(
-        url,
-        params={"maxAlternatives": 1, "traffic": "true", "key": api_key},
+    """Fetch routes via Google Maps Routes API and normalize to internal format."""
+    origin = waypoints[0]
+    destination = waypoints[-1]
+    intermediates = waypoints[1:-1]
+
+    body: dict = {
+        "origin": {"location": {"latLng": {"latitude": origin[0], "longitude": origin[1]}}},
+        "destination": {"location": {"latLng": {"latitude": destination[0], "longitude": destination[1]}}},
+        "travelMode": "DRIVE",
+        "routingPreference": "TRAFFIC_AWARE",
+        "computeAlternativeRoutes": True,
+    }
+    if intermediates:
+        body["intermediates"] = [
+            {"location": {"latLng": {"latitude": lat, "longitude": lon}}}
+            for lat, lon in intermediates
+        ]
+
+    resp = await client.post(
+        f"{GOOGLE_ROUTES_BASE}/directions/v2:computeRoutes",
+        headers={"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": _FIELD_MASK},
+        json=body,
     )
     resp.raise_for_status()
-    return resp.json()
+    return _normalize_google_response(resp.json())
 
 
 async def fetch_incidents(
@@ -215,25 +293,10 @@ async def fetch_incidents(
     traffic_model_id: str,
     api_key: str,
 ) -> list[dict]:
-    bbox_str = (
-        f"{bbox['min_lon']},{bbox['min_lat']},{bbox['max_lon']},{bbox['max_lat']}"
-    )
-    params: dict[str, Any] = {
-        "key": api_key,
-        "bbox": bbox_str,
-        "fields": "{incidents{type,properties{iconCategory,magnitudeOfDelay,events{description},from,roadNumbers}}}",
-        "language": "en-US",
-        "categoryFilter": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
-        "timeValidityFilter": "present",
-    }
-    if traffic_model_id:
-        params["modelId"] = traffic_model_id
-    resp = await client.get(
-        f"{TOMTOM_BASE}/traffic/services/5/incidentDetails",
-        params=params,
-    )
-    resp.raise_for_status()
-    return resp.json().get("incidents", [])
+    """Google Maps Routes API does not provide a direct incident endpoint.
+    Returns empty list — incident warnings are not available with this provider.
+    """
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +353,7 @@ async def fetch_travel_data() -> dict:
                 # WFH or off with no drops — omit commuter entirely
                 continue
 
-            routes_raw = await fetch_routes(http, waypoints, settings.tomtom_api_key)
+            routes_raw = await fetch_routes(http, waypoints, settings.google_maps_api_key)
             all_route_points.extend(_build_all_points(routes_raw))
             all_traffic_model_ids.append(_extract_traffic_model_id(routes_raw))
             commuter_routes_raw.append((commuter, day, routes_raw))
@@ -302,7 +365,7 @@ async def fetch_travel_data() -> dict:
         bbox = expand_bounding_box(calculate_bounding_box(all_route_points))
         traffic_model_id = next((t for t in all_traffic_model_ids if t), "")
         raw_incidents = await fetch_incidents(
-            http, bbox, traffic_model_id, settings.tomtom_api_key
+            http, bbox, traffic_model_id, settings.google_maps_api_key
         )
 
     incidents = parse_incidents(raw_incidents)

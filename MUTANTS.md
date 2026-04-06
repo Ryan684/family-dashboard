@@ -30,8 +30,8 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 | Mutant | Mutation | Justification |
 |--------|----------|---------------|
-| `x_fetch_routes__mutmut_1–22` (22 mutants) | Various mutations inside `fetch_routes()` | HTTP client function making live TomTom API calls. Untestable in isolation — requires a live network and valid API key. Integration tested end-to-end in Step 6. |
-| `x_fetch_incidents__mutmut_1–48` (48 mutants) | Various mutations inside `fetch_incidents()` | Same as `fetch_routes` — live HTTP client function. |
+| `x_fetch_routes__mutmut_1–22` (22 mutants) | Various mutations inside `fetch_routes()` | HTTP client function making live Google Maps Routes API calls. Untestable in isolation — requires a live network and valid API key. Integration tested end-to-end in Step 6. |
+| `x_fetch_incidents__mutmut_1–48` (48 mutants) | Various mutations inside `fetch_incidents()` | Stub function returning `[]` — no live HTTP calls. Mutants are trivially acceptable as the function has no logic to test. |
 | `x_fetch_travel_data__mutmut_1–59` (59 mutants) | Various mutations inside `fetch_travel_data()` | Scheduler fetch orchestrator that calls `fetch_routes` and `fetch_incidents`. Untestable without live API calls. Scheduler integration tested via mocks in `test_scheduler.py`. |
 
 ### `scheduler.py`
