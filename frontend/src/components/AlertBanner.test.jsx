@@ -10,49 +10,42 @@ const makeRoute = (colour) => ({
   delay_colour: colour,
 })
 
-const makeCommuter = (routes) => ({
-  name: 'Ryan',
-  mode: 'office',
-  drops: [],
-  routes,
+const makeTravelData = (overrides = {}) => ({
+  home_to_work: [makeRoute('green'), makeRoute('green')],
+  home_to_nursery: [makeRoute('green'), makeRoute('green')],
   incidents: [],
-})
-
-const makeTravelData = (commuters = []) => ({
-  commuters,
   is_stale: false,
+  ...overrides,
 })
 
 describe('AlertBanner — visibility', () => {
-  it('renders the banner when a commuter has a red route', () => {
-    const data = makeTravelData([
-      makeCommuter([makeRoute('red'), makeRoute('green')]),
-    ])
+  it('renders the banner when a home-to-work route is red', () => {
+    const data = makeTravelData({
+      home_to_work: [makeRoute('red'), makeRoute('green')],
+    })
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 
-  it('renders the banner when a second commuter has a red route', () => {
-    const data = makeTravelData([
-      makeCommuter([makeRoute('green')]),
-      makeCommuter([makeRoute('red')]),
-    ])
+  it('renders the banner when a home-to-nursery route is red', () => {
+    const data = makeTravelData({
+      home_to_nursery: [makeRoute('red')],
+    })
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 
   it('does not render the banner when all routes are green', () => {
-    const data = makeTravelData([
-      makeCommuter([makeRoute('green'), makeRoute('green')]),
-    ])
+    const data = makeTravelData()
     render(<AlertBanner travelData={data} />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('does not render the banner when all routes are amber', () => {
-    const data = makeTravelData([
-      makeCommuter([makeRoute('amber'), makeRoute('amber')]),
-    ])
+    const data = makeTravelData({
+      home_to_work: [makeRoute('amber'), makeRoute('amber')],
+      home_to_nursery: [makeRoute('amber'), makeRoute('amber')],
+    })
     render(<AlertBanner travelData={data} />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -62,16 +55,21 @@ describe('AlertBanner — visibility', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('does not render the banner when commuters array is empty', () => {
-    const data = makeTravelData([])
+  it('renders the banner when nursery is red and work is green', () => {
+    const data = makeTravelData({
+      home_to_work: [makeRoute('green')],
+      home_to_nursery: [makeRoute('red')],
+    })
     render(<AlertBanner travelData={data} />)
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 })
 
 describe('AlertBanner — message content', () => {
   it('displays a message advising the user to leave earlier when banner is visible', () => {
-    const data = makeTravelData([makeCommuter([makeRoute('red')])])
+    const data = makeTravelData({
+      home_to_work: [makeRoute('red')],
+    })
     render(<AlertBanner travelData={data} />)
     const banner = screen.getByRole('alert')
     expect(banner).toHaveTextContent(/leave/i)

@@ -1,11 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import TravelCard from './TravelCard'
-import App from '../App'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 const makeRoute = (overrides = {}) => ({
   travel_time_seconds: 1800,
@@ -16,126 +11,13 @@ const makeRoute = (overrides = {}) => ({
   ...overrides,
 })
 
-const makeCommuter = (overrides = {}) => ({
-  name: 'Ryan',
-  mode: 'office',
-  drops: [],
-  routes: [makeRoute(), makeRoute({ description: 'via A316' })],
-  incidents: [],
-  ...overrides,
-})
-
 const makeApiResponse = (overrides = {}) => ({
-  commuters: [makeCommuter()],
+  home_to_work: [makeRoute(), makeRoute({ description: 'via A316' })],
+  home_to_nursery: [makeRoute(), makeRoute({ description: 'via B321' })],
+  incidents: [],
   is_stale: false,
   ...overrides,
 })
-
-// ---------------------------------------------------------------------------
-// TravelCard — individual commuter card (pure presentational)
-// ---------------------------------------------------------------------------
-
-describe('TravelCard — header', () => {
-  it('shows the commuter name in the card header', () => {
-    render(<TravelCard commuter={makeCommuter({ name: 'Ryan' })} />)
-    expect(screen.getByText('Ryan')).toBeInTheDocument()
-  })
-
-  it('shows a different commuter name', () => {
-    render(<TravelCard commuter={makeCommuter({ name: 'Emily' })} />)
-    expect(screen.getByText('Emily')).toBeInTheDocument()
-  })
-})
-
-describe('TravelCard — route display', () => {
-  it('renders 2 route cards', () => {
-    render(<TravelCard commuter={makeCommuter()} />)
-    const cards = document.querySelectorAll('[data-testid="route-card"]')
-    expect(cards).toHaveLength(2)
-  })
-
-  it('displays the route description', () => {
-    const commuter = makeCommuter({
-      routes: [makeRoute({ description: 'via A3 and M25' })],
-    })
-    render(<TravelCard commuter={commuter} />)
-    expect(screen.getByText('via A3 and M25')).toBeInTheDocument()
-  })
-
-  it('displays travel time in minutes', () => {
-    const commuter = makeCommuter({
-      routes: [makeRoute({ travel_time_seconds: 2700 })],
-    })
-    render(<TravelCard commuter={commuter} />)
-    expect(screen.getByText('45 min')).toBeInTheDocument()
-  })
-})
-
-describe('TravelCard — colour states', () => {
-  it('applies green colour indicator', () => {
-    render(
-      <TravelCard
-        commuter={makeCommuter({
-          routes: [makeRoute({ delay_colour: 'green' })],
-        })}
-      />
-    )
-    expect(document.querySelector('[data-colour="green"]')).toBeInTheDocument()
-  })
-
-  it('applies amber colour indicator', () => {
-    render(
-      <TravelCard
-        commuter={makeCommuter({
-          routes: [makeRoute({ delay_colour: 'amber' })],
-        })}
-      />
-    )
-    expect(document.querySelector('[data-colour="amber"]')).toBeInTheDocument()
-  })
-
-  it('applies red colour indicator', () => {
-    render(
-      <TravelCard
-        commuter={makeCommuter({
-          routes: [makeRoute({ delay_colour: 'red' })],
-        })}
-      />
-    )
-    expect(document.querySelector('[data-colour="red"]')).toBeInTheDocument()
-  })
-})
-
-describe('TravelCard — incidents', () => {
-  it('shows incident description when incidents are present', () => {
-    const commuter = makeCommuter({
-      incidents: [{ type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' }],
-    })
-    render(<TravelCard commuter={commuter} />)
-    expect(screen.getByText('Roadworks on A3')).toBeInTheDocument()
-  })
-
-  it('does not render an incident section when there are no incidents', () => {
-    render(<TravelCard commuter={makeCommuter({ incidents: [] })} />)
-    expect(screen.queryByTestId('incident-list')).not.toBeInTheDocument()
-  })
-})
-
-describe('TravelCard — destination label', () => {
-  it('shows "Work" as destination for office mode with no drops', () => {
-    render(<TravelCard commuter={makeCommuter({ mode: 'office', drops: [] })} />)
-    expect(screen.getByText('Work')).toBeInTheDocument()
-  })
-
-  it('shows "Home" as destination for wfh mode with drops', () => {
-    render(<TravelCard commuter={makeCommuter({ mode: 'wfh', drops: ['dog'] })} />)
-    expect(screen.getByText('Home')).toBeInTheDocument()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// App — dashboard layout with per-commuter cards
-// ---------------------------------------------------------------------------
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
@@ -145,112 +27,207 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const WEATHER_STUB = {
-  current: {
-    temperature_celsius: 10,
-    apparent_temperature_celsius: 8,
-    weather_description: 'Cloudy',
-    wind_speed_kmh: 15,
-    humidity_percent: 70,
-  },
-  forecast: [],
-}
-
-const CALENDAR_STUB = { events: [] }
-
-function mockFetchByUrl(travelData) {
-  fetch.mockImplementation((url) => {
-    if (url === '/api/travel') {
-      return Promise.resolve({ ok: true, json: async () => travelData })
-    }
-    if (url === '/api/weather') {
-      return Promise.resolve({ ok: true, json: async () => WEATHER_STUB })
-    }
-    if (url === '/api/calendar') {
-      return Promise.resolve({ ok: true, json: async () => CALENDAR_STUB })
-    }
-    return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+function mockFetchOk(data) {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => data,
   })
 }
 
 function mockFetchError() {
-  fetch.mockImplementation((url) => {
-    if (url === '/api/travel') return Promise.reject(new Error('Network error'))
-    if (url === '/api/weather') {
-      return Promise.resolve({ ok: true, json: async () => WEATHER_STUB })
-    }
-    if (url === '/api/calendar') {
-      return Promise.resolve({ ok: true, json: async () => CALENDAR_STUB })
-    }
-    return Promise.reject(new Error(`Unexpected fetch: ${url}`))
-  })
+  fetch.mockRejectedValueOnce(new Error('Network error'))
 }
 
-describe('App — travel section rendering', () => {
-  it('shows 2 travel cards when both commuters are active', async () => {
-    mockFetchByUrl(
-      makeApiResponse({
-        commuters: [makeCommuter({ name: 'Ryan' }), makeCommuter({ name: 'Emily' })],
-      })
-    )
-    render(<App />)
-    await waitFor(() => expect(screen.getByText('Ryan')).toBeInTheDocument())
-    expect(screen.getByText('Emily')).toBeInTheDocument()
-    expect(screen.getAllByTestId('travel-card')).toHaveLength(2)
-  })
-
-  it('shows 1 travel card when only one commuter is active', async () => {
-    mockFetchByUrl(makeApiResponse({ commuters: [makeCommuter({ name: 'Ryan' })] }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByText('Ryan')).toBeInTheDocument())
-    expect(screen.getAllByTestId('travel-card')).toHaveLength(1)
-  })
-
-  it('hides the travel section when commuters array is empty', async () => {
-    mockFetchByUrl(makeApiResponse({ commuters: [] }))
-    render(<App />)
-    await waitFor(() => expect(screen.queryByTestId('travel-section')).not.toBeInTheDocument())
-  })
-
+describe('TravelCard — loading and error states', () => {
   it('shows a loading indicator while the API has not responded', async () => {
-    fetch.mockImplementation(() => new Promise(() => {}))
-    render(<App />)
-    const statuses = screen.getAllByRole('status')
-    expect(statuses.length).toBeGreaterThan(0)
-    expect(statuses.some((el) => el.textContent.includes('Loading travel'))).toBe(true)
+    fetch.mockReturnValueOnce(new Promise(() => {})) // never resolves
+    render(<TravelCard />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('fetches from /api/travel', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Work')).toBeInTheDocument()
+    )
+    expect(fetch).toHaveBeenCalledWith('/api/travel')
   })
 
   it('shows an error message when the API call fails', async () => {
     mockFetchError()
-    render(<App />)
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    )
   })
 
+  it('shows an error message when the API returns a non-ok HTTP status', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    )
+  })
+})
+
+describe('TravelCard — route display', () => {
+  it('renders 2 route cards under the Home → Work heading', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Work')).toBeInTheDocument()
+    )
+    const section = screen.getByText('Home → Work').closest('section')
+    const cards = section.querySelectorAll('[data-testid="route-card"]')
+    expect(cards).toHaveLength(2)
+  })
+
+  it('renders 2 route cards under the Home → Nursery heading', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Nursery')).toBeInTheDocument()
+    )
+    const section = screen.getByText('Home → Nursery').closest('section')
+    const cards = section.querySelectorAll('[data-testid="route-card"]')
+    expect(cards).toHaveLength(2)
+  })
+
+  it('does not render the Home → Work section when home_to_work is empty', async () => {
+    mockFetchOk(makeApiResponse({ home_to_work: [] }))
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Nursery')).toBeInTheDocument()
+    )
+    expect(screen.queryByText('Home → Work')).not.toBeInTheDocument()
+  })
+
+  it('does not render the Home → Nursery section when home_to_nursery is empty', async () => {
+    mockFetchOk(makeApiResponse({ home_to_nursery: [] }))
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Work')).toBeInTheDocument()
+    )
+    expect(screen.queryByText('Home → Nursery')).not.toBeInTheDocument()
+  })
+
+  it('displays the route description text', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        home_to_work: [makeRoute({ description: 'via A3 and M25' })],
+        home_to_nursery: [],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('via A3 and M25')).toBeInTheDocument()
+    )
+  })
+
+  it('displays travel time in minutes', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        home_to_work: [makeRoute({ travel_time_seconds: 2700 })],
+        home_to_nursery: [],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('45 min')).toBeInTheDocument()
+    )
+  })
+})
+
+describe('TravelCard — colour states', () => {
+  it('applies green colour indicator for a green-state route', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        home_to_work: [makeRoute({ delay_colour: 'green' })],
+        home_to_nursery: [],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-colour="green"]')
+      ).toBeInTheDocument()
+    )
+  })
+
+  it('applies amber colour indicator for an amber-state route', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        home_to_work: [makeRoute({ delay_colour: 'amber' })],
+        home_to_nursery: [],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-colour="amber"]')
+      ).toBeInTheDocument()
+    )
+  })
+
+  it('applies red colour indicator for a red-state route', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        home_to_work: [makeRoute({ delay_colour: 'red' })],
+        home_to_nursery: [],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-colour="red"]')
+      ).toBeInTheDocument()
+    )
+  })
+})
+
+describe('TravelCard — incidents', () => {
+  it('shows incident description when incidents are present', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        incidents: [
+          { type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' },
+        ],
+      })
+    )
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Roadworks on A3')).toBeInTheDocument()
+    )
+  })
+
+  it('does not render an incident section when there are no incidents', async () => {
+    mockFetchOk(makeApiResponse({ incidents: [] }))
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Work')).toBeInTheDocument()
+    )
+    expect(
+      screen.queryByTestId('incident-list')
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('TravelCard — stale indicator', () => {
   it('shows a stale data warning when is_stale is true', async () => {
-    mockFetchByUrl(makeApiResponse({ is_stale: true }))
-    render(<App />)
+    mockFetchOk(makeApiResponse({ is_stale: true }))
+    render(<TravelCard />)
     await waitFor(() =>
       expect(screen.getByTestId('stale-warning')).toBeInTheDocument()
     )
   })
 
-  it('shows each commuter only on their own card', async () => {
-    mockFetchByUrl(
-      makeApiResponse({
-        commuters: [
-          makeCommuter({
-            name: 'Ryan',
-            incidents: [{ type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' }],
-          }),
-          makeCommuter({ name: 'Emily', incidents: [] }),
-        ],
-      })
+  it('does not show a stale warning when is_stale is false', async () => {
+    mockFetchOk(makeApiResponse({ is_stale: false }))
+    render(<TravelCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home → Work')).toBeInTheDocument()
     )
-    render(<App />)
-    await waitFor(() => expect(screen.getByText('Ryan')).toBeInTheDocument())
-    expect(screen.getByText('Roadworks on A3')).toBeInTheDocument()
-    // Emily card should have no incident list
-    const emilyCard = screen.getByText('Emily').closest('[data-testid="travel-card"]')
-    expect(emilyCard.querySelector('[data-testid="incident-list"]')).toBeNull()
+    expect(screen.queryByTestId('stale-warning')).not.toBeInTheDocument()
   })
 })

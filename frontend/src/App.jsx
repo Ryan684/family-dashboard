@@ -41,69 +41,32 @@ function injectStyles() {
       border-bottom: 1px solid #2A2622;
     }
 
-    /* Grid: travel cards span left, weather + calendar on right */
     .app-grid {
       display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-rows: auto auto;
       gap: 1px;
       flex: 1;
       background: #2A2622;
-    }
-
-    /* 0 commuters: 2-col, weather + calendar side by side */
-    .app-grid--0 {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    /* 1 commuter: 3-col, travel takes 2 cols */
-    .app-grid--1 {
-      grid-template-columns: 2fr 1fr 1fr;
-    }
-
-    /* 2 commuters: 2-col grid, travel cards in first col stacked, or 2+2 */
-    .app-grid--2 {
-      grid-template-columns: 1fr 1fr 1fr 1fr;
     }
 
     .app-cell {
       background: #1A1714;
     }
 
-    .app-cell--travel-2 {
-      grid-column: span 2;
+    .app-cell--travel {
+      grid-column: 1 / 2;
+      grid-row: 1 / 2;
     }
 
-    .app-travel-section {
-      display: contents;
+    .app-cell--weather {
+      grid-column: 2 / 3;
+      grid-row: 1 / 2;
     }
 
-    .app-status {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: #7A756E;
-    }
-
-    .app-error {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: #D95F4B;
-    }
-
-    .app-stale {
-      grid-column: 1 / -1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 20px;
-      color: #7A756E;
-      padding: 12px 40px;
-      background: #1A1714;
-      border-bottom: 1px solid #2A2622;
+    .app-cell--calendar {
+      grid-column: 3 / 4;
+      grid-row: 1 / 2;
     }
   `
   document.head.appendChild(style)
@@ -113,8 +76,6 @@ const POLL_INTERVAL_MS = 60_000
 
 function App() {
   const [travelData, setTravelData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
     injectStyles()
@@ -128,16 +89,10 @@ function App() {
           return res.json()
         })
         .then((json) => {
-          if (!cancelled) {
-            setTravelData(json)
-            setLoading(false)
-          }
+          if (!cancelled) setTravelData(json)
         })
-        .catch((err) => {
-          if (!cancelled) {
-            setError(err.message)
-            setLoading(false)
-          }
+        .catch(() => {
+          // AlertBanner stays hidden on error
         })
     }
 
@@ -150,33 +105,6 @@ function App() {
     }
   }, [])
 
-  const commuters = travelData ? travelData.commuters : []
-  const count = commuters.length
-
-  function renderTravelContent() {
-    if (loading) {
-      return (
-        <div className="app-cell app-status" role="status">
-          Loading travel data…
-        </div>
-      )
-    }
-    if (error) {
-      return (
-        <div className="app-cell app-error" role="alert">
-          Unable to load travel data
-        </div>
-      )
-    }
-    return commuters.map((commuter) => (
-      <div key={commuter.name} className="app-cell">
-        <TravelCard commuter={commuter} />
-      </div>
-    ))
-  }
-
-  const gridClass = loading || error ? 'app-grid app-grid--1' : `app-grid app-grid--${count}`
-
   return (
     <div className="app-shell">
       <div className="app-clock">
@@ -185,24 +113,14 @@ function App() {
 
       <AlertBanner travelData={travelData} />
 
-      {travelData && travelData.is_stale ? (
-        <div className="app-stale" data-testid="stale-warning">
-          Showing cached data — outside morning window
+      <div className="app-grid">
+        <div className="app-cell app-cell--travel">
+          <TravelCard />
         </div>
-      ) : null}
-
-      <div className={gridClass}>
-        {count > 0 || loading || error ? (
-          <div className={count === 2 ? 'app-cell app-cell--travel-2' : 'app-cell'} data-testid="travel-section">
-            <div style={{ display: 'flex', height: '100%' }}>
-              {renderTravelContent()}
-            </div>
-          </div>
-        ) : null}
-        <div className="app-cell">
+        <div className="app-cell app-cell--weather">
           <WeatherCard />
         </div>
-        <div className="app-cell">
+        <div className="app-cell app-cell--calendar">
           <CalendarCard />
         </div>
       </div>
