@@ -21,7 +21,9 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - Fetch deferred tools before starting any task:
   `ToolSearch: "select:AskUserQuestion,TodoWrite"`
 - Confirm both tools are available before proceeding
-- Check that `frontend-design` is listed in the available skills (it appears in the system-reminder skills list); if it is absent after the session-start hook ran, warn the user — the hook could not reach GitHub to install it
+- Check that `frontend-design` is listed in the available skills (it appears in the system-reminder skills list)
+- If `frontend-design` is absent: STOP immediately. Do not proceed with any task. Tell the user:
+  "The `frontend-design` skill is not available. The session-start hook failed to install it from GitHub. Please restart the session — the hook has been fixed to install the skill first. No code will be written until the skill is available."
 
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
@@ -38,7 +40,9 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - NEVER implement behaviour not covered by a feature file
 
 ## Before writing any UI component
-Invoke the `/frontend-design` skill and apply screen size design notes from `family-dashboard.md`.
+- MUST invoke the `/frontend-design` skill before writing any JSX or CSS — no exceptions
+- If the skill invocation fails or the skill is not listed: STOP. Do not write any frontend code. Tell the user the skill is unavailable and that the session must be restarted
+- NEVER proceed with frontend implementation without a successful `/frontend-design` invocation in the same session
 
 ## When compacting
 Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.
