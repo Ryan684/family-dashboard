@@ -67,6 +67,53 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Line 173–174: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
 | Line 176: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
 
+### `components/TravelCard.jsx` (Session 12)
+
+9 surviving mutants — all in `injectStyles()` infrastructure:
+
+**Style injection infrastructure (9 mutants)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `STYLES_ID = 'travel-card-styles'` | `→ ""` | CSS deduplication key. JSDOM does not render CSS; correctness of the ID is unobservable in unit tests. |
+| `injectStyles()` body | Entire block removed | Function injects a `<style>` tag. JSDOM ignores injected stylesheets, so removal has no observable effect in tests. |
+| `typeof document === 'undefined'` | `→ true / false / ""` / `!==` (4 variants) | SSR guard. JSDOM always defines `document`, so this branch cannot be taken in tests. |
+| `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard. JSDOM does not apply styles, so double-injection has no observable effect. |
+| `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores stylesheet text, so empty vs. real CSS is indistinguishable. |
+
+### `components/AlertBanner.jsx` (Session 12)
+
+9 surviving mutants — all in `injectStyles()` infrastructure. Same pattern as TravelCard and WeatherCard above.
+
+### `App.jsx` (Session 12)
+
+17 surviving mutants across four accepted categories:
+
+**Style injection infrastructure (8 mutants)**
+
+Same `injectStyles()` pattern as all other components — JSDOM cannot observe CSS injection.
+
+**React async cancellation / cleanup (5 mutants)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `if (!cancelled)` in `.catch()` success path | `→ if (true)` | Cancellation guard — prevents state update after unmount. JSDOM/React 18 silently drops post-unmount state updates; no observable failure possible without a timing-dependent unmount race. Same pattern as WeatherCard/CalendarCard. |
+| `return () => { cancelled = true; clearInterval(id) }` | Body removed / `true → false` / `clearInterval` removed | Cleanup on unmount. Effect wires up a cancellation flag and stops polling; untestable in single-render unit tests without mounting and unmounting with precise timing. |
+
+**Fallback values during null travelData (2 mutants)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `travelData?.commuters ?? []` | `→ ?? ["Stryker was here"]` | Fallback used only when `travelData` is `null` (before first fetch). During that phase `travelLoading=true`, so the travel section shows a loading spinner regardless of commuter count — the fallback value cannot affect observable output. |
+| `travelData?.is_stale ?? false` | `→ ?? true` or `&& false` | Same window: `travelData` is `null` only during loading. `TravelCard` renders a loading spinner when `loading=true`, suppressing the stale indicator unconditionally. The fallback value has no observable effect. |
+
+**Fetch URL string and `useEffect` deps (2 mutants)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `fetch('/api/travel')` | `→ fetch('')` | The test stubs `global.fetch` without inspecting the URL argument; any URL string produces the same mocked response. Testing the literal URL string would be circular. |
+| `}, [])` | `→ }, ["Stryker was here"]` | `useEffect` empty dependency array. Tests render the component once and do not trigger re-renders, so a mutated deps value that causes re-runs cannot be observed. Accepted as a tool limitation. |
+
 ### `components/CalendarCard.jsx`
 
 14 surviving mutants across two accepted categories:

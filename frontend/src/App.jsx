@@ -41,10 +41,26 @@ function injectStyles() {
       border-bottom: 1px solid #2A2622;
     }
 
+    /* Grid with travel section (1 or 2 commuters) */
     .app-grid {
       display: grid;
+      gap: 1px;
+      flex: 1;
+      background: #2A2622;
+    }
+
+    .app-grid[data-commuters="1"] {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .app-grid[data-commuters="2"] {
       grid-template-columns: 2fr 1fr 1fr;
-      grid-template-rows: auto auto;
+    }
+
+    /* Grid without travel section */
+    .app-grid-no-travel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 1px;
       flex: 1;
       background: #2A2622;
@@ -52,21 +68,6 @@ function injectStyles() {
 
     .app-cell {
       background: #1A1714;
-    }
-
-    .app-cell--travel {
-      grid-column: 1 / 2;
-      grid-row: 1 / 2;
-    }
-
-    .app-cell--weather {
-      grid-column: 2 / 3;
-      grid-row: 1 / 2;
-    }
-
-    .app-cell--calendar {
-      grid-column: 3 / 4;
-      grid-row: 1 / 2;
     }
   `
   document.head.appendChild(style)
@@ -76,6 +77,8 @@ const POLL_INTERVAL_MS = 60_000
 
 function App() {
   const [travelData, setTravelData] = useState(null)
+  const [travelLoading, setTravelLoading] = useState(true)
+  const [travelError, setTravelError] = useState(null)
 
   useEffect(() => {
     injectStyles()
@@ -89,10 +92,16 @@ function App() {
           return res.json()
         })
         .then((json) => {
-          if (!cancelled) setTravelData(json)
+          if (!cancelled) {
+            setTravelData(json)
+            setTravelLoading(false)
+          }
         })
-        .catch(() => {
-          // AlertBanner stays hidden on error
+        .catch((err) => {
+          if (!cancelled) {
+            setTravelError(err.message)
+            setTravelLoading(false)
+          }
         })
     }
 
@@ -105,6 +114,12 @@ function App() {
     }
   }, [])
 
+  const commuters = travelData?.commuters ?? []
+  const isStale = travelData?.is_stale ?? false
+  const commuterCount = commuters.length
+
+  const showTravel = travelLoading || travelError || commuterCount > 0
+
   return (
     <div className="app-shell">
       <div className="app-clock">
@@ -113,17 +128,33 @@ function App() {
 
       <AlertBanner travelData={travelData} />
 
-      <div className="app-grid">
-        <div className="app-cell app-cell--travel">
-          <TravelCard />
+      {showTravel ? (
+        <div className="app-grid" data-commuters={commuterCount} data-testid="travel-section">
+          <div className="app-cell">
+            <TravelCard
+              commuters={commuters}
+              isStale={isStale}
+              loading={travelLoading}
+              error={travelError}
+            />
+          </div>
+          <div className="app-cell">
+            <WeatherCard />
+          </div>
+          <div className="app-cell">
+            <CalendarCard />
+          </div>
         </div>
-        <div className="app-cell app-cell--weather">
-          <WeatherCard />
+      ) : (
+        <div className="app-grid-no-travel">
+          <div className="app-cell">
+            <WeatherCard />
+          </div>
+          <div className="app-cell">
+            <CalendarCard />
+          </div>
         </div>
-        <div className="app-cell app-cell--calendar">
-          <CalendarCard />
-        </div>
-      </div>
+      )}
     </div>
   )
 }
