@@ -750,3 +750,18 @@ Benefits:
 - Fits naturally with the broader home automation project — the meal planner and Tesco scripts could eventually become MCP tools in the same server
 
 This is a post-v1 concern. Build the dashboard working first, then consider MCP wrapping as a second phase.
+
+### Traffic Incident Warnings
+
+`fetch_incidents` currently returns an empty list — Google Maps Routes API (used for routing) does not expose a traffic incident endpoint. The frontend incident display is already in place and handles an empty array cleanly; route delay colours (green / amber / red) cover the primary signal.
+
+When ready to add incidents, the recommended path is **HERE Traffic API**:
+
+- Register free at `developer.here.com` (no credit card required)
+- Free tier: 250,000 requests/month — well above dashboard usage
+- Bounding-box incident query returns `category`, `description`, `criticality` (0–3), and `location` — structurally close to the TomTom shape that `parse_incidents` already handles
+- Add `HERE_API_KEY` to `.env.example` and `config.py`
+- Replace the stub in `fetch_incidents` (`routers/travel.py`) with a GET to `https://data.traffic.hereapi.com/v7/incidents` using the bounding box already calculated from route polyline points
+- Update `parse_incidents` to map HERE's `criticality` → `magnitudeOfDelay`, `type` → `iconCategory`, `description.value` → `events[].description`, `location.description` → `from`
+
+The National Highways Developer Portal (`developer.data.nationalhighways.co.uk`) is an alternative for UK motorway/A-road-only coverage with government data, but requires a more significant rewrite of `parse_incidents` to handle DATEX II JSON field names.
