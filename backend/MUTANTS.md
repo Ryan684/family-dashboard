@@ -5,6 +5,84 @@ Any mutant not listed here must be killed by a test.
 
 ---
 
+## `services/dog_walk.py`
+
+### `x_is_dog_daycare_day__mutmut_3`, `__mutmut_5`, `__mutmut_7`, `__mutmut_9`
+
+**What was mutated:** The fallback defaults in `schedule.get("dog_daycare", {})` and
+`.get("days", [])` were mutated to `None`, empty, or had arguments removed.
+
+**Why acceptable:** These defaults guard against malformed config (missing `dog_daycare`
+or `days` keys). All test schedules are well-formed with both keys present, so the
+defaults are never exercised. Testing for malformed config would test Python's `dict.get`
+rather than business logic. Unkillable without coupling tests to config-parsing edge cases.
+
+---
+
+### `x_rank_routes__mutmut_7`, `__mutmut_8`, `__mutmut_9`
+
+**What was mutated:** The dict key `"Dry"` was renamed (`"XXDryXX"`, `"dry"`, `"DRY"`).
+
+**Why acceptable:** Renaming `"Dry"` makes it fall through to `.get(conditions, 999)`.
+Since the mapped value is also `999`, the observable behaviour is identical. Unkillable
+without an unrealistic route (mud_sensitivity > 999) or changing the dict value, which
+would just move the problem to the default-value mutants below.
+
+---
+
+### `x_rank_routes__mutmut_11`, `__mutmut_12`, `__mutmut_13`
+
+**What was mutated:** The dict key `"Unknown"` was renamed.
+
+**Why acceptable:** Same reasoning as `"Dry"` mutants above — `"Unknown"` maps to 999,
+identical to the fallback default. Unkillable for the same reason.
+
+---
+
+### `x_rank_routes__mutmut_4`, `__mutmut_6`
+
+**What was mutated:** The fallback default in `.get(conditions, 999)` was mutated to
+`None` or removed.
+
+**Why acceptable:** The default is only reached for unknown condition strings. All callers
+pass one of the four known strings. Mutating the default to `None` would cause a TypeError
+at runtime, but that path is never exercised in tests. Unkillable without an unreachable
+else-branch test.
+
+---
+
+### `x_rank_routes__mutmut_10`, `__mutmut_14`, `__mutmut_23`
+
+**What was mutated:** Threshold values for `"Dry"` (999 → 1000), `"Unknown"` (999 → 1000),
+and the fallback default (999 → 1000) were incremented by 1.
+
+**Why acceptable:** The practical range of `mud_sensitivity` is 1–3. Any threshold above 3
+produces identical suitability results. 999 and 1000 are both effectively "infinity" for
+this domain. Unkillable without a route with `mud_sensitivity` between 999 and 1000.
+
+---
+
+### `x_rank_routes__mutmut_43`
+
+**What was mutated:** The sort key `lambda r: 0 if r["suitable"] else 1` had `1` changed to `2`.
+
+**Why acceptable:** Both `1` and `2` are positive integers greater than `0`. The sort produces
+identical output: suitable routes (key=0) always precede unsuitable routes (key>0).
+Unkillable without testing the exact numeric sort key value, which has no behavioural meaning.
+
+---
+
+### `x_load_walk_routes__mutmut_5`, `__mutmut_7`
+
+**What was mutated:** The fallback default in `data.get("routes", [])` was mutated to `None`
+or removed.
+
+**Why acceptable:** The JSON config always has a `"routes"` key (both in `walk-routes.json`
+and in all test fixtures). The `[]` default guards against a malformed file. Unkillable
+without writing a test for malformed JSON, which would test Python's `dict.get` not business logic.
+
+---
+
 ## `services/commute_schedule.py`
 
 ### `x_resolve_commuter_day__mutmut_12` and `__mutmut_13`

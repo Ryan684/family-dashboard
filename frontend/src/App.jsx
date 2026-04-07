@@ -4,6 +4,7 @@ import TravelCard from './components/TravelCard'
 import WeatherCard from './components/WeatherCard'
 import CalendarCard from './components/CalendarCard'
 import AlertBanner from './components/AlertBanner'
+import DogWalkCard from './components/DogWalkCard'
 
 const STYLES_ID = 'app-styles'
 
@@ -50,11 +51,11 @@ function injectStyles() {
     }
 
     .app-grid[data-commuters="1"] {
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
     }
 
     .app-grid[data-commuters="2"] {
-      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
     }
 
     /* Grid without travel section */
@@ -144,6 +145,9 @@ function App() {
           <div className="app-cell">
             <CalendarCard />
           </div>
+          <div className="app-cell">
+            <DogWalkCard />
+          </div>
         </div>
       ) : (
         <div className="app-grid-no-travel">
@@ -152,6 +156,9 @@ function App() {
           </div>
           <div className="app-cell">
             <CalendarCard />
+          </div>
+          <div className="app-cell">
+            <DogWalkCard />
           </div>
         </div>
       )}
