@@ -3,6 +3,7 @@ import asyncio
 from fastapi import FastAPI
 
 from routers.calendar import router as calendar_router
+from routers.dog_walk import router as dog_walk_router
 from routers.travel import router as travel_router
 from routers.weather import router as weather_router
 from scheduler import run_scheduler
@@ -12,6 +13,7 @@ app = FastAPI(title="Family Dashboard API")
 app.include_router(travel_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
+app.include_router(dog_walk_router)
 
 
 @app.on_event("startup")

@@ -8,6 +8,9 @@ vi.mock('./components/WeatherCard', () => ({ default: () => <div data-testid="we
 vi.mock('./components/CalendarCard', () => ({
   default: () => <div data-testid="calendar-card" />,
 }))
+vi.mock('./components/DogWalkCard', () => ({
+  default: () => <div data-testid="dog-walk-card" />,
+}))
 
 const makeRoute = (colour = 'green') => ({
   travel_time_seconds: 1800,
