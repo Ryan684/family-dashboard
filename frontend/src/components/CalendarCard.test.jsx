@@ -37,6 +37,10 @@ const makeEvent = (overrides = {}) => ({
   ...overrides,
 })
 
+function mockCalendar({ today = [], tomorrow = [] } = {}) {
+  mockFetchOk({ today, tomorrow, is_stale: false })
+}
+
 describe('CalendarCard — loading and error states', () => {
   it('shows a loading indicator while the API has not responded', () => {
     fetch.mockReturnValueOnce(new Promise(() => {}))
@@ -57,7 +61,7 @@ describe('CalendarCard — loading and error states', () => {
   })
 
   it('fetches from /api/calendar', async () => {
-    mockFetchOk({ events: [] })
+    mockCalendar()
     render(<CalendarCard />)
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/calendar'))
   })
@@ -65,13 +69,13 @@ describe('CalendarCard — loading and error states', () => {
 
 describe('CalendarCard — Today section', () => {
   it('renders a "Today" heading', async () => {
-    mockFetchOk({ events: [] })
+    mockCalendar()
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument())
   })
 
   it('shows today\'s event summary under the Today heading', async () => {
-    mockFetchOk({ events: [makeEvent({ summary: 'Morning standup' })] })
+    mockCalendar({ today: [makeEvent({ summary: 'Morning standup' })] })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('Morning standup')).toBeInTheDocument()
@@ -79,9 +83,7 @@ describe('CalendarCard — Today section', () => {
   })
 
   it('shows "No events today" when there are no today events', async () => {
-    mockFetchOk({
-      events: [makeEvent({ start: `${TOMORROW}T10:00:00`, summary: 'Tomorrow thing' })],
-    })
+    mockCalendar({ tomorrow: [makeEvent({ start: `${TOMORROW}T10:00:00`, summary: 'Tomorrow thing' })] })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('No events today')).toBeInTheDocument()
@@ -91,15 +93,13 @@ describe('CalendarCard — Today section', () => {
 
 describe('CalendarCard — Tomorrow section', () => {
   it('renders a "Tomorrow" heading', async () => {
-    mockFetchOk({ events: [] })
+    mockCalendar()
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('Tomorrow')).toBeInTheDocument())
   })
 
   it('shows tomorrow\'s event summary under the Tomorrow heading', async () => {
-    mockFetchOk({
-      events: [makeEvent({ start: `${TOMORROW}T14:00:00`, summary: 'School pickup' })],
-    })
+    mockCalendar({ tomorrow: [makeEvent({ start: `${TOMORROW}T14:00:00`, summary: 'School pickup' })] })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('School pickup')).toBeInTheDocument()
@@ -107,7 +107,7 @@ describe('CalendarCard — Tomorrow section', () => {
   })
 
   it('shows "No events tomorrow" when there are no tomorrow events', async () => {
-    mockFetchOk({ events: [makeEvent({ summary: 'Today only' })] })
+    mockCalendar({ today: [makeEvent({ summary: 'Today only' })] })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('No events tomorrow')).toBeInTheDocument()
@@ -117,21 +117,19 @@ describe('CalendarCard — Tomorrow section', () => {
 
 describe('CalendarCard — event display', () => {
   it('shows the formatted time for a timed event', async () => {
-    mockFetchOk({ events: [makeEvent({ start: `${TODAY}T09:30:00`, all_day: false })] })
+    mockCalendar({ today: [makeEvent({ start: `${TODAY}T09:30:00`, all_day: false })] })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('09:30')).toBeInTheDocument())
   })
 
   it('shows "All day" for an all-day event', async () => {
-    mockFetchOk({
-      events: [makeEvent({ start: TODAY, all_day: true })],
-    })
+    mockCalendar({ today: [makeEvent({ start: TODAY, all_day: true })] })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('All day')).toBeInTheDocument())
   })
 
   it('renders a colour indicator with the event calendar_color', async () => {
-    mockFetchOk({ events: [makeEvent({ calendar_color: '#4285F4' })] })
+    mockCalendar({ today: [makeEvent({ calendar_color: '#4285F4' })] })
     render(<CalendarCard />)
     await waitFor(() => {
       const dot = document.querySelector('[data-testid="event-colour"]')

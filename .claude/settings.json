@@ -59,12 +59,12 @@
           {
             "type": "command",
             "comment": "Auto-lint Python files on save",
-            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -q '\\.py$'; then cd backend && ruff check --fix \"$file\" && ruff format \"$file\"; fi"
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -q '\\.py$'; then cd $CLAUDE_PROJECT_DIR/backend && ruff check --fix \"$file\" && ruff format \"$file\"; fi"
           },
           {
             "type": "command",
             "comment": "Auto-lint JS/JSX files on save",
-            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -qE '\\.(jsx|js|ts|tsx)$'; then cd frontend && npx eslint --fix \"$file\" && npx prettier --write \"$file\"; fi"
+            "command": "json=$(cat); file=$(echo \"$json\" | jq -r '.file_path // empty'); if echo \"$file\" | grep -qE '\\.(jsx|js|ts|tsx)$'; then cd $CLAUDE_PROJECT_DIR/frontend && npx eslint --fix \"$file\" && npx prettier --write \"$file\"; fi"
           }
         ]
       }
@@ -75,7 +75,7 @@
           {
             "type": "command",
             "comment": "Log failures for post-session review",
-            "command": "json=$(cat); echo \"[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FAILURE: $(echo \"$json\" | jq -c '{tool: .tool_name, error: .error}')\" >> .claude-failures.jsonl"
+            "command": "json=$(cat); echo \"[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FAILURE: $(echo \"$json\" | jq -c '{tool: .tool_name, error: .error}')\" >> $CLAUDE_PROJECT_DIR/.claude-failures.jsonl"
           }
         ]
       }
@@ -86,7 +86,7 @@
           {
             "type": "command",
             "comment": "Run full test suite when Claude finishes a task",
-            "command": "echo '--- Running full test suite ---' && cd backend && python -m pytest --tb=short 2>&1 | tee ../.last-test-results && cd ../frontend && npx vitest run 2>&1 | tee -a ../.last-test-results && echo '--- Test run complete ---'"
+            "command": "echo '--- Running full test suite ---' && cd $CLAUDE_PROJECT_DIR/backend && python -m pytest --tb=short 2>&1 | tee $CLAUDE_PROJECT_DIR/.last-test-results && cd $CLAUDE_PROJECT_DIR/frontend && npx vitest run 2>&1 | tee -a $CLAUDE_PROJECT_DIR/.last-test-results && echo '--- Test run complete ---'"
           }
         ]
       }

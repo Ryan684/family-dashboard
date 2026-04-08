@@ -1,6 +1,7 @@
 # Secrets
 .env
 backend/credentials.json
+commute-schedule.json
 
 # Python
 __pycache__/
