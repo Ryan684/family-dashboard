@@ -468,6 +468,35 @@ def test_build_route_option_fields():
     assert result["delay_colour"] == "green"
 
 
+def test_build_route_option_includes_encoded_polyline():
+    route = {
+        "summary": {
+            "lengthInMeters": 25000,
+            "travelTimeInSeconds": 1800,
+            "trafficDelayInSeconds": 90,
+            "noTrafficTravelTimeInSeconds": 1650,
+        },
+        "encoded_polyline": "xyz789",
+        "legs": [],
+    }
+    result = _build_route_option(route)
+    assert result["encoded_polyline"] == "xyz789"
+
+
+def test_build_route_option_encoded_polyline_defaults_empty():
+    route = {
+        "summary": {
+            "lengthInMeters": 25000,
+            "travelTimeInSeconds": 1800,
+            "trafficDelayInSeconds": 90,
+            "noTrafficTravelTimeInSeconds": 1650,
+        },
+        "legs": [],
+    }
+    result = _build_route_option(route)
+    assert result["encoded_polyline"] == ""
+
+
 def test_build_all_points_combines_routes():
     response = {
         "routes": [
@@ -650,6 +679,37 @@ def test_normalize_google_response_points_from_start_end():
 def test_normalize_google_response_empty_routes():
     result = _normalize_google_response({"routes": []})
     assert result["routes"] == []
+
+
+def test_normalize_google_response_captures_encoded_polyline():
+    resp = {
+        "routes": [
+            {
+                "duration": "1800s",
+                "staticDuration": "1650s",
+                "distanceMeters": 25000,
+                "polyline": {"encodedPolyline": "abc123"},
+                "legs": [],
+            }
+        ]
+    }
+    result = _normalize_google_response(resp)
+    assert result["routes"][0]["encoded_polyline"] == "abc123"
+
+
+def test_normalize_google_response_missing_polyline_defaults_empty():
+    resp = {
+        "routes": [
+            {
+                "duration": "1800s",
+                "staticDuration": "1650s",
+                "distanceMeters": 25000,
+                "legs": [],
+            }
+        ]
+    }
+    result = _normalize_google_response(resp)
+    assert result["routes"][0]["encoded_polyline"] == ""
 
 
 def test_normalize_google_response_multiple_routes():
