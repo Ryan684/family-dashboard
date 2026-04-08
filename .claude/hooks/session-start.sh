@@ -6,13 +6,6 @@ set -euo pipefail
 # Skills are plain markdown directories — no plugin CLI needed.
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-# frontend-design skill is committed to .claude/commands/frontend-design.md
-# and is loaded automatically by Claude Code from the project directory at
-# session init — no marketplace or network access needed.
-# ---------------------------------------------------------------------------
-echo "=== Skills: frontend-design available via .claude/commands/ ==="
-
-# ---------------------------------------------------------------------------
 # Python 3.14 + backend venv — web/remote only (already present locally)
 # ---------------------------------------------------------------------------
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
