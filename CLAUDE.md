@@ -17,13 +17,14 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 5. MUST confirm all tests pass before committing
 6. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
 
-## Session startup (cloud/web only)
+## Session startup
 - Fetch deferred tools before starting any task:
   `ToolSearch: "select:AskUserQuestion,TodoWrite"`
 - Confirm both tools are available before proceeding
 - Check that `frontend-design` is listed in the available skills (it appears in the system-reminder skills list)
 - If `frontend-design` is absent: STOP immediately. Do not proceed with any task. Tell the user:
-  "The `frontend-design` skill is not available. The session-start hook failed to install it from GitHub. Please restart the session — the hook has been fixed to install the skill first. No code will be written until the skill is available."
+  "The `frontend-design` skill is not available. The session-start hook failed to install it from GitHub. Please restart the session. No code will be written until the skill is available."
+- Note: the session-start hook installs the skill in both web and local CLI environments.
 
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
