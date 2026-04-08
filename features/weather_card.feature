@@ -7,43 +7,35 @@ Feature: Weather card frontend
     When the WeatherCard renders
     Then a loading indicator is visible
 
+  Scenario: Location name is displayed
+    Given the API returns a locations list with one entry named "Home"
+    When the WeatherCard renders
+    Then "Home" is visible on screen
+
   Scenario: Current temperature is displayed
-    Given the API returns current weather with temperature 15°C
+    Given the API returns a location with current temperature 15°C
     When the WeatherCard renders
     Then the current temperature "15°C" is displayed
 
   Scenario: Weather description is displayed
-    Given the API returns current weather with description "Partly cloudy"
+    Given the API returns a location with description "Partly cloudy"
     When the WeatherCard renders
     Then the weather description "Partly cloudy" is displayed
 
-  Scenario: Apparent temperature is displayed
-    Given the API returns apparent temperature 12°C
+  Scenario: Daily high is displayed
+    Given the API returns a location with daily high 19°C
     When the WeatherCard renders
-    Then "Feels like 12°C" is displayed
+    Then "High: 19°C" is displayed
 
-  Scenario: Wind speed and humidity are displayed
-    Given the API returns wind speed 18 km/h and humidity 72%
+  Scenario: No hourly forecast entries are shown
+    Given the API returns a locations list
     When the WeatherCard renders
-    Then "18 km/h" is displayed
-    And "72%" is displayed
+    Then no individual hourly forecast entries are visible
 
-  Scenario: Hourly forecast entries are displayed
-    Given the API returns a 6-entry hourly forecast
+  Scenario: Multiple location blocks are rendered
+    Given the API returns two locations
     When the WeatherCard renders
-    Then 6 forecast entries are visible
-
-  Scenario: Each forecast entry shows time, temperature, and weather
-    Given the API returns a forecast entry at "09:00" with temperature 14°C and description "Clear sky"
-    When the WeatherCard renders
-    Then "09:00" is displayed
-    And "14°C" is displayed in the forecast
-    And "Clear sky" is displayed in the forecast
-
-  Scenario: Precipitation probability is displayed for a forecast entry
-    Given the API returns a forecast entry with precipitation probability 40%
-    When the WeatherCard renders
-    Then "40%" is displayed in the forecast
+    Then two location weather blocks are visible
 
   Scenario: Error state is shown when the API call fails
     Given the API call fails with a network error

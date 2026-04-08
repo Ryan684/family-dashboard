@@ -2,15 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import WeatherCard from './WeatherCard'
 
-const makeForecastEntry = (overrides = {}) => ({
-  time: '2026-04-04T09:00',
-  temperature_celsius: 14,
-  weather_description: 'Clear sky',
-  precipitation_probability: 10,
-  ...overrides,
-})
-
-const makeApiResponse = (overrides = {}) => ({
+const makeLocation = (overrides = {}) => ({
+  name: 'Home',
   current: {
     temperature_celsius: 15,
     apparent_temperature_celsius: 12,
@@ -18,14 +11,13 @@ const makeApiResponse = (overrides = {}) => ({
     wind_speed_kmh: 18,
     humidity_percent: 72,
   },
-  forecast: [
-    makeForecastEntry({ time: '2026-04-04T09:00' }),
-    makeForecastEntry({ time: '2026-04-04T10:00' }),
-    makeForecastEntry({ time: '2026-04-04T11:00' }),
-    makeForecastEntry({ time: '2026-04-04T12:00' }),
-    makeForecastEntry({ time: '2026-04-04T13:00' }),
-    makeForecastEntry({ time: '2026-04-04T14:00' }),
-  ],
+  daily_high_celsius: 19,
+  ...overrides,
+})
+
+const makeApiResponse = (overrides = {}) => ({
+  locations: [makeLocation()],
+  is_stale: false,
   ...overrides,
 })
 
@@ -67,27 +59,27 @@ describe('WeatherCard — loading and error states', () => {
   it('shows an error message when the API call fails', async () => {
     mockFetchError()
     render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 
   it('shows an error message when the API returns a non-ok HTTP status', async () => {
     fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
     render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 })
 
-describe('WeatherCard — current conditions', () => {
+describe('WeatherCard — location block', () => {
+  it('displays the location name', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+  })
+
   it('displays the current temperature in °C', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByText('15°C')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('15°C')).toBeInTheDocument())
   })
 
   it('displays the weather description', async () => {
@@ -98,81 +90,66 @@ describe('WeatherCard — current conditions', () => {
     )
   })
 
-  it('displays the apparent temperature as "Feels like X°C"', async () => {
+  it('displays the daily high as "High: X°C"', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
     await waitFor(() =>
-      expect(screen.getByText(/Feels like 12°C/)).toBeInTheDocument()
+      expect(screen.getByText(/High: 19°C/)).toBeInTheDocument()
     )
   })
 
-  it('displays the wind speed in km/h', async () => {
+  it('does not display "Feels like"', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
     await waitFor(() =>
-      expect(screen.getByText(/18 km\/h/)).toBeInTheDocument()
+      expect(screen.queryByText(/Feels like/)).not.toBeInTheDocument()
     )
   })
 
-  it('displays the humidity as a percentage', async () => {
+  it('does not display hourly forecast entries', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByText(/72%/)).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryAllByTestId('forecast-entry')).toHaveLength(0)
   })
 })
 
-describe('WeatherCard — forecast', () => {
-  it('renders 6 forecast entries', async () => {
+describe('WeatherCard — multiple locations', () => {
+  it('renders one block per location', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        locations: [
+          makeLocation({ name: 'Home' }),
+          makeLocation({ name: "Ryan's Office", daily_high_celsius: 17 }),
+        ],
+      })
+    )
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Home')).toBeInTheDocument()
+    )
+    expect(screen.getByText("Ryan's Office")).toBeInTheDocument()
+    expect(screen.getAllByTestId('weather-location-block')).toHaveLength(2)
+  })
+
+  it('displays each location name distinctly', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        locations: [
+          makeLocation({ name: 'Home', current: { ...makeLocation().current, weather_description: 'Overcast' } }),
+          makeLocation({ name: "Robyn's Office", current: { ...makeLocation().current, weather_description: 'Clear sky' } }),
+        ],
+      })
+    )
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.getByText("Robyn's Office")).toBeInTheDocument()
+  })
+
+  it('shows a single block when only one location is returned', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getAllByTestId('forecast-entry')).toHaveLength(6)
-    )
-  })
-
-  it('displays the hour from each forecast time', async () => {
-    mockFetchOk(makeApiResponse())
-    render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByText('09:00')).toBeInTheDocument()
-    )
-  })
-
-  it('displays the temperature for each forecast entry', async () => {
-    mockFetchOk(
-      makeApiResponse({
-        forecast: [makeForecastEntry({ temperature_celsius: 14 })],
-      })
-    )
-    render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getAllByText('14°C').length).toBeGreaterThan(0)
-    )
-  })
-
-  it('displays the weather description for each forecast entry', async () => {
-    mockFetchOk(
-      makeApiResponse({
-        forecast: [makeForecastEntry({ weather_description: 'Clear sky' })],
-      })
-    )
-    render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByText('Clear sky')).toBeInTheDocument()
-    )
-  })
-
-  it('displays the precipitation probability for each forecast entry', async () => {
-    mockFetchOk(
-      makeApiResponse({
-        forecast: [makeForecastEntry({ precipitation_probability: 40 })],
-      })
-    )
-    render(<WeatherCard />)
-    await waitFor(() =>
-      expect(screen.getByText(/40%/)).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.getAllByTestId('weather-location-block')).toHaveLength(1)
   })
 })
