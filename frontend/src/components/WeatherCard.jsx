@@ -17,7 +17,6 @@ function injectStyles() {
       --wc-text-primary:   #F8F5EF;
       --wc-text-secondary: #7A756E;
       --wc-accent:         #5BA4CF;
-      --wc-rain:           #5BA4CF;
       --wc-red:            #D95F4B;
     }
 
@@ -27,11 +26,25 @@ function injectStyles() {
       padding: 32px 40px;
     }
 
-    .wc-current {
-      margin-bottom: 40px;
+    .wc-location {
+      padding-bottom: 36px;
     }
 
-    .wc-temp {
+    .wc-location + .wc-location {
+      border-top: 1px solid var(--wc-border);
+      padding-top: 36px;
+    }
+
+    .wc-location-name {
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--wc-text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .wc-location-temp {
       font-family: 'Big Shoulders Display', 'Impact', sans-serif;
       font-size: 96px;
       font-weight: 700;
@@ -40,68 +53,17 @@ function injectStyles() {
       margin-bottom: 12px;
     }
 
-    .wc-description {
-      font-size: 36px;
+    .wc-location-desc {
+      font-size: 32px;
       font-weight: 300;
       color: var(--wc-text-primary);
-      margin-bottom: 16px;
-    }
-
-    .wc-meta {
-      display: flex;
-      gap: 32px;
-      flex-wrap: wrap;
-    }
-
-    .wc-meta-item {
-      font-size: 24px;
-      font-weight: 300;
-      color: var(--wc-text-secondary);
-    }
-
-    .wc-forecast {
-      display: flex;
-      gap: 12px;
-      overflow-x: auto;
-    }
-
-    .wc-forecast-entry {
-      flex: 1;
-      min-width: 100px;
-      background: var(--wc-surface);
-      border: 1px solid var(--wc-border);
-      border-radius: 12px;
-      padding: 20px 16px;
-      text-align: center;
-    }
-
-    .wc-forecast-time {
-      font-size: 24px;
-      font-weight: 400;
-      color: var(--wc-text-secondary);
       margin-bottom: 10px;
     }
 
-    .wc-forecast-temp {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
-      font-size: 40px;
-      font-weight: 700;
-      color: var(--wc-text-primary);
-      margin-bottom: 8px;
-    }
-
-    .wc-forecast-desc {
-      font-size: 20px;
-      font-weight: 300;
-      color: var(--wc-text-secondary);
-      margin-bottom: 8px;
-      min-height: 26px;
-    }
-
-    .wc-forecast-precip {
+    .wc-location-high {
       font-size: 24px;
       font-weight: 300;
-      color: var(--wc-rain);
+      color: var(--wc-text-secondary);
     }
 
     .wc-loading {
@@ -127,17 +89,14 @@ function injectStyles() {
   document.head.appendChild(style)
 }
 
-function formatHour(isoTime) {
-  return isoTime.slice(11, 16)
-}
-
-function ForecastEntry({ entry }) {
+function LocationBlock({ location }) {
+  const { name, current, daily_high_celsius } = location
   return (
-    <div className="wc-forecast-entry" data-testid="forecast-entry">
-      <div className="wc-forecast-time">{formatHour(entry.time)}</div>
-      <div className="wc-forecast-temp">{entry.temperature_celsius}°C</div>
-      <div className="wc-forecast-desc">{entry.weather_description}</div>
-      <div className="wc-forecast-precip">{entry.precipitation_probability}%</div>
+    <div className="wc-location" data-testid="weather-location-block">
+      <div className="wc-location-name">{name}</div>
+      <div className="wc-location-temp">{current.temperature_celsius}°C</div>
+      <div className="wc-location-desc">{current.weather_description}</div>
+      <div className="wc-location-high">High: {daily_high_celsius}°C</div>
     </div>
   )
 }
@@ -191,27 +150,21 @@ function WeatherCard() {
     )
   }
 
-  const { current, forecast } = data
+  const locations = data?.locations ?? []
+
+  if (locations.length === 0) {
+    return (
+      <div className="wc-loading" role="status">
+        Weather unavailable
+      </div>
+    )
+  }
 
   return (
     <div className="wc-wrap">
-      <div className="wc-current">
-        <div className="wc-temp">{current.temperature_celsius}°C</div>
-        <div className="wc-description">{current.weather_description}</div>
-        <div className="wc-meta">
-          <span className="wc-meta-item">
-            Feels like {current.apparent_temperature_celsius}°C
-          </span>
-          <span className="wc-meta-item">{current.wind_speed_kmh} km/h</span>
-          <span className="wc-meta-item">{current.humidity_percent}%</span>
-        </div>
-      </div>
-
-      <div className="wc-forecast">
-        {forecast.map((entry, i) => (
-          <ForecastEntry key={i} entry={entry} />
-        ))}
-      </div>
+      {locations.map((location, i) => (
+        <LocationBlock key={i} location={location} />
+      ))}
     </div>
   )
 }

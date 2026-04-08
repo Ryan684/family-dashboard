@@ -1,20 +1,27 @@
 """Weather router — Open-Meteo integration (no API key required)."""
 
+import os
 from datetime import datetime
 
 import httpx
 from fastapi import APIRouter
 
 from config import settings
+from services.commute_schedule import load_schedule
 
 router = APIRouter(prefix="/api/weather", tags=["weather"])
 
 # Module-level cache: holds last successful response dict
 _cache: dict | None = None
 
+_SCHEDULE_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "commute-schedule.json"
+)
+
 
 def _get_now() -> datetime:
     return datetime.now()
+
 
 OPEN_METEO_BASE = "https://api.open-meteo.com/v1"
 
@@ -67,33 +74,90 @@ def parse_current(current_data: dict) -> dict:
     }
 
 
-def find_current_hour_index(hourly_times: list[str], current_time: str) -> int:
-    """Return the index of current_time in hourly_times, or 0 if not found."""
+def parse_daily_high(daily_data: dict) -> float | None:
+    """Return today's maximum temperature from an Open-Meteo daily block."""
+    temps = daily_data.get("temperature_2m_max", [])
+    return temps[0] if temps else None
+
+
+def parse_location_name(address: dict) -> str:
+    """Extract the most specific useful place name from a Nominatim address dict."""
+    return (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("county")
+        or ""
+    )
+
+
+def resolve_weather_locations(schedule: dict, weekday: str, cfg) -> list[dict]:
+    """Return unique weather fetch targets based on today's commuter modes.
+
+    Each commuter contributes their end location:
+      office → their work coordinates (labelled "{Name}'s Office")
+      wfh/off → home coordinates (labelled "Home")
+
+    Locations with identical coordinates are deduplicated so the same place
+    is never fetched or displayed twice.
+    """
+    work_coords = [
+        (cfg.commuter_1_work_lat, cfg.commuter_1_work_lon),
+        (cfg.commuter_2_work_lat, cfg.commuter_2_work_lon),
+    ]
+    home = (cfg.home_lat, cfg.home_lon)
+
+    seen: set[tuple[float, float]] = set()
+    locations: list[dict] = []
+
+    for i, commuter in enumerate(schedule["commuters"]):
+        day_config = commuter["schedule"].get(weekday, {"mode": "off"})
+        mode = day_config["mode"]
+        name = commuter["name"]
+
+        if mode == "office" and i < len(work_coords):
+            lat, lon = work_coords[i]
+            label = f"{name}'s Office"
+        else:
+            lat, lon = home
+            label = "Home"
+
+        key = (lat, lon)
+        if key not in seen:
+            seen.add(key)
+            locations.append({"name": label, "lat": lat, "lon": lon, "geocode": mode == "office"})
+
+    return locations
+
+
+# Module-level cache for geocoded names — coordinates are fixed per session
+_geocode_cache: dict[tuple[float, float], str] = {}
+
+NOMINATIM_BASE = "https://nominatim.openstreetmap.org"
+
+
+async def fetch_location_name(client: httpx.AsyncClient, lat: float, lon: float) -> str:
+    """Reverse-geocode coordinates to a city/town name via Nominatim.
+
+    Returns an empty string if the request fails or no useful name is found.
+    """
+    key = (lat, lon)
+    if key in _geocode_cache:
+        return _geocode_cache[key]
+
     try:
-        return hourly_times.index(current_time)
-    except ValueError:
-        return 0
-
-
-def parse_forecast(hourly_data: dict, start_index: int, count: int = 6) -> list[dict]:
-    """Return `count` hourly forecast entries starting from start_index."""
-    times = hourly_data.get("time", [])
-    temps = hourly_data.get("temperature_2m", [])
-    codes = hourly_data.get("weather_code", [])
-    precip = hourly_data.get("precipitation_probability", [])
-    result = []
-    for i in range(start_index, min(start_index + count, len(times))):
-        result.append(
-            {
-                "time": times[i],
-                "temperature_celsius": temps[i] if i < len(temps) else None,
-                "weather_description": map_weather_code(
-                    codes[i] if i < len(codes) else 0
-                ),
-                "precipitation_probability": precip[i] if i < len(precip) else 0,
-            }
+        resp = await client.get(
+            f"{NOMINATIM_BASE}/reverse",
+            params={"lat": lat, "lon": lon, "format": "json"},
+            headers={"User-Agent": "FamilyDashboard/1.0 (personal home dashboard)"},
         )
-    return result
+        resp.raise_for_status()
+        name = parse_location_name(resp.json().get("address", {}))
+    except Exception:
+        name = ""
+
+    _geocode_cache[key] = name
+    return name
 
 
 # ---------------------------------------------------------------------------
@@ -108,8 +172,8 @@ async def fetch_weather(client: httpx.AsyncClient, lat: float, lon: float) -> di
             "latitude": lat,
             "longitude": lon,
             "current": "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m",
-            "hourly": "temperature_2m,weather_code,precipitation_probability",
-            "forecast_days": 2,
+            "daily": "temperature_2m_max",
+            "forecast_days": 1,
             "wind_speed_unit": "kmh",
             "timezone": "Europe/London",
         },
@@ -129,22 +193,34 @@ async def get_weather():
 
     is_stale = not _scheduler_in_window(_get_now())
     if _cache is None:
-        return {"current": {}, "forecast": [], "is_stale": is_stale}
+        return {"locations": [], "is_stale": is_stale}
     return {**_cache, "is_stale": is_stale}
 
 
 async def fetch_weather_data() -> dict:
-    """Fetch live weather data from Open-Meteo. Called by the scheduler."""
+    """Fetch live weather data per active destination. Called by the scheduler."""
+    schedule = load_schedule(_SCHEDULE_PATH)
+    weekday = _get_now().strftime("%A").lower()
+    locations = resolve_weather_locations(schedule, weekday, settings)
+
+    result_locations = []
     async with httpx.AsyncClient() as http:
-        data = await fetch_weather(http, settings.home_lat, settings.home_lon)
+        for loc in locations:
+            display_name = loc["name"]
+            if loc["geocode"]:
+                city = await fetch_location_name(http, loc["lat"], loc["lon"])
+                if city:
+                    display_name = city
 
-    current_raw = data.get("current", {})
-    current = parse_current(current_raw)
+            data = await fetch_weather(http, loc["lat"], loc["lon"])
+            current = parse_current(data.get("current", {}))
+            daily_high = parse_daily_high(data.get("daily", {}))
+            result_locations.append(
+                {
+                    "name": display_name,
+                    "current": current,
+                    "daily_high_celsius": daily_high,
+                }
+            )
 
-    hourly = data.get("hourly", {})
-    start_idx = find_current_hour_index(
-        hourly.get("time", []), current_raw.get("time", "")
-    )
-    forecast = parse_forecast(hourly, start_idx)
-
-    return {"current": current, "forecast": forecast}
+    return {"locations": result_locations}
