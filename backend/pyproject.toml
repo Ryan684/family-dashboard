@@ -22,6 +22,9 @@ dev = [
     "mutmut",
 ]
 
+[tool.setuptools.packages.find]
+include = ["routers*", "services*"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py314"

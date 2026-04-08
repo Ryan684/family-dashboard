@@ -92,20 +92,6 @@ function injectStyles() {
   document.head.appendChild(style)
 }
 
-function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function tomorrowDateString() {
-  const d = new Date()
-  d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
-
-function eventDateString(event) {
-  return event.start.slice(0, 10)
-}
-
 function formatTime(event) {
   if (event.all_day) return 'All day'
   return event.start.slice(11, 16)
@@ -187,22 +173,16 @@ function CalendarCard() {
     )
   }
 
-  const today = todayDateString()
-  const tomorrow = tomorrowDateString()
-
-  const todayEvents = data.events.filter((e) => eventDateString(e) === today)
-  const tomorrowEvents = data.events.filter((e) => eventDateString(e) === tomorrow)
-
   return (
     <div className="cal-wrap">
       <EventSection
         heading="Today"
-        events={todayEvents}
+        events={data.today}
         emptyMessage="No events today"
       />
       <EventSection
         heading="Tomorrow"
-        events={tomorrowEvents}
+        events={data.tomorrow}
         emptyMessage="No events tomorrow"
       />
     </div>
