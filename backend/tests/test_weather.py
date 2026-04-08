@@ -10,6 +10,7 @@ from routers.weather import (
     map_weather_code,
     parse_current,
     parse_daily_high,
+    parse_location_name,
     resolve_weather_locations,
 )
 
@@ -198,6 +199,37 @@ def test_parse_daily_high_does_not_use_second_day():
 
 
 # ---------------------------------------------------------------------------
+# parse_location_name
+# ---------------------------------------------------------------------------
+
+
+def test_parse_location_name_prefers_city():
+    assert parse_location_name({"city": "London", "town": "Somewhere", "county": "Greater London"}) == "London"
+
+
+def test_parse_location_name_falls_back_to_town():
+    assert parse_location_name({"town": "Guildford", "county": "Surrey"}) == "Guildford"
+
+
+def test_parse_location_name_falls_back_to_village():
+    assert parse_location_name({"village": "Shere", "county": "Surrey"}) == "Shere"
+
+
+def test_parse_location_name_falls_back_to_county():
+    assert parse_location_name({"county": "Surrey"}) == "Surrey"
+
+
+def test_parse_location_name_empty_dict_returns_empty_string():
+    assert parse_location_name({}) == ""
+
+
+def test_parse_location_name_ignores_country_and_state():
+    # Should not return country/state — too broad for a weather card label
+    result = parse_location_name({"country": "United Kingdom", "state": "England"})
+    assert result == ""
+
+
+# ---------------------------------------------------------------------------
 # resolve_weather_locations
 # ---------------------------------------------------------------------------
 
@@ -270,6 +302,24 @@ def test_resolve_returns_list_of_dicts_with_required_keys():
         assert "name" in loc
         assert "lat" in loc
         assert "lon" in loc
+        assert "geocode" in loc
+
+
+def test_resolve_office_location_has_geocode_true():
+    locs = resolve_weather_locations(_TEST_SCHEDULE, "monday", _MOCK_SETTINGS)
+    ryan_loc = next(loc for loc in locs if "Ryan" in loc["name"])
+    assert ryan_loc["geocode"] is True
+
+
+def test_resolve_home_location_has_geocode_false():
+    locs = resolve_weather_locations(_TEST_SCHEDULE, "tuesday", _MOCK_SETTINGS)
+    home_loc = next(loc for loc in locs if loc["name"] == "Home")
+    assert home_loc["geocode"] is False
+
+
+def test_resolve_off_commuter_home_has_geocode_false():
+    locs = resolve_weather_locations(_TEST_SCHEDULE, "wednesday", _MOCK_SETTINGS)
+    assert locs[0]["geocode"] is False
 
 
 # ---------------------------------------------------------------------------

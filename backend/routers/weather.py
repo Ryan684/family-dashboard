@@ -80,6 +80,17 @@ def parse_daily_high(daily_data: dict) -> float | None:
     return temps[0] if temps else None
 
 
+def parse_location_name(address: dict) -> str:
+    """Extract the most specific useful place name from a Nominatim address dict."""
+    return (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("county")
+        or ""
+    )
+
+
 def resolve_weather_locations(schedule: dict, weekday: str, cfg) -> list[dict]:
     """Return unique weather fetch targets based on today's commuter modes.
 
@@ -114,9 +125,39 @@ def resolve_weather_locations(schedule: dict, weekday: str, cfg) -> list[dict]:
         key = (lat, lon)
         if key not in seen:
             seen.add(key)
-            locations.append({"name": label, "lat": lat, "lon": lon})
+            locations.append({"name": label, "lat": lat, "lon": lon, "geocode": mode == "office"})
 
     return locations
+
+
+# Module-level cache for geocoded names — coordinates are fixed per session
+_geocode_cache: dict[tuple[float, float], str] = {}
+
+NOMINATIM_BASE = "https://nominatim.openstreetmap.org"
+
+
+async def fetch_location_name(client: httpx.AsyncClient, lat: float, lon: float) -> str:
+    """Reverse-geocode coordinates to a city/town name via Nominatim.
+
+    Returns an empty string if the request fails or no useful name is found.
+    """
+    key = (lat, lon)
+    if key in _geocode_cache:
+        return _geocode_cache[key]
+
+    try:
+        resp = await client.get(
+            f"{NOMINATIM_BASE}/reverse",
+            params={"lat": lat, "lon": lon, "format": "json"},
+            headers={"User-Agent": "FamilyDashboard/1.0 (personal home dashboard)"},
+        )
+        resp.raise_for_status()
+        name = parse_location_name(resp.json().get("address", {}))
+    except Exception:
+        name = ""
+
+    _geocode_cache[key] = name
+    return name
 
 
 # ---------------------------------------------------------------------------
@@ -165,12 +206,18 @@ async def fetch_weather_data() -> dict:
     result_locations = []
     async with httpx.AsyncClient() as http:
         for loc in locations:
+            display_name = loc["name"]
+            if loc["geocode"]:
+                city = await fetch_location_name(http, loc["lat"], loc["lon"])
+                if city:
+                    display_name = city
+
             data = await fetch_weather(http, loc["lat"], loc["lon"])
             current = parse_current(data.get("current", {}))
             daily_high = parse_daily_high(data.get("daily", {}))
             result_locations.append(
                 {
-                    "name": loc["name"],
+                    "name": display_name,
                     "current": current,
                     "daily_high_celsius": daily_high,
                 }

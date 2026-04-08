@@ -9,10 +9,11 @@ Feature: Weather per commuter destination
     Given the home location is configured
     And two commuters are configured with their respective work locations
 
-  Scenario: Office commuter sees their work location weather
+  Scenario: Office commuter sees their work location weather labelled with the city name
     Given commuter "Ryan" has mode "office" today
+    And reverse geocoding returns "Guildford" for Ryan's work coordinates
     When the weather endpoint is requested
-    Then the response contains a location entry named "Ryan's Office"
+    Then the response contains a location entry named "Guildford"
     And that entry includes a current temperature and a daily high
 
   Scenario: WFH commuter sees home weather
