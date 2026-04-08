@@ -150,9 +150,19 @@ function WeatherCard() {
     )
   }
 
+  const locations = data?.locations ?? []
+
+  if (locations.length === 0) {
+    return (
+      <div className="wc-loading" role="status">
+        Weather unavailable
+      </div>
+    )
+  }
+
   return (
     <div className="wc-wrap">
-      {data.locations.map((location, i) => (
+      {locations.map((location, i) => (
         <LocationBlock key={i} location={location} />
       ))}
     </div>

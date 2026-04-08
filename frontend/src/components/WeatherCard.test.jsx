@@ -69,6 +69,25 @@ describe('WeatherCard — loading and error states', () => {
   })
 })
 
+describe('WeatherCard — empty locations', () => {
+  it('shows a status message when locations array is empty', async () => {
+    mockFetchOk({ locations: [], is_stale: true })
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toBeInTheDocument()
+    )
+  })
+
+  it('renders no location blocks when locations is empty', async () => {
+    mockFetchOk({ locations: [], is_stale: true })
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toBeInTheDocument()
+    )
+    expect(screen.queryAllByTestId('weather-location-block')).toHaveLength(0)
+  })
+})
+
 describe('WeatherCard — location block', () => {
   it('displays the location name', async () => {
     mockFetchOk(makeApiResponse())
