@@ -182,4 +182,30 @@ describe('CalendarCard — event travel ETA', () => {
       expect(screen.getByTestId('event-travel').textContent).toBe('12 min · via A3')
     )
   })
+
+  it('shows hours and minutes when travel time is 60 minutes or more', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 4500, description: '' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.getByText('1 hr 15 min')).toBeInTheDocument())
+  })
+
+  it('shows plural hrs when travel time is 2 or more hours', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 7800, description: 'via M25' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('event-travel').textContent).toBe('2 hrs 10 min · via M25')
+    )
+  })
+
+  it('shows whole hours with 0 min when travel time is an exact multiple of 60 minutes', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 3600, description: '' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.getByText('1 hr 0 min')).toBeInTheDocument())
+  })
 })

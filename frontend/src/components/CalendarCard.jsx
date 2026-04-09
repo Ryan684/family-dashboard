@@ -112,8 +112,16 @@ function formatTime(event) {
 }
 
 function formatTravelTime(travel) {
-  const mins = Math.round(travel.travel_time_seconds / 60)
-  const parts = [`${mins} min`]
+  const totalMinutes = Math.round(travel.travel_time_seconds / 60)
+  let duration
+  if (totalMinutes < 60) {
+    duration = `${totalMinutes} min`
+  } else {
+    const hrs = Math.floor(totalMinutes / 60)
+    const mins = totalMinutes % 60
+    duration = `${hrs} ${hrs === 1 ? 'hr' : 'hrs'} ${mins} min`
+  }
+  const parts = [duration]
   if (travel.description) parts.push(travel.description)
   return parts.join(' · ')
 }

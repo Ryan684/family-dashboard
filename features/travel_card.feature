@@ -38,10 +38,15 @@ Feature: Travel card frontend
     When the TravelCard renders
     Then a stale data warning is visible
 
-  Scenario: Travel time displayed in minutes
+  Scenario: Travel time displayed in minutes for sub-hour journeys
     Given a route with travel_time_seconds 2700
     When the TravelCard renders
     Then "45 min" is visible on the route card
+
+  Scenario: Travel time of 60 minutes or more is displayed in hours and minutes
+    Given a route with travel_time_seconds 5400
+    When the TravelCard renders
+    Then "1 hr 30 min" is visible on the route card
 
   Scenario: Loading state shown while data is fetching
     Given the API has not yet responded
