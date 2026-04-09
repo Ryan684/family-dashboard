@@ -192,8 +192,12 @@ function injectStyles() {
   document.head.appendChild(style)
 }
 
-function formatMinutes(seconds) {
-  return `${Math.round(seconds / 60)} min`
+function formatDuration(seconds) {
+  const totalMinutes = Math.round(seconds / 60)
+  if (totalMinutes < 60) return `${totalMinutes} min`
+  const hrs = Math.floor(totalMinutes / 60)
+  const mins = totalMinutes % 60
+  return `${hrs} ${hrs === 1 ? 'hr' : 'hrs'} ${mins} min`
 }
 
 function destinationLabel(mode) {
@@ -205,7 +209,7 @@ function RouteCard({ route }) {
     <div className="tc-route-card" data-testid="route-card">
       <div className="tc-colour-bar" data-colour={route.delay_colour} />
       <div className="tc-route-card-body">
-        <div className="tc-travel-time">{formatMinutes(route.travel_time_seconds)}</div>
+        <div className="tc-travel-time">{formatDuration(route.travel_time_seconds)}</div>
         {route.description ? (
           <div className="tc-description">{route.description}</div>
         ) : null}
