@@ -34,6 +34,7 @@ const makeEvent = (overrides = {}) => ({
   start: `${TODAY}T09:00:00`,
   all_day: false,
   calendar_color: '#4285F4',
+  travel: null,
   ...overrides,
 })
 
@@ -136,5 +137,49 @@ describe('CalendarCard — event display', () => {
       expect(dot).toBeInTheDocument()
       expect(dot.style.backgroundColor).toBe('rgb(66, 133, 244)')
     })
+  })
+})
+
+describe('CalendarCard — event travel ETA', () => {
+  it('shows formatted travel duration when event has travel', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 1200, description: 'via A3' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.getByText(/20 min/)).toBeInTheDocument())
+  })
+
+  it('shows route description when event has travel', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 900, description: 'via M25 and A3' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.getByText(/via M25 and A3/)).toBeInTheDocument())
+  })
+
+  it('does not render travel element when travel is null', async () => {
+    mockCalendar({ today: [makeEvent({ travel: null })] })
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.queryByTestId('event-travel')).not.toBeInTheDocument())
+  })
+
+  it('shows only duration when description is empty', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 600, description: '' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() => {
+      expect(screen.getByText('10 min')).toBeInTheDocument()
+    })
+  })
+
+  it('duration and description are separated by a middle dot', async () => {
+    mockCalendar({
+      today: [makeEvent({ travel: { travel_time_seconds: 720, description: 'via A3' } })],
+    })
+    render(<CalendarCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('event-travel').textContent).toBe('12 min · via A3')
+    )
   })
 })
