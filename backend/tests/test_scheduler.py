@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from scheduler import is_within_poll_window, poll_if_in_window, poll_once
+from scheduler import is_within_poll_window, poll_if_in_window, poll_once, run_scheduler
 
 client = TestClient(app)
 
@@ -232,3 +232,73 @@ def test_weather_endpoint_returns_empty_defaults_when_no_cache(_mock_window):
     assert resp.status_code == 200
     assert resp.json()["is_stale"] is True
     weather_mod._cache = None  # cleanup
+
+
+# ---------------------------------------------------------------------------
+# poll_once — resilience: one fetcher failure does not skip others
+# ---------------------------------------------------------------------------
+
+
+async def test_poll_once_updates_remaining_caches_when_weather_raises():
+    import routers.calendar as calendar_mod
+    import routers.travel as travel_mod
+    import routers.weather as weather_mod
+
+    travel_data = {"commuters": []}
+    calendar_data = {"today": [], "tomorrow": []}
+    stale_weather = {"current": {"temperature_celsius": 5.0}, "forecast": []}
+
+    weather_mod._cache = stale_weather
+
+    mock_travel = AsyncMock(return_value=travel_data)
+    mock_weather = AsyncMock(side_effect=Exception("ReadTimeout"))
+    mock_calendar = AsyncMock(return_value=calendar_data)
+
+    await poll_once(mock_travel, mock_weather, mock_calendar)
+
+    assert travel_mod._cache == travel_data
+    assert calendar_mod._cache == calendar_data
+    assert weather_mod._cache == stale_weather  # unchanged — kept stale value
+
+    travel_mod._cache = None
+    calendar_mod._cache = None
+    weather_mod._cache = None
+
+
+# ---------------------------------------------------------------------------
+# run_scheduler — resilience: loop survives a failed poll cycle
+# ---------------------------------------------------------------------------
+
+
+async def test_run_scheduler_continues_after_failed_poll_cycle():
+    call_count = 0
+
+    async def mock_poll_if_in_window(now, fetch_travel, fetch_weather, fetch_calendar):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("simulated poll failure")
+
+    sleep_count = 0
+
+    async def mock_sleep(_):
+        nonlocal sleep_count
+        sleep_count += 1
+        if sleep_count >= 2:
+            raise asyncio.CancelledError
+
+    import asyncio
+
+    with patch("scheduler.poll_if_in_window", side_effect=mock_poll_if_in_window), \
+         patch("asyncio.sleep", side_effect=mock_sleep):
+        try:
+            await run_scheduler(
+                get_now=lambda: datetime(2025, 1, 1, 7, 30),
+                fetch_travel=AsyncMock(),
+                fetch_weather=AsyncMock(),
+                fetch_calendar=AsyncMock(),
+            )
+        except asyncio.CancelledError:
+            pass
+
+    assert call_count == 2
