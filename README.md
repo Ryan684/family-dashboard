@@ -11,7 +11,7 @@ Full project spec and design rationale: [`family-dashboard.md`](family-dashboard
 - Python 3.14
 - Node.js 20+
 - A Google Cloud project with the [Routes API](https://console.cloud.google.com/apis/library/routes.googleapis.com) enabled and an API key
-- A Google Calendar API project with OAuth credentials ([setup guide](https://developers.google.com/calendar/api/quickstart/python))
+- An Apple ID with access to the shared iCloud calendar, and an app-specific password (generate at appleid.apple.com → Sign-In and Security → App-Specific Passwords)
 
 ---
 
@@ -43,7 +43,10 @@ Edit `.env` and fill in your values:
 | `COMMUTER_2_WORK_LAT/LON` | If 2 commuters | Work location for the second commuter |
 | `NURSERY_LAT/LON` | If nursery drops | Nursery coordinates |
 | `DOG_DAYCARE_LAT/LON` | If dog drops | Dog daycare coordinates |
-| `GOOGLE_CALENDAR_ID` | Yes | Your shared Google Calendar ID |
+| `APPLE_CALDAV_URL` | Yes | iCloud CalDAV endpoint (`https://caldav.icloud.com`) |
+| `APPLE_CALDAV_USERNAME` | Yes | Your Apple ID email address |
+| `APPLE_CALDAV_PASSWORD` | Yes | App-specific password from appleid.apple.com |
+| `APPLE_CALDAV_CALENDAR_NAME` | Yes | Name of the shared calendar (e.g. `Family`) |
 | `POLL_INTERVAL_SECONDS` | No | How often to refresh data (default: 120) |
 | `POLL_WINDOW_START/END` | No | Morning window for live data (default: 06:30–09:30) |
 

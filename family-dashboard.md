@@ -65,13 +65,15 @@ Pass these notes to the frontend-design skill as context when building any UI co
 | Travel — routes & ETAs | Google Maps Routes API (`computeRoutes`) | POST request with `computeAlternativeRoutes: true` returns 2 fastest routes. Each route includes travel time, static (no-traffic) duration, distance, and step-by-step navigation — road names extracted from step instructions to form a brief route description. Free tier: $200/month credit (well within personal dashboard usage). |
 | Travel — incident warnings | N/A | Google Maps Routes API does not provide a direct traffic incident endpoint. Incidents are always returned as an empty array. The frontend incident display remains in place for potential future provider additions. |
 | Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Hourly forecast + current conditions. |
-| Calendar | Google Calendar API | REST API, OAuth 2.0. Free. Official Python client library (`google-api-python-client`). Shared family Google Calendar. |
+| Calendar | Apple iCloud CalDAV | CalDAV protocol via Python `caldav` library. App-specific password auth — no OAuth, no browser flow, no credentials file. Free. |
 
 ### Calendar
 
-The shared family calendar is hosted in **Google Calendar**. Google's REST API and official Python client library (`google-api-python-client`) are used for all calendar access. Authentication is via OAuth 2.0 with a service account or installed app credentials stored in `.env`.
+The shared family calendar is an **iCloud shared calendar**. The backend accesses it via the CalDAV protocol using the Python `caldav` library, connecting to Apple's CalDAV endpoint at `https://caldav.icloud.com`.
 
-Family members can continue using the native iOS Calendar app — Google Calendar syncs to iOS via the Google account, so no change to day-to-day habits is required.
+Authentication uses an app-specific password generated at appleid.apple.com → Sign-In and Security → App-Specific Passwords. No OAuth flow, no credentials file, no browser step — credentials are stored in `.env` and used directly.
+
+Family members use the native iOS Calendar app as normal — the calendar remains an iCloud calendar, so no change to day-to-day habits is required.
 
 ### Travel Feature — Implementation Detail
 
@@ -310,8 +312,11 @@ NURSERY_LON=-0.XXXX
 DOG_DAYCARE_LAT=51.XXXX
 DOG_DAYCARE_LON=-0.XXXX
 
-# Google Calendar
-GOOGLE_CALENDAR_ID=your_family_calendar_id@group.calendar.google.com
+# Apple iCloud CalDAV
+APPLE_CALDAV_URL=https://caldav.icloud.com
+APPLE_CALDAV_USERNAME=your_apple_id_email
+APPLE_CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx
+APPLE_CALDAV_CALENDAR_NAME=Family
 
 # Poll interval in seconds
 POLL_INTERVAL_SECONDS=120

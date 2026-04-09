@@ -32,5 +32,10 @@ class Settings:
     )
     poll_window_end: time = _parse_time(os.getenv("POLL_WINDOW_END", ""), "09:30")
 
+    apple_caldav_url: str = os.getenv("APPLE_CALDAV_URL", "https://caldav.icloud.com")
+    apple_caldav_username: str = os.getenv("APPLE_CALDAV_USERNAME", "")
+    apple_caldav_password: str = os.getenv("APPLE_CALDAV_PASSWORD", "")
+    apple_caldav_calendar_name: str = os.getenv("APPLE_CALDAV_CALENDAR_NAME", "Family")
+
 
 settings = Settings()
