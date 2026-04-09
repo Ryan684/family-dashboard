@@ -150,6 +150,7 @@ def _build_route_option(route: dict) -> dict:
         "distance_meters": summary["lengthInMeters"],
         "description": description,
         "delay_colour": classify_delay(delay, no_traffic_time),
+        "encoded_polyline": route.get("encoded_polyline", ""),
     }
 
 
@@ -238,6 +239,7 @@ def _normalize_google_response(google_resp: dict) -> dict:
                 "lengthInMeters": route.get("distanceMeters", 0),
                 "trafficModelId": "",
             },
+            "encoded_polyline": route.get("polyline", {}).get("encodedPolyline", ""),
             "legs": legs,
         })
 
@@ -251,7 +253,8 @@ def _normalize_google_response(google_resp: dict) -> dict:
 _FIELD_MASK = (
     "routes.duration,routes.staticDuration,routes.distanceMeters,"
     "routes.legs.startLocation,routes.legs.endLocation,"
-    "routes.legs.steps.navigationInstruction"
+    "routes.legs.steps.navigationInstruction,"
+    "routes.polyline.encodedPolyline"
 )
 
 

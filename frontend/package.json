@@ -14,10 +14,13 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^8.6.0",
+    "@stryker-mutator/vitest-runner": "^8.6.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -28,8 +31,6 @@
     "jsdom": "^25.0.1",
     "prettier": "^3.3.3",
     "vite": "^6.0.3",
-    "vitest": "^2.1.8",
-    "@stryker-mutator/core": "^8.6.0",
-    "@stryker-mutator/vitest-runner": "^8.6.0"
+    "vitest": "^2.1.8"
   }
 }

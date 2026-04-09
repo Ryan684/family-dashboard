@@ -78,3 +78,13 @@ Feature: Travel backend — routes and incidents
     Given the current time is within the configured poll window
     When the travel endpoint is called
     Then the response field is_stale is false
+
+  Scenario: Encoded polyline is captured from the Google Routes API response
+    Given a Google Routes API response containing encoded polyline "abc123"
+    When the response is normalized
+    Then the encoded polyline "abc123" is present on the first route
+
+  Scenario: Encoded polyline is included in the built route option
+    Given a normalized route with encoded polyline "xyz789"
+    When the route option is built
+    Then the route option contains encoded_polyline "xyz789"

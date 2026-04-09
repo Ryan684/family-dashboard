@@ -21,10 +21,6 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - Fetch deferred tools before starting any task:
   `ToolSearch: "select:AskUserQuestion,TodoWrite"`
 - Confirm both tools are available before proceeding
-- Check that `frontend-design` is listed in the available skills (it appears in the system-reminder skills list)
-- If `frontend-design` is absent: STOP immediately. Do not proceed with any task. Tell the user:
-  "The `frontend-design` skill is not available. The session-start hook failed to install it from GitHub. Please restart the session. No code will be written until the skill is available."
-- Note: the session-start hook installs the skill in both web and local CLI environments.
 
 ## MUST follow — git
 - MUST check current branch before starting: `git branch --show-current`
@@ -41,9 +37,16 @@ Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
 - NEVER implement behaviour not covered by a feature file
 
 ## Before writing any UI component
-- MUST invoke the `/frontend-design` skill before writing any JSX or CSS — no exceptions
-- If the skill invocation fails or the skill is not listed: STOP. Do not write any frontend code. Tell the user the skill is unavailable and that the session must be restarted
-- NEVER proceed with frontend implementation without a successful `/frontend-design` invocation in the same session
+- MUST identify the purpose, audience, and tone of the component before writing any JSX or CSS
+- MUST choose a deliberate aesthetic direction and state it — NEVER default to "clean and minimal" without justification
+- MUST use tabular/monospaced numerals for times and figures so they align across cards
+- MUST reuse existing spacing scale (multiples of 4 px or 8 px) and colour variables — NEVER set arbitrary values inline
+- MUST keep internal padding consistent across all cards
+- MUST use the existing delay colour system (green / amber / red) for any status indicators
+- NEVER use Inter, Roboto, or Arial as the primary display face
+- NEVER use purple gradients on white backgrounds
+- NEVER add animation that does not communicate meaning; if animating, use transform/opacity only (150–300 ms, ease-out on enter)
+- NEVER add decorative elements not justified by the design rationale
 
 ## When compacting
 Preserve: current branch name, list of modified files, last test run status, any surviving mutants noted.

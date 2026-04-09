@@ -26,6 +26,13 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | `x_fetch_weather__mutmut_1–29` (29 mutants) | Various mutations inside `fetch_weather()` | HTTP client function making live Open-Meteo API calls. Untestable in isolation without a live network — mocking at this level would test the mock, not the logic. Integration tested end-to-end in Step 6. |
 | `x_fetch_weather_data__mutmut_1–50` (50 mutants) | Various mutations inside `fetch_weather_data()` | Scheduler fetch function that calls `fetch_weather()`. No tests because it requires live HTTP calls; scheduler integration is tested via `test_scheduler.py` using mock fetch functions that stand in for this function. |
 
+### `routers/travel.py` — `_parse_duration` and `_normalize_google_response` (pre-existing, session add-route-maps)
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x__parse_duration__mutmut_4` | `duration_str.rstrip("s")` → `rstrip("XXsXX")` | `str.rstrip` accepts a *set of characters*, not a substring. `"XXsXX"` still contains `'s'`, so the trailing `'s'` is stripped identically. Behaviourally equivalent mutant. |
+| `x__normalize_google_response__mutmut_3/5` and ~33 additional mutants across `_normalize_google_response` | Various `.get(key, default)` default values changed (`[]`→`None`, `{}`→`None`, `""`→`"XXXX"`, `0`→`None`/`1`, etc.) | All tests supply the keys being fetched; the defaults are never reached during test execution. Where the key is absent and the default is used, the code either short-circuits (`if start:`) or returns early (`if not routes:`), making alternative defaults behaviourally equivalent. Same class as the other `.get()` survivors already documented. The 35 distinct mutant IDs reflect different call sites across the function but share the same root cause. |
+
 ### `routers/travel.py` — live HTTP functions
 
 | Mutant | Mutation | Justification |
@@ -80,6 +87,21 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | `typeof document === 'undefined'` | `→ true / false / ""` / `!==` (4 variants) | SSR guard. JSDOM always defines `document`, so this branch cannot be taken in tests. |
 | `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard. JSDOM does not apply styles, so double-injection has no observable effect. |
 | `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores stylesheet text, so empty vs. real CSS is indistinguishable. |
+
+### `components/RouteMap.jsx` (session add-route-maps)
+
+28 surviving mutants — all within the `useEffect` Leaflet initialisation block.
+
+| Category | Mutation examples | Justification |
+|----------|-------------------|---------------|
+| Map constructor options (`zoomControl`, `dragging`, `scrollWheelZoom`, etc.) | `false` → `true`, options object mutated | These control Leaflet interactivity flags. Tests mock `L.map` and never inspect the options object passed to it. Testing the exact options would test the mock, not real behaviour. Verified correct at runtime. |
+| Tile layer URL and attribution string | String mutated to `""` or `"XXXX"` | Arguments passed to the mocked `L.tileLayer`; not inspected by any assertion. Visual correctness (correct tiles, OSM attribution) is not unit-testable in jsdom. |
+| Polyline colour, weight, opacity | `'#4CAF82'` → `""`, `4` → `5`, `0.85` → `1.85` | Passed to the mocked `L.polyline`; not inspected by any assertion. Visual style correctness is not unit-testable in jsdom — verified at runtime against the delay colour variables. |
+| `DELAY_COLOURS` object keys and values | Key/value strings mutated | Object lookup is untestable through the mock — the result of `DELAY_COLOURS[delayColour]` is passed straight to the mocked `L.polyline`. Colour accuracy is a runtime / visual concern. |
+| `fitBounds` call | Call removed or arguments mutated | `mockMap.fitBounds` is a no-op mock. Whether bounds are fitted is not observable in jsdom. |
+| `map.remove()` cleanup | Call removed | Cleanup function verified correct by React strict-mode double-mount in the browser; JSDOM does not trigger the React strict-mode remount cycle in these tests. |
+
+**Summary**: `RouteMap.jsx` applies Leaflet imperatively inside `useEffect`. The three testable behaviours (render container when polyline present, render nothing when absent/empty) are fully covered. All 28 survivors are Leaflet API call details that are only observable visually or require a real browser environment.
 
 ### `components/AlertBanner.jsx` (Session 12)
 
