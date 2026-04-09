@@ -59,16 +59,6 @@ in the output dict changes the key but tests assert on the original key — the 
 then raises `KeyError` rather than a comparison failure, which mutmut counts as the test
 passing. Pre-existing issue with mutmut's result dict key mutation detection.
 
-### `x__extract_traffic_model_id__mutmut_3` and `__mutmut_5` (survived)
-
-**What was mutated:** String literal `"trafficModelId"` in `.get()` call and the empty-
-string return value `""` were mutated.
-
-**Why acceptable:** The function returns the model ID string which is then used as an
-optional parameter in `fetch_incidents`. Mutations to the key string are invisible because
-our mock data returns the expected ID regardless; mutations to the `""` fallback are
-invisible because tests don't call the function with routes missing `trafficModelId`. Pre-existing.
-
 ### `x_get_coords__mutmut_1` through `__mutmut_15` (no tests)
 
 **What was mutated:** String literals and arithmetic inside `get_coords()`.
@@ -77,15 +67,42 @@ invisible because tests don't call the function with routes missing `trafficMode
 loads from `.env`). It is always patched in tests. Testing it directly would require
 mocking `settings`, adding no meaningful coverage of business logic.
 
-### `x_fetch_routes__mutmut_*` and `x_fetch_incidents__mutmut_*` (no tests)
+### `x_fetch_routes__mutmut_*` (no tests)
 
 **What was mutated:** URL string construction, HTTP parameter names, and response parsing
-inside the routing API HTTP wrapper functions.
+inside `fetch_routes`.
 
-**Why acceptable:** These functions make live HTTP calls and are always replaced with
-`AsyncMock` in tests. Testing the URL construction would require network access or a
-test server, which is out of scope for unit tests. The integration is covered by manual
-smoke testing against the live routing API.
+**Why acceptable:** `fetch_routes` makes a live HTTP call and is always replaced with
+`AsyncMock` in tests. Testing the URL/param construction would require network access or
+a test server. Covered by manual smoke testing against the live routing API.
+
+### `x__normalize_here_response__mutmut_10`, `__mutmut_12` (survived)
+
+**What was mutated:** The default value in `item.get("description", {}).get("value", "")` was
+changed from `""` to `None` (or removed entirely).
+
+**Why acceptable:** Both `""` and `None` are falsy. The expression `if description else []`
+produces identical behaviour for either value. Equivalent mutant — unkillable without
+testing Python's truthiness rules rather than business behaviour.
+
+### `x__normalize_here_response__mutmut_24`, `__mutmut_26` (survived)
+
+**What was mutated:** The default value in `item.get("location", {}).get("description", {})` was
+changed from `{}` to `None` (or removed).
+
+**Why acceptable:** With `{}` as default, `isinstance({}, dict)` is True and
+`{}.get("value", "")` returns `""`. With `None`, `isinstance(None, dict)` is False and
+the else branch returns `""`. Both produce `road = ""`. Equivalent mutant.
+
+### `x__normalize_here_response__mutmut_43` (survived)
+
+**What was mutated:** The else branch of the road assignment changed from `""` to `"XXXX"`.
+This else branch fires only when `location.description` in the HERE response is not a dict.
+
+**Why acceptable:** Valid HERE API responses always return `description` as a dict or omit
+`location` entirely. The else branch is a defensive guard for malformed external data that
+cannot be reproduced with realistic HERE responses. Unkillable without crafting invalid
+API payloads.
 
 ### `x_fetch_travel_data__mutmut_*` (survived — orchestration glue)
 

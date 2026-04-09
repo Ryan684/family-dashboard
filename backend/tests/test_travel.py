@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime, time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,13 +13,14 @@ from routers.travel import (
     _build_route_option,
     _collect_instructions,
     _collect_points,
-    _extract_traffic_model_id,
     _normalize_google_response,
+    _normalize_here_response,
     _parse_duration,
     calculate_bounding_box,
     classify_delay,
     expand_bounding_box,
     extract_road_names,
+    fetch_incidents,
     format_route_description,
     is_within_poll_window,
     parse_incidents,
@@ -516,33 +517,6 @@ def test_build_all_points_missing_routes_returns_empty():
     assert _build_all_points({}) == []
 
 
-def test_extract_traffic_model_id_from_first_route():
-    response = {
-        "routes": [
-            {"summary": {"trafficModelId": "model-xyz"}},
-            {"summary": {"trafficModelId": "model-abc"}},
-        ]
-    }
-    assert _extract_traffic_model_id(response) == "model-xyz"
-
-
-def test_extract_traffic_model_id_empty_routes():
-    assert _extract_traffic_model_id({"routes": []}) == ""
-
-
-def test_extract_traffic_model_id_missing_routes_key():
-    assert _extract_traffic_model_id({}) == ""
-
-
-def test_extract_traffic_model_id_missing_field():
-    response = {"routes": [{"summary": {}}]}
-    assert _extract_traffic_model_id(response) == ""
-
-
-def test_extract_traffic_model_id_route_missing_summary_key():
-    # Verifies default {} is used when "summary" key is absent (not None)
-    response = {"routes": [{}]}
-    assert _extract_traffic_model_id(response) == ""
 
 
 # ---------------------------------------------------------------------------
@@ -939,21 +913,20 @@ def test_endpoint_not_stale_within_poll_window(mock_now):
     travel_module._cache = None
 
 
-@patch("routers.travel._get_now")
+@patch("scheduler.is_within_poll_window", return_value=False)
 @patch("routers.travel._cache", new=None)
-def test_endpoint_stale_outside_poll_window_no_cache(mock_now):
+def test_endpoint_stale_outside_poll_window_no_cache(_mock_window):
     import routers.travel as travel_module
 
     travel_module._cache = None
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0, 0)
 
     resp = client.get("/api/travel")
     assert resp.status_code == 200
     assert resp.json()["is_stale"] is True
 
 
-@patch("routers.travel._get_now")
-def test_endpoint_stale_outside_poll_window_with_cache(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_endpoint_stale_outside_poll_window_with_cache(_mock_window):
     import routers.travel as travel_module
 
     travel_module._cache = {
@@ -962,7 +935,6 @@ def test_endpoint_stale_outside_poll_window_with_cache(mock_now):
         "incidents": [],
         "is_stale": False,
     }
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0, 0)
 
     resp = client.get("/api/travel")
     assert resp.json()["is_stale"] is True
@@ -984,3 +956,179 @@ def test_endpoint_delay_colour_in_route(mock_now):
     # 300 delay / 1650 no-traffic = 18.2% → amber
     assert resp.json()["home_to_work"][1]["delay_colour"] == "amber"
     travel_module._cache = None
+
+
+# ---------------------------------------------------------------------------
+# _normalize_here_response
+# ---------------------------------------------------------------------------
+
+_HERE_INCIDENT = {
+    "type": "ACCIDENT",
+    "criticality": 2,
+    "description": {"value": "Multi-vehicle accident"},
+    "location": {"description": {"value": "M25"}},
+}
+
+
+def test_normalize_here_response_basic():
+    raw = {"results": [_HERE_INCIDENT]}
+    result = _normalize_here_response(raw)
+    assert len(result) == 1
+    props = result[0]["properties"]
+    assert props["magnitudeOfDelay"] == 2
+    assert props["iconCategory"] == "ACCIDENT"
+    assert props["events"][0]["description"] == "Multi-vehicle accident"
+    assert props["from"] == "M25"
+    assert props["roadNumbers"] == []
+
+
+def test_normalize_here_response_empty_results():
+    assert _normalize_here_response({"results": []}) == []
+
+
+def test_normalize_here_response_missing_results_key():
+    assert _normalize_here_response({}) == []
+
+
+def test_normalize_here_response_major_criticality():
+    raw = {"results": [{"type": "ROAD_CLOSED", "criticality": 3, "description": {"value": "Closure"}, "location": {"description": {"value": "A3"}}}]}
+    result = _normalize_here_response(raw)
+    assert result[0]["properties"]["magnitudeOfDelay"] == 3
+
+
+def test_normalize_here_response_missing_criticality_defaults_zero():
+    raw = {"results": [{"type": "UNKNOWN", "description": {"value": "Something"}, "location": {"description": {"value": "A3"}}}]}
+    result = _normalize_here_response(raw)
+    assert result[0]["properties"]["magnitudeOfDelay"] == 0
+
+
+def test_normalize_here_response_missing_description():
+    raw = {"results": [{"type": "CONGESTION", "criticality": 3, "location": {"description": {"value": "A3"}}}]}
+    result = _normalize_here_response(raw)
+    assert result[0]["properties"]["events"] == []
+
+
+def test_normalize_here_response_missing_location():
+    raw = {"results": [{"type": "ACCIDENT", "criticality": 2, "description": {"value": "Crash"}}]}
+    result = _normalize_here_response(raw)
+    assert result[0]["properties"]["from"] == ""
+
+
+def test_normalize_here_response_missing_type_defaults_to_unknown():
+    raw = {"results": [{"criticality": 2, "description": {"value": "Crash"}, "location": {"description": {"value": "M25"}}}]}
+    result = _normalize_here_response(raw)
+    assert result[0]["properties"]["iconCategory"] == "UNKNOWN"
+
+
+def test_normalize_here_response_multiple_incidents():
+    raw = {
+        "results": [
+            {"type": "ACCIDENT", "criticality": 3, "description": {"value": "Crash"}, "location": {"description": {"value": "M25"}}},
+            {"type": "CONGESTION", "criticality": 2, "description": {"value": "Queue"}, "location": {"description": {"value": "A3"}}},
+        ]
+    }
+    result = _normalize_here_response(raw)
+    assert len(result) == 2
+    assert result[0]["properties"]["from"] == "M25"
+    assert result[1]["properties"]["from"] == "A3"
+
+
+# ---------------------------------------------------------------------------
+# fetch_incidents
+# ---------------------------------------------------------------------------
+
+_BBOX = {"min_lat": 51.4, "max_lat": 51.6, "min_lon": -0.3, "max_lon": 0.1}
+
+
+def _make_here_client(resp_json: dict) -> MagicMock:
+    mock_response = MagicMock()
+    mock_response.json.return_value = resp_json
+    mock_response.raise_for_status = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(return_value=mock_response)
+    return mock_client
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_returns_empty_when_no_api_key():
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock()
+    result = await fetch_incidents(mock_client, _BBOX, "")
+    assert result == []
+    mock_client.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_calls_here_api_url():
+    mock_client = _make_here_client({"results": []})
+    await fetch_incidents(mock_client, _BBOX, "test-key")
+    url = mock_client.get.call_args[0][0]
+    assert "data.traffic.hereapi.com" in url
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_passes_bbox_as_query_param():
+    mock_client = _make_here_client({"results": []})
+    await fetch_incidents(mock_client, _BBOX, "test-key")
+    params = mock_client.get.call_args[1]["params"]
+    bbox_str = params["bbox"]
+    assert "51.4" in bbox_str
+    assert "-0.3" in bbox_str
+    assert "51.6" in bbox_str
+    assert "0.1" in bbox_str
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_bbox_order_is_west_south_east_north():
+    mock_client = _make_here_client({"results": []})
+    await fetch_incidents(mock_client, _BBOX, "test-key")
+    params = mock_client.get.call_args[1]["params"]
+    parts = params["bbox"].split(",")
+    # west=min_lon, south=min_lat, east=max_lon, north=max_lat
+    assert float(parts[0]) == pytest.approx(-0.3)  # west (min_lon)
+    assert float(parts[1]) == pytest.approx(51.4)  # south (min_lat)
+    assert float(parts[2]) == pytest.approx(0.1)   # east (max_lon)
+    assert float(parts[3]) == pytest.approx(51.6)  # north (max_lat)
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_returns_normalized_incidents():
+    here_resp = {
+        "results": [
+            {
+                "type": "ACCIDENT",
+                "criticality": 3,
+                "description": {"value": "Crash on M25"},
+                "location": {"description": {"value": "M25"}},
+            }
+        ]
+    }
+    mock_client = _make_here_client(here_resp)
+    result = await fetch_incidents(mock_client, _BBOX, "test-key")
+    assert len(result) == 1
+    assert result[0]["properties"]["magnitudeOfDelay"] == 3
+    assert result[0]["properties"]["iconCategory"] == "ACCIDENT"
+    assert result[0]["properties"]["from"] == "M25"
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_returns_empty_list_on_empty_results():
+    mock_client = _make_here_client({"results": []})
+    result = await fetch_incidents(mock_client, _BBOX, "test-key")
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_location_referencing_param_value():
+    mock_client = _make_here_client({"results": []})
+    await fetch_incidents(mock_client, _BBOX, "test-key")
+    params = mock_client.get.call_args[1]["params"]
+    assert params["locationReferencing"] == "shape"
+
+
+@pytest.mark.asyncio
+async def test_fetch_incidents_api_key_param_name_and_value():
+    mock_client = _make_here_client({"results": []})
+    await fetch_incidents(mock_client, _BBOX, "my-here-key")
+    params = mock_client.get.call_args[1]["params"]
+    assert params["apiKey"] == "my-here-key"

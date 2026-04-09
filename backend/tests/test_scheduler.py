@@ -28,7 +28,7 @@ def test_is_within_poll_window_returns_false_before_window():
 
 
 def test_is_within_poll_window_returns_false_after_window():
-    now = datetime(2025, 1, 1, 11, 0)
+    now = datetime(2025, 1, 1, 2, 0)
     assert is_within_poll_window(now) is False
 
 
@@ -51,7 +51,7 @@ async def test_no_api_calls_outside_poll_window():
     mock_travel = AsyncMock()
     mock_weather = AsyncMock()
     mock_calendar = AsyncMock()
-    outside = datetime(2025, 1, 1, 12, 0)
+    outside = datetime(2025, 1, 1, 2, 0)
 
     result = await poll_if_in_window(outside, mock_travel, mock_weather, mock_calendar)
 
@@ -149,12 +149,11 @@ def test_travel_endpoint_serves_cached_data(mock_now):
     travel_mod._cache = None  # cleanup
 
 
-@patch("routers.travel._get_now")
-def test_travel_endpoint_stale_flag_outside_poll_window(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_travel_endpoint_stale_flag_outside_poll_window(_mock_window):
     import routers.travel as travel_mod
 
     travel_mod._cache = {"home_to_work": [], "home_to_nursery": [], "incidents": []}
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0)
 
     resp = client.get("/api/travel")
 
@@ -175,12 +174,11 @@ def test_travel_endpoint_not_stale_inside_poll_window(mock_now):
     travel_mod._cache = None  # cleanup
 
 
-@patch("routers.travel._get_now")
-def test_travel_endpoint_returns_empty_defaults_when_no_cache(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_travel_endpoint_returns_empty_defaults_when_no_cache(_mock_window):
     import routers.travel as travel_mod
 
     travel_mod._cache = None
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0)
 
     resp = client.get("/api/travel")
 
@@ -211,12 +209,11 @@ def test_weather_endpoint_serves_cached_data(mock_now):
     weather_mod._cache = None  # cleanup
 
 
-@patch("routers.weather._get_now")
-def test_weather_endpoint_stale_flag_outside_poll_window(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_weather_endpoint_stale_flag_outside_poll_window(_mock_window):
     import routers.weather as weather_mod
 
     weather_mod._cache = {"current": {}, "forecast": []}
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0)
 
     resp = client.get("/api/weather")
 
@@ -224,12 +221,11 @@ def test_weather_endpoint_stale_flag_outside_poll_window(mock_now):
     weather_mod._cache = None  # cleanup
 
 
-@patch("routers.weather._get_now")
-def test_weather_endpoint_returns_empty_defaults_when_no_cache(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_weather_endpoint_returns_empty_defaults_when_no_cache(_mock_window):
     import routers.weather as weather_mod
 
     weather_mod._cache = None
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0)
 
     resp = client.get("/api/weather")
 

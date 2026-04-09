@@ -144,12 +144,11 @@ def test_endpoint_is_stale_false_within_window(mock_now):
     travel_mod._cache = None
 
 
-@patch("routers.travel._get_now")
-def test_endpoint_is_stale_true_outside_window(mock_now):
+@patch("scheduler.is_within_poll_window", return_value=False)
+def test_endpoint_is_stale_true_outside_window(_mock_window):
     import routers.travel as travel_mod
 
     travel_mod._cache = {"commuters": [_CACHED_COMMUTER]}
-    mock_now.return_value = datetime(2025, 1, 1, 12, 0, 0)
 
     resp = client.get("/api/travel")
     assert resp.json()["is_stale"] is True
@@ -413,3 +412,117 @@ async def test_fetch_travel_data_both_commuters_active():
     names = [c["name"] for c in result["commuters"]]
     assert "Ryan" in names
     assert "Emily" in names
+
+
+# ---------------------------------------------------------------------------
+# Per-commuter incident scoping
+# ---------------------------------------------------------------------------
+
+_TWO_COMMUTER_SCHEDULE = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {"monday": {"mode": "office", "nursery_drop": False}},
+        },
+        {
+            "name": "Emily",
+            "drop_order": [],
+            "schedule": {"monday": {"mode": "office", "nursery_drop": False}},
+        },
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": [], "weekly_dropper": ""},
+}
+
+_TWO_COMMUTER_COORDS = {
+    "home": (51.5, -0.1),
+    "work": {"Ryan": (51.52, -0.08), "Emily": (51.48, -0.12)},
+    "nursery": (51.51, -0.09),
+    "dog_daycare": (51.53, -0.07),
+}
+
+_RYAN_INCIDENT_RAW = [
+    {
+        "properties": {
+            "magnitudeOfDelay": 3,
+            "iconCategory": "ACCIDENT",
+            "events": [{"description": "Crash on M25"}],
+            "roadNumbers": ["M25"],
+        }
+    }
+]
+
+_EMILY_INCIDENT_RAW = [
+    {
+        "properties": {
+            "magnitudeOfDelay": 2,
+            "iconCategory": "CONGESTION",
+            "events": [{"description": "Slow traffic on A3"}],
+            "roadNumbers": ["A3"],
+        }
+    }
+]
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_fetch_incidents_called_per_commuter():
+    """fetch_incidents is called exactly once per active commuter."""
+    mock_fetch_incidents = AsyncMock(return_value=[])
+
+    with (
+        patch("routers.travel.load_schedule", return_value=_TWO_COMMUTER_SCHEDULE),
+        patch("routers.travel.get_coords", return_value=_TWO_COMMUTER_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", mock_fetch_incidents),
+    ):
+        from routers.travel import fetch_travel_data
+        await fetch_travel_data()
+
+    assert mock_fetch_incidents.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_each_commuter_gets_own_incidents():
+    """Each commuter's incidents come from their own fetch_incidents call."""
+    call_count = 0
+
+    async def mock_fetch_incidents(client, bbox, api_key):
+        nonlocal call_count
+        call_count += 1
+        return _RYAN_INCIDENT_RAW if call_count == 1 else _EMILY_INCIDENT_RAW
+
+    with (
+        patch("routers.travel.load_schedule", return_value=_TWO_COMMUTER_SCHEDULE),
+        patch("routers.travel.get_coords", return_value=_TWO_COMMUTER_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", side_effect=mock_fetch_incidents),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    ryan = next(c for c in result["commuters"] if c["name"] == "Ryan")
+    emily = next(c for c in result["commuters"] if c["name"] == "Emily")
+    assert ryan["incidents"][0]["road"] == "M25"
+    assert emily["incidents"][0]["road"] == "A3"
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_incidents_included_in_commuter_result():
+    """Parsed incidents are included in each commuter's result dict."""
+    with (
+        patch("routers.travel.load_schedule", return_value=_TWO_COMMUTER_SCHEDULE),
+        patch("routers.travel.get_coords", return_value=_TWO_COMMUTER_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=_RYAN_INCIDENT_RAW),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    for commuter in result["commuters"]:
+        assert "incidents" in commuter
+        assert len(commuter["incidents"]) == 1
+        assert commuter["incidents"][0]["type"] == "ACCIDENT"

@@ -13,6 +13,7 @@ from services.commute_schedule import build_waypoints, load_schedule, resolve_co
 router = APIRouter(prefix="/api/travel", tags=["travel"])
 
 GOOGLE_ROUTES_BASE = "https://routes.googleapis.com"
+HERE_TRAFFIC_BASE = "https://data.traffic.hereapi.com"
 _SCHEDULE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "commute-schedule.json")
 
 # Module-level cache: holds last successful response dict
@@ -115,6 +116,27 @@ def parse_incidents(raw_incidents: list[dict]) -> list[dict]:
     return result
 
 
+def _normalize_here_response(here_resp: dict) -> list[dict]:
+    """Convert HERE Traffic API v7 response to parse_incidents-compatible format."""
+    result = []
+    for item in here_resp.get("results", []):
+        description = item.get("description", {}).get("value", "")
+        location_desc = item.get("location", {}).get("description", {})
+        road = location_desc.get("value", "") if isinstance(location_desc, dict) else ""
+        result.append(
+            {
+                "properties": {
+                    "magnitudeOfDelay": item.get("criticality", 0),
+                    "iconCategory": item.get("type", "UNKNOWN"),
+                    "events": [{"description": description}] if description else [],
+                    "roadNumbers": [],
+                    "from": road,
+                }
+            }
+        )
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Route building from normalized response
 # ---------------------------------------------------------------------------
@@ -159,13 +181,6 @@ def _build_all_points(routes_response: dict) -> list[dict]:
     for route in routes_response.get("routes", []):
         points.extend(_collect_points(route))
     return points
-
-
-def _extract_traffic_model_id(routes_response: dict) -> str:
-    routes = routes_response.get("routes", [])
-    if not routes:
-        return ""
-    return routes[0].get("summary", {}).get("trafficModelId", "")
 
 
 # ---------------------------------------------------------------------------
@@ -293,13 +308,27 @@ async def fetch_routes(
 async def fetch_incidents(
     client: httpx.AsyncClient,
     bbox: dict,
-    traffic_model_id: str,
     api_key: str,
 ) -> list[dict]:
-    """Google Maps Routes API does not provide a direct incident endpoint.
-    Returns empty list — incident warnings are not available with this provider.
+    """Fetch traffic incidents from HERE Traffic API v7 for the given bounding box.
+
+    Returns an empty list if no API key is configured.
     """
-    return []
+    if not api_key:
+        return []
+    bbox_str = (
+        f"{bbox['min_lon']},{bbox['min_lat']},{bbox['max_lon']},{bbox['max_lat']}"
+    )
+    resp = await client.get(
+        f"{HERE_TRAFFIC_BASE}/v7/incidents",
+        params={
+            "locationReferencing": "shape",
+            "bbox": bbox_str,
+            "apiKey": api_key,
+        },
+    )
+    resp.raise_for_status()
+    return _normalize_here_response(resp.json())
 
 
 # ---------------------------------------------------------------------------
@@ -337,10 +366,6 @@ async def fetch_travel_data() -> dict:
     commuter_results = []
 
     async with httpx.AsyncClient() as http:
-        all_route_points: list[dict] = []
-        all_traffic_model_ids: list[str] = []
-        commuter_routes_raw: list[tuple[dict, dict]] = []  # (commuter, routes_response)
-
         for commuter in schedule["commuters"]:
             day = resolve_commuter_day(commuter, weekday, schedule)
             waypoints = build_waypoints(
@@ -357,31 +382,21 @@ async def fetch_travel_data() -> dict:
                 continue
 
             routes_raw = await fetch_routes(http, waypoints, settings.google_maps_api_key)
-            all_route_points.extend(_build_all_points(routes_raw))
-            all_traffic_model_ids.append(_extract_traffic_model_id(routes_raw))
-            commuter_routes_raw.append((commuter, day, routes_raw))
 
-        if not commuter_routes_raw:
-            return {"commuters": []}
+            # Fetch incidents scoped to this commuter's route bounding box
+            points = _build_all_points(routes_raw)
+            bbox = expand_bounding_box(calculate_bounding_box(points))
+            raw_incidents = await fetch_incidents(http, bbox, settings.here_api_key)
+            incidents = parse_incidents(raw_incidents)
 
-        # Fetch incidents once covering all active routes
-        bbox = expand_bounding_box(calculate_bounding_box(all_route_points))
-        traffic_model_id = next((t for t in all_traffic_model_ids if t), "")
-        raw_incidents = await fetch_incidents(
-            http, bbox, traffic_model_id, settings.google_maps_api_key
-        )
-
-    incidents = parse_incidents(raw_incidents)
-
-    for commuter, day, routes_raw in commuter_routes_raw:
-        commuter_results.append(
-            {
-                "name": commuter["name"],
-                "mode": day["mode"],
-                "drops": day["drops"],
-                "routes": [_build_route_option(r) for r in routes_raw.get("routes", [])],
-                "incidents": incidents,
-            }
-        )
+            commuter_results.append(
+                {
+                    "name": commuter["name"],
+                    "mode": day["mode"],
+                    "drops": day["drops"],
+                    "routes": [_build_route_option(r) for r in routes_raw.get("routes", [])],
+                    "incidents": incidents,
+                }
+            )
 
     return {"commuters": commuter_results}
