@@ -57,3 +57,23 @@ Feature: CalendarCard frontend component
     Given the API returns an empty events list
     When the CalendarCard renders
     Then the component called GET /api/calendar
+
+  Scenario: Event with a location shows driving duration under 60 minutes
+    Given the API returns an event today with travel_time_seconds of 1200
+    When the CalendarCard renders
+    Then "20 min" is visible for that event
+
+  Scenario: Event driving duration of 60 minutes or more is shown in hours and minutes
+    Given the API returns an event today with travel_time_seconds of 4500
+    When the CalendarCard renders
+    Then "1 hr 15 min" is visible for that event
+
+  Scenario: Event with a location shows the route description
+    Given the API returns an event today with travel description "via A3"
+    When the CalendarCard renders
+    Then "via A3" is visible
+
+  Scenario: Event without a location does not show travel information
+    Given the API returns an event today with travel set to null
+    When the CalendarCard renders
+    Then no travel indicator is shown for that event

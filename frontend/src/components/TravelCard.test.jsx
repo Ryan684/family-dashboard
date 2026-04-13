@@ -125,7 +125,7 @@ describe('TravelCard — card content', () => {
     expect(screen.getByText('via A3 and M25')).toBeInTheDocument()
   })
 
-  it('displays travel time in minutes', () => {
+  it('displays travel time in minutes for sub-hour journeys', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ travel_time_seconds: 2700 })],
     })
@@ -133,6 +133,36 @@ describe('TravelCard — card content', () => {
       <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
     )
     expect(screen.getByText('45 min')).toBeInTheDocument()
+  })
+
+  it('displays travel time as hours and minutes for journeys over 60 minutes', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ travel_time_seconds: 7500 })], // 125 min = 2 hrs 5 min
+    })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('2 hrs 5 min')).toBeInTheDocument()
+  })
+
+  it('displays exactly 1 hr for a 60-minute journey', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ travel_time_seconds: 3600 })],
+    })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('1 hr 0 min')).toBeInTheDocument()
+  })
+
+  it('displays whole hours when there are no remaining minutes', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ travel_time_seconds: 7200 })], // exactly 2 hours
+    })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('2 hrs 0 min')).toBeInTheDocument()
   })
 })
 

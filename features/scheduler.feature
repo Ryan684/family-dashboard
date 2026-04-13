@@ -52,3 +52,15 @@ Feature: Background polling scheduler
     And the current time is outside the poll window
     When the dashboard calls GET /api/weather
     Then is_stale is true
+
+  Scenario: One fetcher failing does not skip remaining fetchers
+    Given the weather fetcher raises a timeout error
+    When poll_once is called
+    Then the travel cache is updated with the travel data
+    And the calendar cache is updated with the calendar data
+    And the weather cache retains its previous value
+
+  Scenario: Scheduler loop continues after a failed poll cycle
+    Given the poll cycle raises an exception on the first call
+    When the scheduler runs two cycles
+    Then the scheduler completes both cycles without crashing

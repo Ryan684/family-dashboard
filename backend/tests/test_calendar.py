@@ -24,6 +24,7 @@ def _make_component(
     summary: str,
     dtstart: datetime.date | datetime.datetime,
     status: str | None = None,
+    location: str | None = None,
 ) -> ICalEvent:
     e = ICalEvent()
     e.add("uid", uid)
@@ -31,6 +32,8 @@ def _make_component(
     e.add("dtstart", dtstart)
     if status:
         e.add("status", status)
+    if location:
+        e.add("location", location)
     return e
 
 
@@ -39,9 +42,10 @@ def _make_caldav_event(
     summary: str,
     dtstart: datetime.date | datetime.datetime,
     status: str | None = None,
+    location: str | None = None,
 ) -> MagicMock:
     mock_event = MagicMock()
-    mock_event.icalendar_component = _make_component(uid, summary, dtstart, status)
+    mock_event.icalendar_component = _make_component(uid, summary, dtstart, status, location)
     return mock_event
 
 
@@ -72,8 +76,12 @@ def _make_mock_dav_client(events: list, calendar_name: str = _TEST_CALENDAR_NAME
     return mock_dav_cls
 
 
-def _fetch_sync_with_mocks(events: list, calendar_name: str = _TEST_CALENDAR_NAME) -> dict:
-    """Run _fetch_sync with caldav, settings, and _get_today all mocked."""
+def _fetch_sync_with_mocks(
+    events: list,
+    calendar_name: str = _TEST_CALENDAR_NAME,
+    travel_result: dict | None = None,
+) -> dict:
+    """Run _fetch_sync with caldav, settings, _get_today, and fetch_event_travel all mocked."""
     from routers.calendar import _fetch_sync
 
     mock_dav = _make_mock_dav_client(events, calendar_name)
@@ -82,8 +90,26 @@ def _fetch_sync_with_mocks(events: list, calendar_name: str = _TEST_CALENDAR_NAM
 
     with patch("caldav.DAVClient", mock_dav), patch(
         "routers.calendar.settings", mock_settings
-    ), patch("routers.calendar._get_today", return_value=TODAY):
+    ), patch("routers.calendar._get_today", return_value=TODAY), patch(
+        "routers.calendar.fetch_event_travel", return_value=travel_result
+    ):
         return _fetch_sync()
+
+
+def _mock_routes_resp(travel_secs: int = 1200, steps: list | None = None) -> MagicMock:
+    """Build a minimal httpx response mock for the Google Routes API."""
+    data = {
+        "routes": [
+            {
+                "duration": f"{travel_secs}s",
+                "legs": [{"steps": steps or []}],
+            }
+        ]
+    }
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = data
+    mock_resp.raise_for_status = MagicMock()
+    return mock_resp
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +398,192 @@ def test_fetch_sync_result_has_today_and_tomorrow_keys():
     result = _fetch_sync_with_mocks([])
     assert "today" in result
     assert "tomorrow" in result
+
+
+# ---------------------------------------------------------------------------
+# _fetch_sync — travel field attached to events
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_sync_event_without_location_has_null_travel():
+    event = _make_caldav_event("e-noloc", "No location", datetime.datetime(2026, 4, 9, 9, 0))
+    result = _fetch_sync_with_mocks([event])
+    assert result["today"][0]["travel"] is None
+
+
+def test_fetch_sync_event_with_location_attaches_travel_result():
+    travel = {"travel_time_seconds": 900, "description": "via A3"}
+    event = _make_caldav_event(
+        "e-loc", "Dentist", datetime.datetime(2026, 4, 9, 9, 0), location="London W1"
+    )
+    result = _fetch_sync_with_mocks([event], travel_result=travel)
+    assert result["today"][0]["travel"] == travel
+
+
+def test_fetch_sync_event_with_location_calls_fetch_event_travel():
+    from routers.calendar import _fetch_sync
+
+    event = _make_caldav_event(
+        "e-loc2", "Meeting", datetime.datetime(2026, 4, 9, 10, 0), location="Canary Wharf"
+    )
+    mock_dav = _make_mock_dav_client([event])
+    mock_settings = _make_mock_settings()
+    mock_settings.apple_caldav_calendar_name = _TEST_CALENDAR_NAME
+    mock_travel_fn = MagicMock(return_value=None)
+
+    with patch("caldav.DAVClient", mock_dav), patch(
+        "routers.calendar.settings", mock_settings
+    ), patch("routers.calendar._get_today", return_value=TODAY), patch(
+        "routers.calendar.fetch_event_travel", mock_travel_fn
+    ):
+        _fetch_sync()
+
+    mock_travel_fn.assert_called_once()
+    call_kwargs = mock_travel_fn.call_args
+    assert "Canary Wharf" in call_kwargs.args or "Canary Wharf" in call_kwargs.kwargs.values()
+
+
+def test_fetch_sync_event_with_failed_travel_lookup_still_included():
+    # fetch_event_travel returns None (failure) — event should still appear with travel=None
+    event = _make_caldav_event(
+        "e-fail", "Doctor", datetime.datetime(2026, 4, 9, 11, 0), location="NHS Surgery"
+    )
+    result = _fetch_sync_with_mocks([event], travel_result=None)
+    assert len(result["today"]) == 1
+    assert result["today"][0]["travel"] is None
+
+
+def test_fetch_sync_event_with_location_travel_time_in_result():
+    travel = {"travel_time_seconds": 1500, "description": "via M25"}
+    event = _make_caldav_event(
+        "e-loc3", "Event", datetime.datetime(2026, 4, 9, 14, 0), location="Somewhere"
+    )
+    result = _fetch_sync_with_mocks([event], travel_result=travel)
+    assert result["today"][0]["travel"]["travel_time_seconds"] == 1500
+
+
+# ---------------------------------------------------------------------------
+# fetch_event_travel — unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_event_travel_returns_none_when_location_empty():
+    from routers.calendar import fetch_event_travel
+
+    result = fetch_event_travel("", 51.5, -0.1, "key")
+    assert result is None
+
+
+def test_fetch_event_travel_returns_none_when_api_key_empty():
+    from routers.calendar import fetch_event_travel
+
+    result = fetch_event_travel("London W1", 51.5, -0.1, "")
+    assert result is None
+
+
+def test_fetch_event_travel_returns_travel_time_seconds():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = _mock_routes_resp(travel_secs=1200)
+    with patch("httpx.post", return_value=mock_resp):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    assert result is not None
+    assert result["travel_time_seconds"] == 1200
+
+
+def test_fetch_event_travel_returns_description_field():
+    from routers.calendar import fetch_event_travel
+
+    steps = [{"navigationInstruction": {"instructions": "Take the A3 southbound"}}]
+    mock_resp = _mock_routes_resp(travel_secs=900, steps=steps)
+    with patch("httpx.post", return_value=mock_resp):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    assert result is not None
+    assert "description" in result
+    assert "A3" in result["description"]
+
+
+def test_fetch_event_travel_returns_none_when_routes_empty():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"routes": []}
+    mock_resp.raise_for_status = MagicMock()
+    with patch("httpx.post", return_value=mock_resp):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    assert result is None
+
+
+def test_fetch_event_travel_returns_none_on_http_error():
+    from routers.calendar import fetch_event_travel
+
+    with patch("httpx.post", side_effect=Exception("Network error")):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    assert result is None
+
+
+def test_fetch_event_travel_posts_to_routes_api_url():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = _mock_routes_resp()
+    with patch("httpx.post", return_value=mock_resp) as mock_post:
+        fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    called_url = mock_post.call_args.args[0]
+    assert "routes.googleapis.com" in called_url
+    assert "computeRoutes" in called_url
+
+
+def test_fetch_event_travel_uses_home_coords_as_origin():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = _mock_routes_resp()
+    with patch("httpx.post", return_value=mock_resp) as mock_post:
+        fetch_event_travel("London W1", 51.4, -0.2, "test-key")
+
+    body = mock_post.call_args.kwargs["json"]
+    origin_latlng = body["origin"]["location"]["latLng"]
+    assert origin_latlng["latitude"] == 51.4
+    assert origin_latlng["longitude"] == -0.2
+
+
+def test_fetch_event_travel_uses_location_as_destination_address():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = _mock_routes_resp()
+    with patch("httpx.post", return_value=mock_resp) as mock_post:
+        fetch_event_travel("Canary Wharf, London", 51.5, -0.1, "test-key")
+
+    body = mock_post.call_args.kwargs["json"]
+    assert body["destination"]["address"] == "Canary Wharf, London"
+
+
+def test_fetch_event_travel_no_alternative_routes_requested():
+    from routers.calendar import fetch_event_travel
+
+    mock_resp = _mock_routes_resp()
+    with patch("httpx.post", return_value=mock_resp) as mock_post:
+        fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    body = mock_post.call_args.kwargs["json"]
+    assert body.get("computeAlternativeRoutes") is False
+
+
+def test_fetch_event_travel_empty_description_when_no_roads_found():
+    from routers.calendar import fetch_event_travel
+
+    # Steps with no A/M road names
+    steps = [{"navigationInstruction": {"instructions": "Turn left onto High Street"}}]
+    mock_resp = _mock_routes_resp(travel_secs=600, steps=steps)
+    with patch("httpx.post", return_value=mock_resp):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "test-key")
+
+    assert result is not None
+    assert result["description"] == ""
 
 
 # ---------------------------------------------------------------------------

@@ -56,10 +56,24 @@ function injectStyles() {
       flex-shrink: 0;
     }
 
+    .cal-event-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
     .cal-event-summary {
       font-size: 28px;
       font-weight: 300;
       color: #F8F5EF;
+    }
+
+    .cal-event-travel {
+      font-size: 20px;
+      font-weight: 300;
+      color: #7A756E;
+      font-variant-numeric: tabular-nums;
     }
 
     .cal-empty {
@@ -97,6 +111,21 @@ function formatTime(event) {
   return event.start.slice(11, 16)
 }
 
+function formatTravelTime(travel) {
+  const totalMinutes = Math.round(travel.travel_time_seconds / 60)
+  let duration
+  if (totalMinutes < 60) {
+    duration = `${totalMinutes} min`
+  } else {
+    const hrs = Math.floor(totalMinutes / 60)
+    const mins = totalMinutes % 60
+    duration = `${hrs} ${hrs === 1 ? 'hr' : 'hrs'} ${mins} min`
+  }
+  const parts = [duration]
+  if (travel.description) parts.push(travel.description)
+  return parts.join(' · ')
+}
+
 function CalendarEvent({ event }) {
   return (
     <div className="cal-event">
@@ -106,7 +135,14 @@ function CalendarEvent({ event }) {
         style={{ backgroundColor: event.calendar_color }}
       />
       <span className="cal-event-time">{formatTime(event)}</span>
-      <span className="cal-event-summary">{event.summary}</span>
+      <div className="cal-event-body">
+        <span className="cal-event-summary">{event.summary}</span>
+        {event.travel ? (
+          <span className="cal-event-travel" data-testid="event-travel">
+            {formatTravelTime(event.travel)}
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

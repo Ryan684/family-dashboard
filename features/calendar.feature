@@ -38,3 +38,22 @@ Feature: Calendar backend
     When the dashboard calls GET /api/calendar
     Then the "today" list is empty
     And the "tomorrow" list is empty
+
+  Scenario: Event with a location includes travel time from home
+    Given the CalDAV calendar has an event today with location "Dentist Surgery, London"
+    And the Google Routes API returns a 20-minute route via A3
+    When the dashboard calls GET /api/calendar
+    Then the event in "today" has a "travel" object with "travel_time_seconds" greater than 0
+    And the "travel" object has a "description" field
+
+  Scenario: Event without a location has null travel
+    Given the CalDAV calendar has an event today with no location field
+    When the dashboard calls GET /api/calendar
+    Then the event in "today" has "travel" set to null
+
+  Scenario: Routes API failure leaves travel null for the affected event
+    Given the CalDAV calendar has an event today with a location
+    And the Google Routes API returns an error for that location
+    When the dashboard calls GET /api/calendar
+    Then the event in "today" has "travel" set to null
+    And the event is still present in the response

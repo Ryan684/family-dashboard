@@ -43,18 +43,48 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 ### `routers/calendar.py`
 
+**`parse_event` — icalendar case-insensitivity (4 mutants)**
+
 | Mutant | Mutation | Justification |
 |--------|----------|---------------|
-| `x_parse_event__mutmut_4` | `component.get("dtstart")` → `component.get("DTSTART")` | `icalendar` component access is case-insensitive — both strings return the same value. Equivalent mutant; no observable difference. |
-| `x_parse_event__mutmut_15` | `component.get("uid")` → `component.get("UID")` | Same — icalendar is case-insensitive for component property lookup. |
+| `x_parse_event__mutmut_4` | `component.get("dtstart")` → `component.get("DTSTART")` | `icalendar` component access is case-insensitive — both strings return the same value. Equivalent mutant. |
+| `x_parse_event__mutmut_15` | `component.get("uid")` → `component.get("UID")` | Same — icalendar is case-insensitive. |
 | `x_parse_event__mutmut_21` | `component.get("summary")` → `component.get("SUMMARY")` | Same — icalendar is case-insensitive. |
 | `x_parse_event__mutmut_29` | `"#4285F4"` → `"#4285f4"` | CSS hex color — uppercase and lowercase are functionally identical. No test can distinguish them. |
-| `x__fetch_sync__mutmut_25` | `_datetime.combine(today, _datetime.min.time())` → `None` | Assigns `start_dt = None` before passing to `cal.date_search`. The mock accepts any argument, so the wrong value is invisible in tests. The correct search window is enforced by the CalDAV server in production, not by assertions on the argument value. |
-| `x__fetch_sync__mutmut_30` | `_datetime.combine(tomorrow, _datetime.max.time())` → `None` | Same as mutmut_25 — `end_dt` passed to mocked `date_search`; mock does not validate arguments. |
-| `x__fetch_sync__mutmut_36–42` (7 mutants) | Various mutations to `date_search(start=..., end=..., expand=True)` arguments | All involve nulling or removing individual keyword arguments to the mocked `date_search`. Mock accepts any arguments and returns the configured event list regardless. Correct argument values are enforced at runtime by the CalDAV server. |
+
+**`_fetch_sync` — CalDAV mock doesn't validate arguments (11 mutants)**
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x__fetch_sync__mutmut_25` | `_datetime.combine(today, _datetime.min.time())` → `None` | `start_dt` passed to mocked `date_search`; mock accepts any argument. Correct window enforced by CalDAV server at runtime. |
+| `x__fetch_sync__mutmut_30` | `_datetime.combine(tomorrow, _datetime.max.time())` → `None` | Same — `end_dt` passed to mock, not validated. |
+| `x__fetch_sync__mutmut_36–42` (7 mutants) | Various mutations to `date_search(start=..., end=..., expand=True)` kwargs | Mock accepts any args and returns configured events regardless. Correct kwargs enforced at runtime by the CalDAV server. |
 | `x__fetch_sync__mutmut_49` | `component.get("status")` → `component.get("STATUS")` | icalendar is case-insensitive — equivalent mutant. |
-| `x__fetch_sync__mutmut_62` | `component.get("dtstart").dt` → `component.get("DTSTART").dt` | icalendar is case-insensitive — equivalent mutant. |
-| `x_fetch_calendar_data__mutmut_1–4` (4 mutants — "no tests") | Mutations inside the `fetch_calendar_data` async wrapper | This function is a two-line async wrapper that calls `asyncio.get_running_loop().run_in_executor(None, _fetch_sync)`. There is no domain logic — all calendar business logic is in `_fetch_sync` (fully tested). Mutating the executor glue would be testing asyncio infrastructure, not application behaviour. |
+| `x__fetch_sync__mutmut_62` | `component.get("location")` → `component.get("LOCATION")` | icalendar is case-insensitive — equivalent mutant. |
+| `x__fetch_sync__mutmut_78` | `component.get("dtstart").dt` (second call) → `component.get("DTSTART").dt` | icalendar is case-insensitive — equivalent mutant. |
+
+**`_fetch_sync` — `fetch_event_travel` call args are mocked (7 mutants)**
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x__fetch_sync__mutmut_67–69, 71–73` (6 mutants) | `settings.home_lat`, `settings.home_lon`, `settings.google_maps_api_key` → `None`, or individual args removed | `fetch_event_travel` is patched in tests — the test verifies it is called (and that its return value is used), not the exact values of the lat/lon/key arguments. The settings values are correct in production. |
+| `x__fetch_sync__mutmut_73` | `settings.google_maps_api_key` argument removed | Same as above — mocked function, argument not inspected. |
+
+**`fetch_event_travel` — live HTTP function (39 mutants)**
+
+`fetch_event_travel` makes a synchronous `httpx.post` to the Google Routes API. Tests mock `httpx.post` but do not inspect exact request body keys, header values, or default fallback values. All surviving mutants fall into one of three classes:
+
+| Class | Mutant IDs | Examples | Justification |
+|-------|-----------|---------|---------------|
+| Guard `or` → `and` | `_1` | `if not location or not api_key` → `and` | With `or`, either empty value short-circuits. With `and`, only both being empty short-circuits. When `api_key=""` and `location` is set, the mutant would proceed to a failed HTTP call — which the exception handler returns `None` from anyway. The net behaviour (return `None`) is identical in tests. Acceptable: the guard's real purpose (avoid a pointless API call) is a performance concern, not correctness-critical. |
+| Request body / header key and value mutations | `_20–29`, `_36`, `_38`, `_40–49` | Key strings changed (`"travelMode"` → `"XXtravelModeXX"`), headers set to `None`, timeout changed | Tests mock `httpx.post` to return a fixed response regardless of request content. Testing the exact body/headers would require inspecting call args, which would test the mock, not the logic. Correctness verified at integration time. |
+| `.get()` default-value equivalence | `_53`, `_55`, `_63`, `_65`, `_68–69`, `_74`, `_79`, `_82`, `_84`, `_88`, `_90`, `_95`, `_97`, `_99`, `_101`, `_107` | `data.get("routes", [])` → `None`; `route.get("duration", "0s")` → `None`; nested `.get()` defaults mutated | Tests always supply the keys being fetched, so the default is never reached. Where the default *would* be used (missing key), the code either checks truthiness (`if not routes`) or falls back to 0 — `None` behaves identically to `[]`/`""` in those paths. Same class as other `.get()` survivors documented above. `rstrip("XXsXX")` is equivalent because `str.rstrip` treats its argument as a set of characters; "XXsXX" still contains 's'. |
+
+**`fetch_calendar_data` — async executor wrapper (4 mutants — "no tests")**
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x_fetch_calendar_data__mutmut_1–4` | Mutations inside the `fetch_calendar_data` async wrapper | Two-line async wrapper over `asyncio.get_running_loop().run_in_executor(None, _fetch_sync)`. No domain logic — all calendar business logic is in `_fetch_sync` (fully tested). Mutating executor glue would test asyncio infrastructure, not application behaviour. |
 
 ### `scheduler.py`
 

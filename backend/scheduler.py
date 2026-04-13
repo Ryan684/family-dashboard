@@ -18,14 +18,24 @@ async def poll_once(
     fetch_weather: Callable,
     fetch_calendar: Callable,
 ) -> None:
-    """Fetch fresh data from all sources and update router module caches."""
+    """Fetch fresh data from all sources and update router module caches.
+
+    Each fetcher is isolated — a failure in one does not prevent the others
+    from running or updating their caches.
+    """
     import routers.travel as travel_mod
     import routers.weather as weather_mod
     import routers.calendar as calendar_mod
 
-    travel_mod._cache = await fetch_travel()
-    weather_mod._cache = await fetch_weather()
-    calendar_mod._cache = await fetch_calendar()
+    for fetch, mod, attr in (
+        (fetch_travel, travel_mod, "_cache"),
+        (fetch_weather, weather_mod, "_cache"),
+        (fetch_calendar, calendar_mod, "_cache"),
+    ):
+        try:
+            setattr(mod, attr, await fetch())
+        except Exception:
+            pass  # keep stale cache; logged at the source
 
 
 async def poll_if_in_window(
@@ -65,5 +75,8 @@ async def run_scheduler(
 
     while True:
         now = _get_now()
-        await poll_if_in_window(now, fetch_travel, fetch_weather, fetch_calendar)
+        try:
+            await poll_if_in_window(now, fetch_travel, fetch_weather, fetch_calendar)
+        except Exception:
+            pass  # one bad cycle must not kill the scheduler task
         await asyncio.sleep(settings.poll_interval_seconds)
