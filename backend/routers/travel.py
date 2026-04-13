@@ -322,8 +322,7 @@ async def fetch_incidents(
     resp = await client.get(
         f"{HERE_TRAFFIC_BASE}/v7/incidents",
         params={
-            "locationReferencing": "shape",
-            "bbox": bbox_str,
+            "in": f"bbox:{bbox_str}",
             "apiKey": api_key,
         },
     )
@@ -383,11 +382,18 @@ async def fetch_travel_data() -> dict:
 
             routes_raw = await fetch_routes(http, waypoints, settings.google_maps_api_key)
 
-            # Fetch incidents scoped to this commuter's route bounding box
-            points = _build_all_points(routes_raw)
-            bbox = expand_bounding_box(calculate_bounding_box(points))
-            raw_incidents = await fetch_incidents(http, bbox, settings.here_api_key)
-            incidents = parse_incidents(raw_incidents)
+            # Fetch incidents scoped to this commuter's route bounding box.
+            # Degrade gracefully if HERE API is unavailable, returns an error,
+            # or if the route response contains no coordinate points.
+            try:
+                points = _build_all_points(routes_raw)
+                if not points:
+                    raise ValueError("no route points — cannot compute bounding box")
+                bbox = expand_bounding_box(calculate_bounding_box(points))
+                raw_incidents = await fetch_incidents(http, bbox, settings.here_api_key)
+                incidents = parse_incidents(raw_incidents)
+            except Exception:
+                incidents = []
 
             commuter_results.append(
                 {

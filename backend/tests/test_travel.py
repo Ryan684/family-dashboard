@@ -1067,15 +1067,16 @@ async def test_fetch_incidents_calls_here_api_url():
 
 
 @pytest.mark.asyncio
-async def test_fetch_incidents_passes_bbox_as_query_param():
+async def test_fetch_incidents_passes_bbox_as_in_param():
     mock_client = _make_here_client({"results": []})
     await fetch_incidents(mock_client, _BBOX, "test-key")
     params = mock_client.get.call_args[1]["params"]
-    bbox_str = params["bbox"]
-    assert "51.4" in bbox_str
-    assert "-0.3" in bbox_str
-    assert "51.6" in bbox_str
-    assert "0.1" in bbox_str
+    in_val = params["in"]
+    assert in_val.startswith("bbox:")
+    assert "51.4" in in_val
+    assert "-0.3" in in_val
+    assert "51.6" in in_val
+    assert "0.1" in in_val
 
 
 @pytest.mark.asyncio
@@ -1083,8 +1084,8 @@ async def test_fetch_incidents_bbox_order_is_west_south_east_north():
     mock_client = _make_here_client({"results": []})
     await fetch_incidents(mock_client, _BBOX, "test-key")
     params = mock_client.get.call_args[1]["params"]
-    parts = params["bbox"].split(",")
-    # west=min_lon, south=min_lat, east=max_lon, north=max_lat
+    # in=bbox:{west},{south},{east},{north}
+    parts = params["in"].removeprefix("bbox:").split(",")
     assert float(parts[0]) == pytest.approx(-0.3)  # west (min_lon)
     assert float(parts[1]) == pytest.approx(51.4)  # south (min_lat)
     assert float(parts[2]) == pytest.approx(0.1)   # east (max_lon)
@@ -1119,11 +1120,11 @@ async def test_fetch_incidents_returns_empty_list_on_empty_results():
 
 
 @pytest.mark.asyncio
-async def test_fetch_incidents_location_referencing_param_value():
+async def test_fetch_incidents_only_sends_in_and_apikey_params():
     mock_client = _make_here_client({"results": []})
     await fetch_incidents(mock_client, _BBOX, "test-key")
     params = mock_client.get.call_args[1]["params"]
-    assert params["locationReferencing"] == "shape"
+    assert set(params.keys()) == {"in", "apiKey"}
 
 
 @pytest.mark.asyncio
