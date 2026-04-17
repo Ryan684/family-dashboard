@@ -32,3 +32,13 @@ Feature: Weather card backend
     Given the current time matches an entry in the hourly forecast
     When the forecast is parsed
     Then the first forecast entry matches the current hour
+
+  Scenario: Daily rainfall total and probability are returned
+    Given Open-Meteo returns daily precipitation_sum of 4.2 mm and precipitation_probability_max of 60%
+    When the weather data is parsed
+    Then daily_rainfall contains total_mm 4.2 and probability_percent 60
+
+  Scenario: Daily rainfall defaults to None when data is missing
+    Given Open-Meteo returns an empty daily block
+    When the rainfall is parsed
+    Then daily_rainfall total_mm and probability_percent are None

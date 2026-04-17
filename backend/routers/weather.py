@@ -80,6 +80,16 @@ def parse_daily_high(daily_data: dict) -> float | None:
     return temps[0] if temps else None
 
 
+def parse_daily_rainfall(daily_data: dict) -> dict:
+    """Return today's total precipitation (mm) and max probability (%) from an Open-Meteo daily block."""
+    totals = daily_data.get("precipitation_sum", [])
+    probs = daily_data.get("precipitation_probability_max", [])
+    return {
+        "total_mm": totals[0] if totals else None,
+        "probability_percent": probs[0] if probs else None,
+    }
+
+
 def parse_location_name(address: dict) -> str:
     """Extract the most specific useful place name from a Nominatim address dict."""
     return (
@@ -172,7 +182,7 @@ async def fetch_weather(client: httpx.AsyncClient, lat: float, lon: float) -> di
             "latitude": lat,
             "longitude": lon,
             "current": "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m",
-            "daily": "temperature_2m_max",
+            "daily": "temperature_2m_max,precipitation_sum,precipitation_probability_max",
             "forecast_days": 1,
             "wind_speed_unit": "kmh",
             "timezone": "Europe/London",
@@ -213,13 +223,16 @@ async def fetch_weather_data() -> dict:
                     display_name = city
 
             data = await fetch_weather(http, loc["lat"], loc["lon"])
+            daily = data.get("daily", {})
             current = parse_current(data.get("current", {}))
-            daily_high = parse_daily_high(data.get("daily", {}))
+            daily_high = parse_daily_high(daily)
+            daily_rainfall = parse_daily_rainfall(daily)
             result_locations.append(
                 {
                     "name": display_name,
                     "current": current,
                     "daily_high_celsius": daily_high,
+                    "daily_rainfall": daily_rainfall,
                 }
             )
 

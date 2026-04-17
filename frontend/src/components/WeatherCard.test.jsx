@@ -12,6 +12,7 @@ const makeLocation = (overrides = {}) => ({
     humidity_percent: 72,
   },
   daily_high_celsius: 19,
+  daily_rainfall: { total_mm: 4.2, probability_percent: 60 },
   ...overrides,
 })
 
@@ -130,6 +131,32 @@ describe('WeatherCard — location block', () => {
     render(<WeatherCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
     expect(screen.queryAllByTestId('forecast-entry')).toHaveLength(0)
+  })
+})
+
+describe('WeatherCard — rainfall', () => {
+  it('displays rainfall as "Rain: X.X mm (Y%)"', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('Rain: 4.2 mm (60%)')).toBeInTheDocument()
+    )
+  })
+
+  it('does not show a rainfall line when daily_rainfall is absent', async () => {
+    const location = makeLocation()
+    delete location.daily_rainfall
+    mockFetchOk(makeApiResponse({ locations: [location] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText(/Rain:/)).not.toBeInTheDocument()
+  })
+
+  it('does not show a rainfall line when daily_rainfall is null', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ daily_rainfall: null })] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText(/Rain:/)).not.toBeInTheDocument()
   })
 })
 

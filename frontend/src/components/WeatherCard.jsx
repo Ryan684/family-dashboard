@@ -46,7 +46,7 @@ function injectStyles() {
 
     .wc-location-temp {
       font-family: 'Big Shoulders Display', 'Impact', sans-serif;
-      font-size: 96px;
+      font-size: 64px;
       font-weight: 700;
       line-height: 1;
       color: var(--wc-text-primary);
@@ -60,7 +60,9 @@ function injectStyles() {
       margin-bottom: 10px;
     }
 
-    .wc-location-high {
+    .wc-location-meta {
+      display: flex;
+      gap: 24px;
       font-size: 24px;
       font-weight: 300;
       color: var(--wc-text-secondary);
@@ -90,13 +92,20 @@ function injectStyles() {
 }
 
 function LocationBlock({ location }) {
-  const { name, current, daily_high_celsius } = location
+  const { name, current, daily_high_celsius, daily_rainfall } = location
+  const rainfallText =
+    daily_rainfall != null
+      ? `Rain: ${daily_rainfall.total_mm} mm (${daily_rainfall.probability_percent}%)`
+      : null
   return (
     <div className="wc-location" data-testid="weather-location-block">
       <div className="wc-location-name">{name}</div>
       <div className="wc-location-temp">{current.temperature_celsius}°C</div>
       <div className="wc-location-desc">{current.weather_description}</div>
-      <div className="wc-location-high">High: {daily_high_celsius}°C</div>
+      <div className="wc-location-meta">
+        <span>High: {daily_high_celsius}°C</span>
+        {rainfallText && <span>{rainfallText}</span>}
+      </div>
     </div>
   )
 }

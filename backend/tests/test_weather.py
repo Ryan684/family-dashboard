@@ -10,6 +10,7 @@ from routers.weather import (
     map_weather_code,
     parse_current,
     parse_daily_high,
+    parse_daily_rainfall,
     parse_location_name,
     resolve_weather_locations,
 )
@@ -199,6 +200,49 @@ def test_parse_daily_high_does_not_use_second_day():
 
 
 # ---------------------------------------------------------------------------
+# parse_daily_rainfall
+# ---------------------------------------------------------------------------
+
+
+def test_parse_daily_rainfall_returns_total_mm():
+    result = parse_daily_rainfall({"precipitation_sum": [4.2], "precipitation_probability_max": [60]})
+    assert result["total_mm"] == 4.2
+
+
+def test_parse_daily_rainfall_returns_probability_percent():
+    result = parse_daily_rainfall({"precipitation_sum": [4.2], "precipitation_probability_max": [60]})
+    assert result["probability_percent"] == 60
+
+
+def test_parse_daily_rainfall_uses_first_entry_only():
+    result = parse_daily_rainfall({"precipitation_sum": [3.0, 10.0], "precipitation_probability_max": [40, 90]})
+    assert result["total_mm"] == 3.0
+    assert result["probability_percent"] == 40
+
+
+def test_parse_daily_rainfall_missing_sum_returns_none():
+    result = parse_daily_rainfall({"precipitation_probability_max": [50]})
+    assert result["total_mm"] is None
+
+
+def test_parse_daily_rainfall_missing_probability_returns_none():
+    result = parse_daily_rainfall({"precipitation_sum": [2.0]})
+    assert result["probability_percent"] is None
+
+
+def test_parse_daily_rainfall_empty_dict_returns_nones():
+    result = parse_daily_rainfall({})
+    assert result["total_mm"] is None
+    assert result["probability_percent"] is None
+
+
+def test_parse_daily_rainfall_empty_lists_return_nones():
+    result = parse_daily_rainfall({"precipitation_sum": [], "precipitation_probability_max": []})
+    assert result["total_mm"] is None
+    assert result["probability_percent"] is None
+
+
+# ---------------------------------------------------------------------------
 # parse_location_name
 # ---------------------------------------------------------------------------
 
@@ -337,6 +381,7 @@ _CACHED_LOCATION = {
         "humidity_percent": 75,
     },
     "daily_high_celsius": 12.0,
+    "daily_rainfall": {"total_mm": 4.2, "probability_percent": 60},
 }
 
 _CACHED_WEATHER_DATA = {"locations": [_CACHED_LOCATION]}
@@ -469,10 +514,44 @@ def test_endpoint_multiple_locations(mock_now):
                     "humidity_percent": 80,
                 },
                 "daily_high_celsius": 14.0,
+                "daily_rainfall": {"total_mm": 0.0, "probability_percent": 10},
             },
         ]
     }
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert len(resp.json()["locations"]) == 2
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_location_entry_has_daily_rainfall(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    resp = client.get("/api/weather")
+    assert "daily_rainfall" in resp.json()["locations"][0]
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_daily_rainfall_total_mm(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    resp = client.get("/api/weather")
+    assert resp.json()["locations"][0]["daily_rainfall"]["total_mm"] == 4.2
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_daily_rainfall_probability_percent(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    resp = client.get("/api/weather")
+    assert resp.json()["locations"][0]["daily_rainfall"]["probability_percent"] == 60
     weather_module._cache = None
