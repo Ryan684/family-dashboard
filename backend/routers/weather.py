@@ -90,6 +90,27 @@ def parse_daily_rainfall(daily_data: dict) -> dict:
     }
 
 
+def parse_rain_windows(hourly_data: dict, threshold: int = 50) -> list[dict]:
+    """Return contiguous hour windows where precipitation probability meets the threshold.
+
+    Each window is {start_hour, end_hour} where end_hour is exclusive.
+    """
+    probs = hourly_data.get("precipitation_probability", [])
+    windows = []
+    start = None
+    for hour, prob in enumerate(probs):
+        if prob is not None and prob >= threshold:
+            if start is None:
+                start = hour
+        else:
+            if start is not None:
+                windows.append({"start_hour": start, "end_hour": hour})
+                start = None
+    if start is not None:
+        windows.append({"start_hour": start, "end_hour": len(probs)})
+    return windows
+
+
 def parse_location_name(address: dict) -> str:
     """Extract the most specific useful place name from a Nominatim address dict."""
     return (
@@ -183,6 +204,7 @@ async def fetch_weather(client: httpx.AsyncClient, lat: float, lon: float) -> di
             "longitude": lon,
             "current": "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m",
             "daily": "temperature_2m_max,precipitation_sum,precipitation_probability_max",
+            "hourly": "precipitation_probability",
             "forecast_days": 1,
             "wind_speed_unit": "kmh",
             "timezone": "Europe/London",
@@ -227,12 +249,14 @@ async def fetch_weather_data() -> dict:
             current = parse_current(data.get("current", {}))
             daily_high = parse_daily_high(daily)
             daily_rainfall = parse_daily_rainfall(daily)
+            rain_windows = parse_rain_windows(data.get("hourly", {}))
             result_locations.append(
                 {
                     "name": display_name,
                     "current": current,
                     "daily_high_celsius": daily_high,
                     "daily_rainfall": daily_rainfall,
+                    "rain_windows": rain_windows,
                 }
             )
 

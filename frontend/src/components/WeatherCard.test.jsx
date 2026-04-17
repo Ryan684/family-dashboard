@@ -13,6 +13,7 @@ const makeLocation = (overrides = {}) => ({
   },
   daily_high_celsius: 19,
   daily_rainfall: { total_mm: 4.2, probability_percent: 60 },
+  rain_windows: [{ start_hour: 8, end_hour: 10 }, { start_hour: 14, end_hour: 16 }],
   ...overrides,
 })
 
@@ -135,17 +136,26 @@ describe('WeatherCard — location block', () => {
 })
 
 describe('WeatherCard — rainfall', () => {
-  it('displays rainfall as "Rain: X.X mm (Y%)"', async () => {
+  it('displays rainfall in "Rain: X mm · Y% chance" format', async () => {
     mockFetchOk(makeApiResponse())
     render(<WeatherCard />)
     await waitFor(() =>
-      expect(screen.getByText('Rain: 4.2 mm (60%)')).toBeInTheDocument()
+      expect(screen.getByText(/Rain: 4\.2 mm · 60% chance/)).toBeInTheDocument()
+    )
+  })
+
+  it('uses "X% chance" not just "X%"', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText(/60% chance/)).toBeInTheDocument()
     )
   })
 
   it('does not show a rainfall line when daily_rainfall is absent', async () => {
     const location = makeLocation()
     delete location.daily_rainfall
+    delete location.rain_windows
     mockFetchOk(makeApiResponse({ locations: [location] }))
     render(<WeatherCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
@@ -157,6 +167,99 @@ describe('WeatherCard — rainfall', () => {
     render(<WeatherCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
     expect(screen.queryByText(/Rain:/)).not.toBeInTheDocument()
+  })
+})
+
+describe('WeatherCard — rain windows', () => {
+  it('displays formatted hour ranges when rain_windows are present', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('8–10am, 2–4pm')).toBeInTheDocument()
+    )
+  })
+
+  it('shows "all day" when total rainy hours is 18 or more', async () => {
+    // One window of 18 hours: 0–18
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 0, end_hour: 18 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('all day')).toBeInTheDocument()
+    )
+  })
+
+  it('does not show "all day" when total rainy hours is 17', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 0, end_hour: 17 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText('all day')).not.toBeInTheDocument()
+    expect(screen.getByText(/12am–5pm/)).toBeInTheDocument()
+  })
+
+  it('hides the rain window row when rain_windows is empty', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [] })] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByTestId('rain-windows')).not.toBeInTheDocument()
+  })
+
+  it('hides the rain window row when rain_windows is absent', async () => {
+    const location = makeLocation()
+    delete location.rain_windows
+    mockFetchOk(makeApiResponse({ locations: [location] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByTestId('rain-windows')).not.toBeInTheDocument()
+  })
+
+  it('formats a single-hour window without a range', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 11, end_hour: 12 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('11am')).toBeInTheDocument()
+    )
+  })
+
+  it('formats a pm-only window', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 14, end_hour: 17 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('2–5pm')).toBeInTheDocument()
+    )
+  })
+
+  it('formats a window crossing noon', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 11, end_hour: 14 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('11am–2pm')).toBeInTheDocument()
+    )
+  })
+
+  it('formats a noon-start window as pm', async () => {
+    // start_hour=12 must be labelled pm, not am
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 12, end_hour: 14 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('12–2pm')).toBeInTheDocument()
+    )
+  })
+
+  it('formats a window ending at noon as crossing noon', async () => {
+    // end_hour=12 (noon) must be treated as pm, crossing from am
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 10, end_hour: 12 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('10am–12pm')).toBeInTheDocument()
+    )
+  })
+
+  it('formats a noon single-hour window as "12pm"', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ rain_windows: [{ start_hour: 12, end_hour: 13 }] })] }))
+    render(<WeatherCard />)
+    await waitFor(() =>
+      expect(screen.getByText('12pm')).toBeInTheDocument()
+    )
   })
 })
 

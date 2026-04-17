@@ -23,6 +23,7 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Mutant | Mutation | Justification |
 |--------|----------|---------------|
 | `x_parse_forecast__mutmut_1` | `count: int = 6` → `count: int = 7` | Default parameter — unreachable via mutmut 3.x trampoline. The wrapper function retains the original default (6) and always passes `count` explicitly when calling the mutant. The mutant's default of 7 is never invoked through the test path. |
+| `x_parse_rain_windows__mutmut_1` | `threshold: int = 50` → `threshold: int = 51` | Default parameter — unreachable via mutmut 3.x trampoline. The wrapper always passes the original default (50) explicitly when calling the mutant, so the mutant's default of 51 is never invoked. Same class as `x_parse_forecast__mutmut_1`. |
 | `x_parse_daily_rainfall__mutmut_3` | `daily_data.get("precipitation_sum", [])` → `default None` | The `if totals else None` ternary is falsy for both `[]` and `None`. Equivalent mutant — missing-key behaviour is identical. Same class as other `.get()` survivors. |
 | `x_parse_daily_rainfall__mutmut_5` | `daily_data.get("precipitation_sum", [])` → no default arg | `.get(key)` returns `None` when key is absent — identical to `[]` in the falsy check. Equivalent mutant. |
 | `x_parse_daily_rainfall__mutmut_10` | `daily_data.get("precipitation_probability_max", [])` → `default None` | Same as mutmut_3 — falsy check makes `None` and `[]` equivalent for the missing-key path. |
@@ -114,11 +115,12 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Line 7: `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard — prevents re-injecting the same stylesheet. JSDOM does not apply styles, so injecting twice has no observable effect and this guard cannot be killed by a test. |
 | Line 10: `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores injected stylesheets, so an empty string is indistinguishable from the real stylesheet in unit tests. |
 
-**Rainfall conditional render — LogicalOperator (1 mutant — `LocationBlock`)**
+**Rainfall and windows conditional renders — equivalent logic mutants (2 mutants)**
 
 | Location | Mutation | Justification |
 |----------|----------|---------------|
-| `{rainfallText && <span>{rainfallText}</span>}` | `&&` → `\|\|` | When `rainfallText` is truthy, `\|\|` short-circuits to the left operand (the string), rendering it as a React text node rather than a `<span>`. Tests verify text content only — `getByText('Rain: 4.2 mm (60%)')` passes regardless of whether the text is in a span or a text node. DOM structure is not the observable behaviour here. Equivalent mutant. |
+| `{rainfallText && <span>{rainfallText}</span>}` | `&&` → `\|\|` | When `rainfallText` is truthy, `\|\|` short-circuits to the left operand (the string), rendering it as a React text node rather than a `<span>`. Tests verify text content only — text is visible regardless of node type. Equivalent mutant. |
+| `if (!windows \|\| windows.length === 0) return null` | `windows.length === 0` → `false` | Early-return for empty arrays. When `windows = []`, removing the check means execution continues; `[].map(formatWindow).join(', ')` returns `''`, which is falsy, so the rain-windows div is still not rendered. Observable behaviour is identical. Equivalent mutant. |
 
 **React async cancellation/cleanup pattern (5 mutants — lines 129, 135, 141–142, 144)**
 

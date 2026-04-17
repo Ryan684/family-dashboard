@@ -91,12 +91,37 @@ function injectStyles() {
   document.head.appendChild(style)
 }
 
+function hourNum(h) {
+  const mod = h % 12
+  return mod === 0 ? 12 : mod
+}
+
+function formatHour(h) {
+  return `${hourNum(h)}${h < 12 ? 'am' : 'pm'}`
+}
+
+function formatWindow({ start_hour, end_hour }) {
+  if (end_hour - start_hour === 1) return formatHour(start_hour)
+  if (start_hour >= 12 === end_hour >= 12) {
+    return `${hourNum(start_hour)}–${formatHour(end_hour)}`
+  }
+  return `${formatHour(start_hour)}–${formatHour(end_hour)}`
+}
+
+function formatRainWindows(windows) {
+  if (!windows || windows.length === 0) return null
+  const totalHours = windows.reduce((sum, w) => sum + (w.end_hour - w.start_hour), 0)
+  if (totalHours >= 18) return 'all day'
+  return windows.map(formatWindow).join(', ')
+}
+
 function LocationBlock({ location }) {
-  const { name, current, daily_high_celsius, daily_rainfall } = location
+  const { name, current, daily_high_celsius, daily_rainfall, rain_windows } = location
   const rainfallText =
     daily_rainfall != null
-      ? `Rain: ${daily_rainfall.total_mm} mm (${daily_rainfall.probability_percent}%)`
+      ? `Rain: ${daily_rainfall.total_mm} mm · ${daily_rainfall.probability_percent}% chance`
       : null
+  const windowsText = formatRainWindows(rain_windows)
   return (
     <div className="wc-location" data-testid="weather-location-block">
       <div className="wc-location-name">{name}</div>
@@ -106,6 +131,9 @@ function LocationBlock({ location }) {
         <span>High: {daily_high_celsius}°C</span>
         {rainfallText && <span>{rainfallText}</span>}
       </div>
+      {windowsText && (
+        <div className="wc-location-meta" data-testid="rain-windows">{windowsText}</div>
+      )}
     </div>
   )
 }

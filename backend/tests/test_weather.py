@@ -11,6 +11,7 @@ from routers.weather import (
     parse_current,
     parse_daily_high,
     parse_daily_rainfall,
+    parse_rain_windows,
     parse_location_name,
     resolve_weather_locations,
 )
@@ -243,6 +244,86 @@ def test_parse_daily_rainfall_empty_lists_return_nones():
 
 
 # ---------------------------------------------------------------------------
+# parse_rain_windows
+# ---------------------------------------------------------------------------
+
+_24_ZEROS = [0] * 24
+_24_EIGHTIES = [80] * 24
+
+
+def _hourly(probs):
+    return {"precipitation_probability": probs}
+
+
+def test_parse_rain_windows_consecutive_hours_form_single_window():
+    probs = _24_ZEROS[:]
+    probs[8] = 60
+    probs[9] = 70
+    probs[10] = 55
+    result = parse_rain_windows(_hourly(probs))
+    assert result == [{"start_hour": 8, "end_hour": 11}]
+
+
+def test_parse_rain_windows_non_consecutive_form_two_windows():
+    probs = _24_ZEROS[:]
+    probs[8] = 60
+    probs[9] = 60
+    probs[14] = 65
+    probs[15] = 65
+    result = parse_rain_windows(_hourly(probs))
+    assert result == [{"start_hour": 8, "end_hour": 10}, {"start_hour": 14, "end_hour": 16}]
+
+
+def test_parse_rain_windows_below_threshold_excluded():
+    probs = [49] * 24
+    result = parse_rain_windows(_hourly(probs))
+    assert result == []
+
+
+def test_parse_rain_windows_exactly_at_threshold_included():
+    probs = _24_ZEROS[:]
+    probs[5] = 50
+    result = parse_rain_windows(_hourly(probs))
+    assert result == [{"start_hour": 5, "end_hour": 6}]
+
+
+def test_parse_rain_windows_full_day_returns_single_window():
+    result = parse_rain_windows(_hourly(_24_EIGHTIES))
+    assert result == [{"start_hour": 0, "end_hour": 24}]
+
+
+def test_parse_rain_windows_empty_data_returns_empty_list():
+    assert parse_rain_windows({}) == []
+
+
+def test_parse_rain_windows_no_rainy_hours_returns_empty_list():
+    assert parse_rain_windows(_hourly(_24_ZEROS)) == []
+
+
+def test_parse_rain_windows_window_at_end_of_day():
+    probs = _24_ZEROS[:]
+    probs[22] = 80
+    probs[23] = 80
+    result = parse_rain_windows(_hourly(probs))
+    assert result == [{"start_hour": 22, "end_hour": 24}]
+
+
+def test_parse_rain_windows_single_rainy_hour():
+    probs = _24_ZEROS[:]
+    probs[11] = 90
+    result = parse_rain_windows(_hourly(probs))
+    assert result == [{"start_hour": 11, "end_hour": 12}]
+
+
+def test_parse_rain_windows_custom_threshold():
+    probs = _24_ZEROS[:]
+    probs[6] = 40  # below default 50, above custom 30
+    probs[7] = 40
+    result = parse_rain_windows(_hourly(probs), threshold=30)
+    assert result == [{"start_hour": 6, "end_hour": 8}]
+
+
+# ---------------------------------------------------------------------------
 # parse_location_name
 # ---------------------------------------------------------------------------
 
@@ -382,6 +463,7 @@ _CACHED_LOCATION = {
     },
     "daily_high_celsius": 12.0,
     "daily_rainfall": {"total_mm": 4.2, "probability_percent": 60},
+    "rain_windows": [{"start_hour": 8, "end_hour": 10}],
 }
 
 _CACHED_WEATHER_DATA = {"locations": [_CACHED_LOCATION]}
@@ -554,4 +636,26 @@ def test_endpoint_daily_rainfall_probability_percent(mock_now):
     mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
     resp = client.get("/api/weather")
     assert resp.json()["locations"][0]["daily_rainfall"]["probability_percent"] == 60
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_location_entry_has_rain_windows(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    resp = client.get("/api/weather")
+    assert "rain_windows" in resp.json()["locations"][0]
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_endpoint_rain_windows_value(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = _CACHED_WEATHER_DATA
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    resp = client.get("/api/weather")
+    assert resp.json()["locations"][0]["rain_windows"] == [{"start_hour": 8, "end_hour": 10}]
     weather_module._cache = None
