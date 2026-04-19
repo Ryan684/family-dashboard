@@ -20,5 +20,6 @@ dist/
 .last-test-results
 .claude-failures.jsonl
 
-# Stryker reports
+# Stryker reports and temp
 reports/
+.stryker-tmp/
