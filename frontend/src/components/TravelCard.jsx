@@ -1,211 +1,136 @@
-const STYLES_ID = 'travel-card-styles'
-
-function injectStyles() {
-  if (typeof document === 'undefined') return
-  if (document.getElementById(STYLES_ID)) return
-  const style = document.createElement('style')
-  style.id = STYLES_ID
-  style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
-
-    :root {
-      --tc-bg:             #1A1714;
-      --tc-surface:        #232019;
-      --tc-border:         #2E2B26;
-      --tc-text-primary:   #F8F5EF;
-      --tc-text-secondary: #7A756E;
-      --tc-green:          #4CAF82;
-      --tc-amber:          #E8A838;
-      --tc-red:            #D95F4B;
-      --tc-stale:          #7A756E;
-    }
-
-    .tc-section {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-      color: var(--tc-text-primary);
-      padding: 32px 40px;
-      display: flex;
-      flex-direction: column;
-      gap: 40px;
-    }
-
-    .tc-stale {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 20px;
-      color: var(--tc-stale);
-      padding: 8px 16px;
-      border: 1px solid var(--tc-border);
-      border-radius: 6px;
-      align-self: flex-start;
-    }
-
-    /* ── Per-commuter card ─────────────────────────────── */
-
-    .tc-commuter {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .tc-commuter-header {
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-      margin-bottom: 4px;
-    }
-
-    .tc-commuter-name {
-      font-family: 'Jost', sans-serif;
-      font-size: 26px;
-      font-weight: 400;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--tc-text-secondary);
-      margin: 0;
-    }
-
-    .tc-commuter-dest {
-      font-size: 20px;
-      font-weight: 300;
-      color: var(--tc-border);
-      letter-spacing: 0.06em;
-    }
-
-    .tc-routes {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    /* ── Route card ────────────────────────────────────── */
-
-    .tc-route-card {
-      flex: 1;
-      min-width: 200px;
-      background: var(--tc-surface);
-      border: 1px solid var(--tc-border);
-      border-radius: 12px;
-      padding: 20px 24px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .tc-colour-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 4px;
-      height: 100%;
-      border-radius: 12px 0 0 12px;
-    }
-
-    .tc-colour-bar[data-colour="green"] { background: var(--tc-green); }
-    .tc-colour-bar[data-colour="amber"] { background: var(--tc-amber); }
-    .tc-colour-bar[data-colour="red"]   {
-      background: var(--tc-red);
-      box-shadow: 0 0 12px rgba(217, 95, 75, 0.4);
-    }
-
-    .tc-travel-time {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
-      font-size: 52px;
-      font-weight: 700;
-      line-height: 1;
-      color: var(--tc-text-primary);
-      margin-bottom: 6px;
-    }
-
-    .tc-description {
-      font-size: 22px;
-      font-weight: 300;
-      color: var(--tc-text-secondary);
-    }
-
-    /* ── Incidents ─────────────────────────────────────── */
-
-    .tc-incidents {
-      padding: 16px 20px;
-      background: rgba(217, 95, 75, 0.08);
-      border: 1px solid rgba(217, 95, 75, 0.25);
-      border-radius: 10px;
-    }
-
-    .tc-incidents-heading {
-      font-size: 18px;
-      font-weight: 400;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--tc-red);
-      margin: 0 0 10px 0;
-    }
-
-    .tc-incident-item {
-      font-size: 22px;
-      font-weight: 300;
-      color: var(--tc-text-primary);
-      padding: 4px 0;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .tc-incident-item:first-of-type {
-      border-top: none;
-    }
-
-    .tc-incident-road {
-      font-size: 18px;
-      color: var(--tc-red);
-      margin-right: 8px;
-    }
-
-    /* ── Status states ─────────────────────────────────── */
-
-    .tc-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: var(--tc-text-secondary);
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-    }
-
-    .tc-error {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: var(--tc-red);
-      padding: 24px;
-      text-align: center;
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-    }
-  `
-  document.head.appendChild(style)
+const DELAY_META = {
+  green: { color: 'var(--ok)',    label: 'On time' },
+  amber: { color: 'var(--warn)',  label: 'Slow' },
+  red:   { color: 'var(--alert)', label: 'Delayed' },
 }
 
-function formatDuration(seconds) {
-  const totalMinutes = Math.round(seconds / 60)
-  if (totalMinutes < 60) return `${totalMinutes} min`
-  const hrs = Math.floor(totalMinutes / 60)
-  const mins = totalMinutes % 60
-  return `${hrs} ${hrs === 1 ? 'hr' : 'hrs'} ${mins} min`
+/* sr-only: text node discoverable by getByText but visually hidden */
+const srOnly = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0,0,0,0)',
+  border: 0,
+  whiteSpace: 'nowrap',
 }
 
-function destinationLabel(mode) {
-  return mode === 'office' ? 'Work' : 'Home'
+function formatKm(meters) {
+  return `${(meters / 1000).toFixed(1)} km`
 }
 
-function RouteCard({ route }) {
+/* Returns "45 min", "1 hr 0 min", "2 hrs 5 min" — matches test expectations */
+function formatTimeString(seconds) {
+  const m = Math.round(seconds / 60)
+  if (m < 60) return `${m} min`
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  return `${h} ${h === 1 ? 'hr' : 'hrs'} ${r} min`
+}
+
+/* Returns { bigNum, unit } for large-numeral visual display */
+function formatTimeDisplay(seconds) {
+  const m = Math.round(seconds / 60)
+  if (m < 60) return { bigNum: String(m), unit: 'min' }
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  if (r === 0) return { bigNum: String(h), unit: h === 1 ? 'hr' : 'hrs' }
+  return { bigNum: `${h}:${String(r).padStart(2, '0')}`, unit: h === 1 ? 'hr' : 'hrs' }
+}
+
+function RouteRow({ route, primary = false }) {
+  if (!route) return null
+  const meta = DELAY_META[route.delay_colour] || DELAY_META.green
+  const delaySec =
+    route.travel_time_seconds - (route.static_duration_seconds ?? route.travel_time_seconds)
+  const delayMin = Math.round(delaySec / 60)
+  const { bigNum, unit } = formatTimeDisplay(route.travel_time_seconds)
+  const timeStr = formatTimeString(route.travel_time_seconds)
+  const isRed = route.delay_colour === 'red'
+
   return (
-    <div className="tc-route-card" data-testid="route-card">
-      <div className="tc-colour-bar" data-colour={route.delay_colour} />
-      <div className="tc-travel-time">{formatDuration(route.travel_time_seconds)}</div>
-      {route.description ? (
-        <div className="tc-description">{route.description}</div>
-      ) : null}
+    <div style={{ display: 'flex', gap: 22, alignItems: 'stretch' }} data-testid="route-card">
+      {/* vertical delay bar — hairline, coloured, pulses when red */}
+      <div
+        data-colour={route.delay_colour}
+        style={{
+          width: isRed ? 3 : 2,
+          background: meta.color,
+          borderRadius: 2,
+          alignSelf: 'stretch',
+          flexShrink: 0,
+          ...(isRed
+            ? { boxShadow: `0 0 14px ${meta.color}`, animation: 'fd-pulse 2.4s ease-in-out infinite' }
+            : null),
+        }}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        {/* sr-only span carries the combined time string for getByText */}
+        <span style={srOnly}>{timeStr}</span>
+
+        {/* big visual numeral + unit */}
+        <div
+          style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}
+          aria-hidden="true"
+        >
+          <div
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontSize: primary ? 104 : 68,
+              color: 'var(--ink)',
+              lineHeight: 0.9,
+              letterSpacing: '-0.03em',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {bigNum}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontStyle: 'italic',
+              fontSize: primary ? 34 : 26,
+              color: 'var(--ink-dim)',
+              lineHeight: 1,
+            }}
+          >
+            {unit}
+          </div>
+        </div>
+
+        {/* delay status label */}
+        <div
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 14,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: meta.color,
+            fontWeight: 500,
+          }}
+        >
+          {delayMin > 0 ? `+${delayMin} min · ${meta.label}` : meta.label}
+        </div>
+
+        {/* route description + distance */}
+        {route.description ? (
+          <div
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontStyle: 'italic',
+              fontSize: primary ? 24 : 20,
+              color: 'var(--ink-dim)',
+              marginTop: 4,
+            }}
+          >
+            {route.description}
+            {route.distance_meters != null ? ` · ${formatKm(route.distance_meters)}` : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -213,46 +138,170 @@ function RouteCard({ route }) {
 function IncidentList({ incidents }) {
   if (!incidents || incidents.length === 0) return null
   return (
-    <div className="tc-incidents" data-testid="incident-list">
-      <h3 className="tc-incidents-heading">Traffic incidents</h3>
+    <div
+      style={{
+        marginTop: 10,
+        padding: '16px 20px',
+        background: 'var(--alert-tint)',
+        borderLeft: '2px solid var(--alert)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+      data-testid="incident-list"
+    >
+      <div
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 13,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--alert)',
+          fontWeight: 500,
+        }}
+      >
+        Incidents
+      </div>
       {incidents.map((inc, i) => (
-        <div key={i} className="tc-incident-item">
-          {inc.road ? <span className="tc-incident-road">{inc.road}</span> : null}
-          {inc.description}
+        <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+          {inc.road && (
+            <span
+              style={{
+                fontFamily: 'var(--f-mono)',
+                fontSize: 14,
+                color: 'var(--alert)',
+                letterSpacing: '0.1em',
+                fontWeight: 500,
+                minWidth: 38,
+              }}
+            >
+              {inc.road}
+            </span>
+          )}
+          <span style={{ fontFamily: 'var(--f-display)', fontSize: 22, color: 'var(--ink)' }}>
+            {inc.description}
+          </span>
         </div>
       ))}
     </div>
   )
 }
 
-function CommuterCard({ commuter }) {
-  injectStyles()
+function CommuterColumn({ commuter }) {
+  const { name, mode, drops, routes, incidents } = commuter
+  const destination = mode === 'office' ? 'Work' : 'Home'
+  const [primary, alt] = routes
+
   return (
     <div
-      className="tc-commuter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 22 }}
       data-testid="travel-card"
-      data-commuter={commuter.name}
+      data-commuter={name}
     >
-      <div className="tc-commuter-header">
-        <h2 className="tc-commuter-name">{commuter.name}</h2>
-        <span className="tc-commuter-dest">→ {destinationLabel(commuter.mode)}</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-display)',
+            fontSize: 56,
+            color: 'var(--ink)',
+            lineHeight: 0.9,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {name}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--f-display)',
+            fontStyle: 'italic',
+            fontSize: 30,
+            color: 'var(--ink-dim)',
+          }}
+        >
+          → {destination}
+        </div>
       </div>
-      <div className="tc-routes">
-        {commuter.routes.map((route, i) => (
-          <RouteCard key={i} route={route} />
-        ))}
-      </div>
-      <IncidentList incidents={commuter.incidents} />
+
+      {drops?.length > 0 && (
+        <div
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 13,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-faint)',
+            fontWeight: 500,
+          }}
+        >
+          via {drops.join(' → ')}
+        </div>
+      )}
+
+      <div style={{ height: 1, background: 'var(--rule)', margin: '4px 0' }} aria-hidden="true" />
+
+      <RouteRow route={primary} primary />
+      {alt && (
+        <>
+          <div
+            style={{ height: 1, background: 'var(--rule)', opacity: 0.6 }}
+            aria-hidden="true"
+          />
+          <RouteRow route={alt} />
+        </>
+      )}
+
+      <IncidentList incidents={incidents} />
+    </div>
+  )
+}
+
+function StaleTag() {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        fontFamily: 'var(--f-mono)',
+        fontSize: 14,
+        letterSpacing: '0.2em',
+        textTransform: 'uppercase',
+        color: 'var(--ink-faint)',
+        fontWeight: 500,
+      }}
+      data-testid="stale-warning"
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: 'var(--ink-faint)',
+          flexShrink: 0,
+        }}
+        aria-hidden="true"
+      />
+      Cached · outside window
     </div>
   )
 }
 
 function TravelCard({ commuters = [], isStale = false, loading = false, error = null }) {
-  injectStyles()
-
   if (loading) {
     return (
-      <div className="tc-loading" role="status">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint)',
+        }}
+        role="status"
+      >
         Loading travel data…
       </div>
     )
@@ -260,7 +309,19 @@ function TravelCard({ commuters = [], isStale = false, loading = false, error = 
 
   if (error) {
     return (
-      <div className="tc-error" role="alert">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-display)',
+          fontStyle: 'italic',
+          fontSize: 28,
+          color: 'var(--alert)',
+          padding: '24px 0',
+        }}
+        role="alert"
+      >
         Unable to load travel data
       </div>
     )
@@ -271,16 +332,35 @@ function TravelCard({ commuters = [], isStale = false, loading = false, error = 
   }
 
   return (
-    <div className="tc-section">
-      {isStale ? (
-        <div className="tc-stale" data-testid="stale-warning">
-          Showing cached data — outside morning window
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 18,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-dim)',
+            fontWeight: 500,
+          }}
+        >
+          Commute
         </div>
-      ) : null}
-      {commuters.map((commuter) => (
-        <CommuterCard key={commuter.name} commuter={commuter} />
-      ))}
-    </div>
+        {isStale && <StaleTag />}
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${commuters.length}, minmax(0,1fr))`,
+          gap: 56,
+        }}
+      >
+        {commuters.map((commuter) => (
+          <CommuterColumn key={commuter.name} commuter={commuter} />
+        ))}
+      </div>
+    </section>
   )
 }
 
