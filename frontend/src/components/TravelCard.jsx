@@ -6,22 +6,22 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700&family=DM+Sans:wght@300;400&display=swap');
 
     :root {
-      --tc-bg:             #1A1714;
-      --tc-surface:        #232019;
-      --tc-border:         #2E2B26;
-      --tc-text-primary:   #F8F5EF;
-      --tc-text-secondary: #7A756E;
-      --tc-green:          #4CAF82;
-      --tc-amber:          #E8A838;
-      --tc-red:            #D95F4B;
-      --tc-stale:          #7A756E;
+      --tc-bg:             #111111;
+      --tc-surface:        #1C1C1C;
+      --tc-border:         #2A2A2A;
+      --tc-text-primary:   #FFFFFF;
+      --tc-text-secondary: #888888;
+      --tc-green:          #22C55E;
+      --tc-amber:          #F59E0B;
+      --tc-red:            #EF4444;
+      --tc-stale:          #888888;
     }
 
     .tc-section {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
       color: var(--tc-text-primary);
       padding: 32px 40px;
       display: flex;
@@ -57,7 +57,7 @@ function injectStyles() {
     }
 
     .tc-commuter-name {
-      font-family: 'Jost', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       font-size: 26px;
       font-weight: 400;
       letter-spacing: 0.18em;
@@ -105,11 +105,11 @@ function injectStyles() {
     .tc-colour-bar[data-colour="amber"] { background: var(--tc-amber); }
     .tc-colour-bar[data-colour="red"]   {
       background: var(--tc-red);
-      box-shadow: 0 0 12px rgba(217, 95, 75, 0.4);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
     }
 
     .tc-travel-time {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'Barlow Condensed', 'Impact', sans-serif;
       font-size: 52px;
       font-weight: 700;
       line-height: 1;
@@ -146,7 +146,7 @@ function injectStyles() {
       font-weight: 300;
       color: var(--tc-text-primary);
       padding: 4px 0;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .tc-incident-item:first-of-type {
@@ -168,7 +168,7 @@ function injectStyles() {
       min-height: 160px;
       font-size: 24px;
       color: var(--tc-text-secondary);
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
     }
 
     .tc-error {
@@ -180,7 +180,7 @@ function injectStyles() {
       color: var(--tc-red);
       padding: 24px;
       text-align: center;
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
     }
   `
   document.head.appendChild(style)
