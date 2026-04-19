@@ -8,12 +8,12 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400&display=swap');
 
     :root {
-      --clock-time:  #F8F5EF;
-      --clock-date:  #7A756E;
-      --clock-rule:  #2A2622;
+      --clock-time:  #1A1714;
+      --clock-date:  #6B6560;
+      --clock-rule:  #DDD8D0;
     }
 
     .cc-wrap {
@@ -26,9 +26,9 @@ function injectStyles() {
     }
 
     .cc-time {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'DM Serif Display', Georgia, serif;
       font-size: 160px;
-      font-weight: 700;
+      font-weight: 400;
       line-height: 0.9;
       letter-spacing: -0.02em;
       color: var(--clock-time);
@@ -44,7 +44,7 @@ function injectStyles() {
     }
 
     .cc-date {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Outfit', 'Helvetica Neue', sans-serif;
       font-size: 36px;
       font-weight: 300;
       letter-spacing: 0.22em;

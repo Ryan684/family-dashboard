@@ -6,25 +6,25 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400&display=swap');
 
     .ab-banner {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Outfit', 'Helvetica Neue', sans-serif;
       display: flex;
       align-items: center;
       gap: 24px;
       padding: 20px 40px;
-      background: rgba(217, 95, 75, 0.12);
-      border-top: 3px solid #D95F4B;
-      border-bottom: 3px solid #D95F4B;
+      background: rgba(196, 124, 24, 0.10);
+      border-top: 3px solid #C47C18;
+      border-bottom: 3px solid #C47C18;
       animation: ab-pulse 2.5s ease-in-out infinite;
     }
 
     .ab-icon {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'DM Serif Display', Georgia, serif;
       font-size: 40px;
-      font-weight: 700;
-      color: #D95F4B;
+      font-weight: 400;
+      color: #C47C18;
       flex-shrink: 0;
       line-height: 1;
     }
@@ -32,13 +32,13 @@ function injectStyles() {
     .ab-message {
       font-size: 32px;
       font-weight: 400;
-      color: #F8F5EF;
+      color: #1A1714;
       letter-spacing: 0.02em;
     }
 
     @keyframes ab-pulse {
-      0%, 100% { background: rgba(217, 95, 75, 0.12); }
-      50%       { background: rgba(217, 95, 75, 0.20); }
+      0%, 100% { background: rgba(196, 124, 24, 0.10); }
+      50%       { background: rgba(196, 124, 24, 0.18); }
     }
   `
   document.head.appendChild(style)

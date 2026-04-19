@@ -13,7 +13,7 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400&display=swap');
 
     *, *::before, *::after {
       box-sizing: border-box;
@@ -26,9 +26,9 @@ function injectStyles() {
     }
 
     body {
-      background: #1A1714;
-      color: #F8F5EF;
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      background: #FAF7F2;
+      color: #1A1714;
+      font-family: 'Outfit', 'Helvetica Neue', sans-serif;
     }
 
     .app-shell {
@@ -38,7 +38,7 @@ function injectStyles() {
     }
 
     .app-clock {
-      border-bottom: 1px solid #2A2622;
+      border-bottom: 1px solid #DDD8D0;
     }
 
     /* Grid with travel section (1 or 2 commuters) */
@@ -46,7 +46,7 @@ function injectStyles() {
       display: grid;
       gap: 1px;
       flex: 1;
-      background: #2A2622;
+      background: #DDD8D0;
     }
 
     .app-grid[data-commuters="1"] {
@@ -63,11 +63,11 @@ function injectStyles() {
       grid-template-columns: 1fr 1fr;
       gap: 1px;
       flex: 1;
-      background: #2A2622;
+      background: #DDD8D0;
     }
 
     .app-cell {
-      background: #1A1714;
+      background: #FAF7F2;
     }
   `
   document.head.appendChild(style)

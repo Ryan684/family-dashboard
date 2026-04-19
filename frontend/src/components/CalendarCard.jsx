@@ -8,11 +8,11 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400&display=swap');
 
     .cal-wrap {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-      color: #F8F5EF;
+      font-family: 'Outfit', 'Helvetica Neue', sans-serif;
+      color: #1A1714;
       padding: 32px 40px;
     }
 
@@ -21,12 +21,12 @@ function injectStyles() {
     }
 
     .cal-section-heading {
-      font-family: 'Jost', sans-serif;
+      font-family: 'Outfit', sans-serif;
       font-size: 24px;
       font-weight: 400;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #7A756E;
+      color: #6B6560;
       margin: 0 0 16px 0;
     }
 
@@ -35,8 +35,8 @@ function injectStyles() {
       align-items: center;
       gap: 16px;
       padding: 16px 20px;
-      background: #232019;
-      border: 1px solid #2E2B26;
+      background: #FFFFFF;
+      border: 1px solid #DDD8D0;
       border-radius: 10px;
       margin-bottom: 10px;
     }
@@ -51,7 +51,7 @@ function injectStyles() {
     .cal-event-time {
       font-size: 24px;
       font-weight: 400;
-      color: #7A756E;
+      color: #6B6560;
       min-width: 72px;
       flex-shrink: 0;
     }
@@ -66,20 +66,20 @@ function injectStyles() {
     .cal-event-summary {
       font-size: 28px;
       font-weight: 300;
-      color: #F8F5EF;
+      color: #1A1714;
     }
 
     .cal-event-travel {
       font-size: 20px;
       font-weight: 300;
-      color: #7A756E;
+      color: #6B6560;
       font-variant-numeric: tabular-nums;
     }
 
     .cal-empty {
       font-size: 24px;
       font-weight: 300;
-      color: #7A756E;
+      color: #6B6560;
       padding: 12px 0;
     }
 
@@ -89,7 +89,7 @@ function injectStyles() {
       justify-content: center;
       min-height: 160px;
       font-size: 24px;
-      color: #7A756E;
+      color: #6B6560;
     }
 
     .cal-error {
@@ -98,7 +98,7 @@ function injectStyles() {
       justify-content: center;
       min-height: 160px;
       font-size: 24px;
-      color: #D95F4B;
+      color: #B33A2E;
       padding: 24px;
       text-align: center;
     }
