@@ -8,20 +8,20 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400&display=swap');
 
     :root {
-      --wc-bg:             #1A1714;
-      --wc-surface:        #232019;
-      --wc-border:         #2E2B26;
-      --wc-text-primary:   #F8F5EF;
-      --wc-text-secondary: #7A756E;
-      --wc-accent:         #5BA4CF;
-      --wc-red:            #D95F4B;
+      --wc-bg:             #F0F4F8;
+      --wc-surface:        #FFFFFF;
+      --wc-border:         #E2E8F0;
+      --wc-text-primary:   #1E293B;
+      --wc-text-secondary: #64748B;
+      --wc-accent:         #3B82F6;
+      --wc-red:            #DC2626;
     }
 
     .wc-wrap {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
       color: var(--wc-text-primary);
       padding: 32px 40px;
     }
@@ -45,9 +45,9 @@ function injectStyles() {
     }
 
     .wc-location-temp {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'Instrument Serif', Georgia, serif;
       font-size: 64px;
-      font-weight: 700;
+      font-weight: 400;
       line-height: 1;
       color: var(--wc-text-primary);
       margin-bottom: 12px;
