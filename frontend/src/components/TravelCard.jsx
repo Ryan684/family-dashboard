@@ -6,22 +6,22 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap');
 
     :root {
-      --tc-bg:             #1A1714;
-      --tc-surface:        #232019;
-      --tc-border:         #2E2B26;
-      --tc-text-primary:   #F8F5EF;
-      --tc-text-secondary: #7A756E;
-      --tc-green:          #4CAF82;
-      --tc-amber:          #E8A838;
-      --tc-red:            #D95F4B;
-      --tc-stale:          #7A756E;
+      --tc-bg:             #0A1628;
+      --tc-surface:        #0F1E38;
+      --tc-border:         #1A2D4A;
+      --tc-text-primary:   #E8F0FE;
+      --tc-text-secondary: #5B7AA3;
+      --tc-green:          #00C896;
+      --tc-amber:          #F0A028;
+      --tc-red:            #E8523E;
+      --tc-stale:          #5B7AA3;
     }
 
     .tc-section {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
       color: var(--tc-text-primary);
       padding: 32px 40px;
       display: flex;
@@ -57,7 +57,7 @@ function injectStyles() {
     }
 
     .tc-commuter-name {
-      font-family: 'Jost', sans-serif;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 26px;
       font-weight: 400;
       letter-spacing: 0.18em;
@@ -109,7 +109,7 @@ function injectStyles() {
     }
 
     .tc-travel-time {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
       font-size: 52px;
       font-weight: 700;
       line-height: 1;
@@ -168,7 +168,7 @@ function injectStyles() {
       min-height: 160px;
       font-size: 24px;
       color: var(--tc-text-secondary);
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
     }
 
     .tc-error {
@@ -180,7 +180,7 @@ function injectStyles() {
       color: var(--tc-red);
       padding: 24px;
       text-align: center;
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
     }
   `
   document.head.appendChild(style)

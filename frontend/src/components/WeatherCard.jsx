@@ -8,20 +8,20 @@ function injectStyles() {
   const style = document.createElement('style')
   style.id = STYLES_ID
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap');
 
     :root {
-      --wc-bg:             #1A1714;
-      --wc-surface:        #232019;
-      --wc-border:         #2E2B26;
-      --wc-text-primary:   #F8F5EF;
-      --wc-text-secondary: #7A756E;
-      --wc-accent:         #5BA4CF;
-      --wc-red:            #D95F4B;
+      --wc-bg:             #0A1628;
+      --wc-surface:        #0F1E38;
+      --wc-border:         #1A2D4A;
+      --wc-text-primary:   #E8F0FE;
+      --wc-text-secondary: #5B7AA3;
+      --wc-accent:         #00D4AA;
+      --wc-red:            #E8523E;
     }
 
     .wc-wrap {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
       color: var(--wc-text-primary);
       padding: 32px 40px;
     }
@@ -45,7 +45,7 @@ function injectStyles() {
     }
 
     .wc-location-temp {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
+      font-family: 'Space Grotesk', 'Helvetica Neue', sans-serif;
       font-size: 64px;
       font-weight: 700;
       line-height: 1;
