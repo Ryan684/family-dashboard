@@ -2,15 +2,6 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import TravelCard from './TravelCard'
 
-vi.mock('leaflet', () => ({
-  default: {
-    map: vi.fn(() => ({ remove: vi.fn(), fitBounds: vi.fn() })),
-    tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
-    polyline: vi.fn(() => ({ addTo: vi.fn(), getBounds: vi.fn(() => ({})) })),
-    circleMarker: vi.fn(() => ({ addTo: vi.fn() })),
-    latLngBounds: vi.fn(() => ({})),
-  },
-}))
 // Note: data-commuter="Ryan" attribute used for per-card selection in multi-commuter scenarios
 
 const makeRoute = (overrides = {}) => ({
@@ -272,29 +263,9 @@ describe('TravelCard — route destination labels', () => {
 // ── Route map ───────────────────────────────────────────────────────────────
 
 describe('TravelCard — route map', () => {
-  it('shows a route map when encoded_polyline is present', () => {
+  it('never renders a route map regardless of polyline data', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ encoded_polyline: '??' })],
-    })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
-    expect(screen.getByTestId('route-map')).toBeInTheDocument()
-  })
-
-  it('does not show a route map when encoded_polyline is absent', () => {
-    render(
-      <TravelCard
-        loading={false}
-        commuters={[makeCommuter({ routes: [makeRoute()] })]}
-        isStale={false}
-        error={null}
-      />
-    )
-    expect(screen.queryByTestId('route-map')).not.toBeInTheDocument()
-  })
-
-  it('does not show a route map when encoded_polyline is empty string', () => {
-    const commuter = makeCommuter({
-      routes: [makeRoute({ encoded_polyline: '' })],
     })
     render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
     expect(screen.queryByTestId('route-map')).not.toBeInTheDocument()

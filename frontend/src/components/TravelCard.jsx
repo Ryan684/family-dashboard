@@ -1,5 +1,3 @@
-import RouteMap from './RouteMap'
-
 const STYLES_ID = 'travel-card-styles'
 
 function injectStyles() {
@@ -89,13 +87,9 @@ function injectStyles() {
       background: var(--tc-surface);
       border: 1px solid var(--tc-border);
       border-radius: 12px;
-      padding: 20px 24px 0;
+      padding: 20px 24px;
       position: relative;
       overflow: hidden;
-    }
-
-    .tc-route-card-body {
-      padding-bottom: 20px;
     }
 
     .tc-colour-bar {
@@ -208,13 +202,10 @@ function RouteCard({ route }) {
   return (
     <div className="tc-route-card" data-testid="route-card">
       <div className="tc-colour-bar" data-colour={route.delay_colour} />
-      <div className="tc-route-card-body">
-        <div className="tc-travel-time">{formatDuration(route.travel_time_seconds)}</div>
-        {route.description ? (
-          <div className="tc-description">{route.description}</div>
-        ) : null}
-      </div>
-      <RouteMap encodedPolyline={route.encoded_polyline} delayColour={route.delay_colour} />
+      <div className="tc-travel-time">{formatDuration(route.travel_time_seconds)}</div>
+      {route.description ? (
+        <div className="tc-description">{route.description}</div>
+      ) : null}
     </div>
   )
 }

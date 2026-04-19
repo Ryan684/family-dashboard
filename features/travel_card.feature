@@ -58,12 +58,7 @@ Feature: Travel card frontend
     When the TravelCard renders
     Then an error message is visible
 
-  Scenario: Route map is shown when encoded polyline is present
+  Scenario: Route map is never shown regardless of polyline data
     Given a route with an encoded polyline
-    When the TravelCard renders
-    Then a route map container is visible for that route
-
-  Scenario: Route map is not shown when encoded polyline is absent
-    Given a route without an encoded polyline
     When the TravelCard renders
     Then no route map container is rendered
