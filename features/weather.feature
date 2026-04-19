@@ -32,3 +32,38 @@ Feature: Weather card backend
     Given the current time matches an entry in the hourly forecast
     When the forecast is parsed
     Then the first forecast entry matches the current hour
+
+  Scenario: Daily rainfall total and probability are returned
+    Given Open-Meteo returns daily precipitation_sum of 4.2 mm and precipitation_probability_max of 60%
+    When the weather data is parsed
+    Then daily_rainfall contains total_mm 4.2 and probability_percent 60
+
+  Scenario: Daily rainfall defaults to None when data is missing
+    Given Open-Meteo returns an empty daily block
+    When the rainfall is parsed
+    Then daily_rainfall total_mm and probability_percent are None
+
+  Scenario: Consecutive rainy hours form a single window
+    Given hourly precipitation probabilities [0, 0, 0, 0, 0, 0, 0, 0, 60, 70, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    When rain windows are parsed with threshold 50
+    Then one window is returned covering hours 8 to 11
+
+  Scenario: Non-consecutive rainy hours form separate windows
+    Given hourly precipitation probabilities with rain at hours 8–9 and 14–15
+    When rain windows are parsed with threshold 50
+    Then two windows are returned
+
+  Scenario: Hours below threshold are not included in any window
+    Given all hourly probabilities are 49
+    When rain windows are parsed with threshold 50
+    Then no windows are returned
+
+  Scenario: A full day of rain returns a single window spanning all 24 hours
+    Given all 24 hourly probabilities are 80
+    When rain windows are parsed with threshold 50
+    Then one window is returned covering hours 0 to 24
+
+  Scenario: Empty hourly data returns no windows
+    Given hourly data is an empty dict
+    When rain windows are parsed
+    Then no windows are returned

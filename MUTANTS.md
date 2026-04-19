@@ -23,6 +23,11 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Mutant | Mutation | Justification |
 |--------|----------|---------------|
 | `x_parse_forecast__mutmut_1` | `count: int = 6` → `count: int = 7` | Default parameter — unreachable via mutmut 3.x trampoline. The wrapper function retains the original default (6) and always passes `count` explicitly when calling the mutant. The mutant's default of 7 is never invoked through the test path. |
+| `x_parse_rain_windows__mutmut_1` | `threshold: int = 50` → `threshold: int = 51` | Default parameter — unreachable via mutmut 3.x trampoline. The wrapper always passes the original default (50) explicitly when calling the mutant, so the mutant's default of 51 is never invoked. Same class as `x_parse_forecast__mutmut_1`. |
+| `x_parse_daily_rainfall__mutmut_3` | `daily_data.get("precipitation_sum", [])` → `default None` | The `if totals else None` ternary is falsy for both `[]` and `None`. Equivalent mutant — missing-key behaviour is identical. Same class as other `.get()` survivors. |
+| `x_parse_daily_rainfall__mutmut_5` | `daily_data.get("precipitation_sum", [])` → no default arg | `.get(key)` returns `None` when key is absent — identical to `[]` in the falsy check. Equivalent mutant. |
+| `x_parse_daily_rainfall__mutmut_10` | `daily_data.get("precipitation_probability_max", [])` → `default None` | Same as mutmut_3 — falsy check makes `None` and `[]` equivalent for the missing-key path. |
+| `x_parse_daily_rainfall__mutmut_12` | `daily_data.get("precipitation_probability_max", [])` → no default arg | Same as mutmut_5 — `.get(key)` returns `None`, falsy in the ternary. Equivalent mutant. |
 | `x_fetch_weather__mutmut_1–29` (29 mutants) | Various mutations inside `fetch_weather()` | HTTP client function making live Open-Meteo API calls. Untestable in isolation without a live network — mocking at this level would test the mock, not the logic. Integration tested end-to-end in Step 6. |
 | `x_fetch_weather_data__mutmut_1–50` (50 mutants) | Various mutations inside `fetch_weather_data()` | Scheduler fetch function that calls `fetch_weather()`. No tests because it requires live HTTP calls; scheduler integration is tested via `test_scheduler.py` using mock fetch functions that stand in for this function. |
 
@@ -98,7 +103,7 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 ### `components/WeatherCard.jsx`
 
-14 surviving mutants across two accepted categories:
+15 surviving mutants across three accepted categories:
 
 **Style injection infrastructure (9 mutants — lines 3, 5–10)**
 
@@ -110,14 +115,21 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | Line 7: `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard — prevents re-injecting the same stylesheet. JSDOM does not apply styles, so injecting twice has no observable effect and this guard cannot be killed by a test. |
 | Line 10: `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores injected stylesheets, so an empty string is indistinguishable from the real stylesheet in unit tests. |
 
-**React async cancellation/cleanup pattern (5 mutants — lines 161, 167, 173–174, 176)**
+**Rainfall and windows conditional renders — equivalent logic mutants (2 mutants)**
 
 | Location | Mutation | Justification |
 |----------|----------|---------------|
-| Line 161: `if (!cancelled)` (success path) | `→ if (true)` | Cancellation guard — prevents state updates after component unmounts. Killing this requires resolving the fetch *after* unmounting; that window is race-prone in JSDOM and React 18 silently drops post-unmount state updates anyway, so no observable assertion is possible. Correct pattern, accepted survivor. |
-| Line 167: `if (!cancelled)` (error path) | `→ if (true)` | Same as above, for the `.catch()` branch. |
-| Line 173–174: `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
-| Line 176: `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
+| `{rainfallText && <span>{rainfallText}</span>}` | `&&` → `\|\|` | When `rainfallText` is truthy, `\|\|` short-circuits to the left operand (the string), rendering it as a React text node rather than a `<span>`. Tests verify text content only — text is visible regardless of node type. Equivalent mutant. |
+| `if (!windows \|\| windows.length === 0) return null` | `windows.length === 0` → `false` | Early-return for empty arrays. When `windows = []`, removing the check means execution continues; `[].map(formatWindow).join(', ')` returns `''`, which is falsy, so the rain-windows div is still not rendered. Observable behaviour is identical. Equivalent mutant. |
+
+**React async cancellation/cleanup pattern (5 mutants — lines 129, 135, 141–142, 144)**
+
+| Location | Mutation | Justification |
+|----------|----------|---------------|
+| `if (!cancelled)` (success path) | `→ if (true)` | Cancellation guard — prevents state updates after component unmounts. Killing this requires resolving the fetch *after* unmounting; that window is race-prone in JSDOM and React 18 silently drops post-unmount state updates anyway, so no observable assertion is possible. Correct pattern, accepted survivor. |
+| `if (!cancelled)` (error path) | `→ if (true)` | Same as above, for the `.catch()` branch. |
+| `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
+| `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
 
 ### `components/TravelCard.jsx` (Session 12)
 

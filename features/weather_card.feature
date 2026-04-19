@@ -46,3 +46,38 @@ Feature: Weather card frontend
     Given the API returns HTTP 500
     When the WeatherCard renders
     Then an error message is visible
+
+  Scenario: Daily rainfall is displayed as "Rain: X.X mm (Y%)"
+    Given the API returns a location with daily_rainfall total_mm 4.2 and probability_percent 60
+    When the WeatherCard renders
+    Then "Rain: 4.2 mm (60%)" is displayed
+
+  Scenario: Rainfall row is hidden when daily_rainfall is absent
+    Given the API returns a location without a daily_rainfall field
+    When the WeatherCard renders
+    Then no rainfall line is visible
+
+  Scenario: Rainfall label uses "· X% chance" format
+    Given the API returns a location with daily_rainfall probability_percent 60
+    When the WeatherCard renders
+    Then "60% chance" is visible on screen
+
+  Scenario: Rain windows are displayed when present
+    Given the API returns a location with rain_windows covering hours 8–10 and 14–16
+    When the WeatherCard renders
+    Then "8–10am, 2–4pm" is displayed
+
+  Scenario: "all day" is shown when total rainy hours are 18 or more
+    Given the API returns a location with rain_windows totalling 18 hours
+    When the WeatherCard renders
+    Then "all day" is displayed
+
+  Scenario: Rain window row is hidden when rain_windows is empty
+    Given the API returns a location with an empty rain_windows array
+    When the WeatherCard renders
+    Then no rain window row is visible
+
+  Scenario: Rain window row is hidden when rain_windows is absent
+    Given the API returns a location without a rain_windows field
+    When the WeatherCard renders
+    Then no rain window row is visible
