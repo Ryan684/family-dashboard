@@ -17,8 +17,8 @@ const srOnly = {
   whiteSpace: 'nowrap',
 }
 
-function formatKm(meters) {
-  return `${(meters / 1000).toFixed(1)} km`
+function formatMiles(meters) {
+  return `${(meters / 1609.34).toFixed(1)} mi`
 }
 
 /* Returns "45 min", "1 hr 0 min", "2 hrs 5 min" — matches test expectations */
@@ -127,7 +127,7 @@ function RouteRow({ route, primary = false }) {
             }}
           >
             {route.description}
-            {route.distance_meters != null ? ` · ${formatKm(route.distance_meters)}` : null}
+            {route.distance_meters != null ? ` · ${formatMiles(route.distance_meters)}` : null}
           </div>
         ) : null}
       </div>

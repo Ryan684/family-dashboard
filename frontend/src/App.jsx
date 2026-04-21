@@ -33,7 +33,9 @@ function App() {
       const f = frameRef.current
       if (!s || !f) return
       const scale = Math.min(s.clientWidth / 1920, s.clientHeight / 1080)
-      f.style.transform = `translate(-50%,-50%) scale(${scale})`
+      const x = (s.clientWidth - 1920 * scale) / 2
+      const y = (s.clientHeight - 1080 * scale) / 2
+      f.style.transform = `translate(${x}px,${y}px) scale(${scale})`
     }
     fit()
     window.addEventListener('resize', fit)
