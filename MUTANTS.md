@@ -103,16 +103,16 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 ### Design implementation — all components (April 2026)
 
-After the design implementation the Stryker run produced **485 surviving mutants** across all five component files and `App.jsx`. The breakdown:
+After the design implementation the Stryker run produced **485 surviving mutants** across all five component files and `App.jsx`. After the km→miles conversion and viewport centering fix (April 2026) the count is **492**. The breakdown:
 
 | File | Survived | Category |
 |------|----------|----------|
-| `TravelCard.jsx` | 167 | ~155 inline styles + 12 logic |
+| `TravelCard.jsx` | 168 | ~155 inline styles + 13 logic |
 | `WeatherCard.jsx` | 112 | ~108 inline styles + 4 logic |
 | `CalendarCard.jsx` | 72 | ~68 inline styles + 4 logic |
 | `AlertBanner.jsx` | 40 | ~38 inline styles + 2 logic |
 | `ClockCard.jsx` | 42 | ~28 inline styles + 14 logic |
-| `App.jsx` | 52 | ~40 inline styles + 12 logic |
+| `App.jsx` | 58 | ~40 inline styles + 18 logic |
 
 **Category 1 — Inline style ObjectLiteral / StringLiteral (~430 mutants, all files)**
 
@@ -145,9 +145,9 @@ Accepted: asserting the exact week number in unit tests would require pinning da
 
 `{drops?.length > 0 && ...}` — OptionalChaining and ConditionalExpression mutations survive because the test for "no drops" uses an office-mode fixture where `drops` is `undefined`, so `?.length` already short-circuits regardless. The zero-length array path is untested. Accepted: empty-but-present drops arrays don't occur in practice.
 
-**Category 6 — viewport scaling fit() (App.jsx, ~12 mutants)**
+**Category 6 — viewport scaling fit() (App.jsx, ~18 mutants)**
 
-`const scale = Math.min(s.clientWidth / 1920, s.clientHeight / 1080)` — all arithmetic mutations (`/ 1920` → `* 1920`, `Math.min` → `Math.max`, etc.) survive because JSDOM always reports `clientWidth = clientHeight = 0`. Any formula applied to 0 still produces 0. Similarly, the cleanup (`removeEventListener`), guard (`!s || !f`), and `useEffect` deps survive for the same JSDOM layout reason. Accepted as fundamental JSDOM limitation for viewport-scaling code.
+`const scale = Math.min(s.clientWidth / 1920, s.clientHeight / 1080)` and the centering formula `const x = (s.clientWidth - 1920 * scale) / 2` / `const y = (s.clientHeight - 1080 * scale) / 2` — all arithmetic mutations (`/ 1920` → `* 1920`, `Math.min` → `Math.max`, `/2` → `*2`, `-` → `+`, `*scale` → `/scale`, etc.) survive because JSDOM always reports `clientWidth = clientHeight = 0`. Any formula applied to 0 still produces 0. Similarly, the cleanup (`removeEventListener`), guard (`!s || !f`), and `useEffect` deps survive for the same JSDOM layout reason. The 6 additional mutants (vs the original ~12) are from the x/y centering lines introduced when the translate offset was changed from `-50%,-50%` to explicit pixel values. Accepted as a fundamental JSDOM limitation for viewport-scaling code.
 
 **Category 7 — React async cancellation / cleanup (multiple files, ~20 mutants)**
 
