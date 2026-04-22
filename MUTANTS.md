@@ -101,6 +101,60 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 
 ## Frontend (`stryker`)
 
+### Design implementation — all components (April 2026)
+
+After the design implementation the Stryker run produced **485 surviving mutants** across all five component files and `App.jsx`. After the km→miles conversion and viewport centering fix (April 2026) the count is **492**. The breakdown:
+
+| File | Survived | Category |
+|------|----------|----------|
+| `TravelCard.jsx` | 168 | ~155 inline styles + 13 logic |
+| `WeatherCard.jsx` | 112 | ~108 inline styles + 4 logic |
+| `CalendarCard.jsx` | 72 | ~68 inline styles + 4 logic |
+| `AlertBanner.jsx` | 40 | ~38 inline styles + 2 logic |
+| `ClockCard.jsx` | 42 | ~28 inline styles + 14 logic |
+| `App.jsx` | 58 | ~40 inline styles + 18 logic |
+
+**Category 1 — Inline style ObjectLiteral / StringLiteral (~430 mutants, all files)**
+
+Every component uses inline style objects (`style={{ fontFamily: 'var(--f-display)', fontSize: 30, ... }}`). Stryker mutates each CSS property value (e.g. `display: 'flex'` → `display: ''`, `fontFamily: 'var(--f-display)'` → `fontFamily: ''`, entire object → `{}`). JSDOM does not render or apply CSS, so no test can observe whether a CSS property value is correct. Tests assert on text content, `data-testid` attributes, and DOM structure — not visual presentation. Accepted across all files as a fundamental JSDOM limitation.
+
+**Category 2 — isoWeek() computation (ClockCard.jsx, ~14 mutants)**
+
+`isoWeek()` computes the ISO week number from a `Date`. Tests verify that the time display, date display (weekday/day/month), and 1-minute update work, but no test asserts on the specific week number value — only that some text beginning with "Week" is rendered. Consequently, the following all survive:
+
+| Mutation | Why it survives |
+|----------|----------------|
+| Entire `isoWeek()` body removed (returns `undefined`) | `"Week undefined"` still renders; test doesn't check the number |
+| `t.getUTCDay() \|\| 7` → `\|\| true` / `\|\| false` / `&& 7` | Produces wrong week number; undetected because week number is not asserted |
+| `t.setUTCDate(...)` → `t.setTime(...)` | Same — wrong number, not caught |
+| Arithmetic operators in week formula (`+ 4 - dayNum`, `/ 86400000 + 1) / 7`) mutated | Produces wrong week number; test only checks for "Week" prefix |
+| `return () => clearInterval(id)` → `return () => undefined` | Interval not cleaned up on unmount; test renders once and doesn't verify cleanup |
+| `}, [])` → `}, ["Stryker was here"])` | Effect re-run trigger; single-render test cannot observe |
+
+Accepted: asserting the exact week number in unit tests would require pinning date arithmetic to known ISO boundary cases and is disproportionate to the display-only value.
+
+**Category 3 — delayMin boundary (TravelCard.jsx, line 115, 4 mutants)**
+
+`{delayMin > 0 ? \`+${delayMin} min · ${meta.label}\` : meta.label}` — the boundary `delayMin === 0` (exactly on time with zero computed delay) is not tested. Mutations to `>= 0` or `<= 0` survive because test fixtures never produce `delayMin === 0`. Accepted: a zero-minute delay is a degenerate edge case that never occurs in practice (routes report static vs live durations that are equal, not equal to the minute).
+
+**Category 4 — inc.road conditional (TravelCard.jsx, line 167, 3 mutants)**
+
+`{inc.road && (<span>{inc.road}</span>)}` — the `&&` → `||` and `true`/`false` mutations survive because test fixtures always supply incidents with a `road` value, so toggling renders the same visible output. Accepted: the `road` field is always present in real TomTom incident data; testing absence would require a synthetic fixture that doesn't reflect production.
+
+**Category 5 — drops conditional (TravelCard.jsx, line 225, 1–2 mutants)**
+
+`{drops?.length > 0 && ...}` — OptionalChaining and ConditionalExpression mutations survive because the test for "no drops" uses an office-mode fixture where `drops` is `undefined`, so `?.length` already short-circuits regardless. The zero-length array path is untested. Accepted: empty-but-present drops arrays don't occur in practice.
+
+**Category 6 — viewport scaling fit() (App.jsx, ~18 mutants)**
+
+`const scale = Math.min(s.clientWidth / 1920, s.clientHeight / 1080)` and the centering formula `const x = (s.clientWidth - 1920 * scale) / 2` / `const y = (s.clientHeight - 1080 * scale) / 2` — all arithmetic mutations (`/ 1920` → `* 1920`, `Math.min` → `Math.max`, `/2` → `*2`, `-` → `+`, `*scale` → `/scale`, etc.) survive because JSDOM always reports `clientWidth = clientHeight = 0`. Any formula applied to 0 still produces 0. Similarly, the cleanup (`removeEventListener`), guard (`!s || !f`), and `useEffect` deps survive for the same JSDOM layout reason. The 6 additional mutants (vs the original ~12) are from the x/y centering lines introduced when the translate offset was changed from `-50%,-50%` to explicit pixel values. Accepted as a fundamental JSDOM limitation for viewport-scaling code.
+
+**Category 7 — React async cancellation / cleanup (multiple files, ~20 mutants)**
+
+Same pattern as documented in WeatherCard and CalendarCard below: `if (!cancelled)` guards, `return () => { cancelled = true }` cleanup bodies, and `}, [])` deps arrays. JSDOM/React 18 silently drops post-unmount state updates; single-render tests don't exercise cleanup. Accepted across all files as a tool limitation.
+
+---
+
 ### `components/WeatherCard.jsx`
 
 15 surviving mutants across three accepted categories:

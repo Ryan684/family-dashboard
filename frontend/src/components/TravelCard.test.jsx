@@ -260,6 +260,51 @@ describe('TravelCard — route destination labels', () => {
   })
 })
 
+// ── Distance display ────────────────────────────────────────────────────────
+
+describe('TravelCard — distance display', () => {
+  it('renders distance in miles when distance_meters is provided', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ description: 'via A3', distance_meters: 25000 })],
+    })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.getByText(/15\.5 mi/)).toBeInTheDocument()
+  })
+
+  it('renders distance inline with the route description', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ description: 'via A3', distance_meters: 25000 })],
+    })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.getByText('via A3 · 15.5 mi')).toBeInTheDocument()
+  })
+
+  it('omits the distance when distance_meters is null', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ description: 'via A3', distance_meters: null })],
+    })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.queryByText(/\bmi\b/)).not.toBeInTheDocument()
+  })
+
+  it('omits the distance when distance_meters is absent', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ description: 'via A3' })],
+    })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.queryByText(/\bmi\b/)).not.toBeInTheDocument()
+  })
+
+  it('rounds to one decimal place', () => {
+    // 16093 m = 9.999... mi → rounds to 10.0 mi
+    const commuter = makeCommuter({
+      routes: [makeRoute({ description: 'via A3', distance_meters: 16093 })],
+    })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.getByText(/10\.0 mi/)).toBeInTheDocument()
+  })
+})
+
 // ── Route map ───────────────────────────────────────────────────────────────
 
 describe('TravelCard — route map', () => {

@@ -1,94 +1,92 @@
 import { useState, useEffect } from 'react'
 
-const STYLES_ID = 'weather-card-styles'
+function WeatherGlyph({ kind = 'cloud', size = 56 }) {
+  const s = size
+  const base = { position: 'relative', width: s, height: s, flexShrink: 0 }
 
-function injectStyles() {
-  if (typeof document === 'undefined') return
-  if (document.getElementById(STYLES_ID)) return
-  const style = document.createElement('style')
-  style.id = STYLES_ID
-  style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
+  if (kind === 'sun') {
+    return (
+      <div style={base}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: s * 0.18,
+            borderRadius: '50%',
+            background: 'var(--warn)',
+            opacity: 0.95,
+          }}
+        />
+      </div>
+    )
+  }
 
-    :root {
-      --wc-bg:             #1A1714;
-      --wc-surface:        #232019;
-      --wc-border:         #2E2B26;
-      --wc-text-primary:   #F8F5EF;
-      --wc-text-secondary: #7A756E;
-      --wc-accent:         #5BA4CF;
-      --wc-red:            #D95F4B;
-    }
+  if (kind === 'rain') {
+    return (
+      <div style={base}>
+        <div
+          style={{
+            position: 'absolute',
+            left: s * 0.06, top: s * 0.22,
+            width: s * 0.82, height: s * 0.32,
+            borderRadius: 999,
+            background: 'var(--ink-dim)',
+            opacity: 0.55,
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: s * 0.22, top: s * 0.10,
+            width: s * 0.42, height: s * 0.36,
+            borderRadius: '50%',
+            background: 'var(--ink-dim)',
+            opacity: 0.55,
+          }}
+        />
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: s * (0.22 + i * 0.18),
+              top: s * 0.62,
+              width: 2,
+              height: s * 0.22,
+              background: 'var(--ok)',
+              opacity: 0.75,
+              borderRadius: 2,
+            }}
+          />
+        ))}
+      </div>
+    )
+  }
 
-    .wc-wrap {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-      color: var(--wc-text-primary);
-      padding: 32px 40px;
-    }
-
-    .wc-location {
-      padding-bottom: 36px;
-    }
-
-    .wc-location + .wc-location {
-      border-top: 1px solid var(--wc-border);
-      padding-top: 36px;
-    }
-
-    .wc-location-name {
-      font-size: 24px;
-      font-weight: 400;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--wc-text-secondary);
-      margin-bottom: 8px;
-    }
-
-    .wc-location-temp {
-      font-family: 'Big Shoulders Display', 'Impact', sans-serif;
-      font-size: 64px;
-      font-weight: 700;
-      line-height: 1;
-      color: var(--wc-text-primary);
-      margin-bottom: 12px;
-    }
-
-    .wc-location-desc {
-      font-size: 32px;
-      font-weight: 300;
-      color: var(--wc-text-primary);
-      margin-bottom: 10px;
-    }
-
-    .wc-location-meta {
-      display: flex;
-      gap: 24px;
-      font-size: 24px;
-      font-weight: 300;
-      color: var(--wc-text-secondary);
-    }
-
-    .wc-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: var(--wc-text-secondary);
-    }
-
-    .wc-error {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: var(--wc-red);
-      padding: 24px;
-      text-align: center;
-    }
-  `
-  document.head.appendChild(style)
+  // default: cloud
+  return (
+    <div style={base}>
+      <div
+        style={{
+          position: 'absolute',
+          left: s * 0.06, top: s * 0.32,
+          width: s * 0.82, height: s * 0.36,
+          borderRadius: 999,
+          background: 'var(--ink-dim)',
+          opacity: 0.55,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: s * 0.22, top: s * 0.18,
+          width: s * 0.42, height: s * 0.42,
+          borderRadius: '50%',
+          background: 'var(--ink-dim)',
+          opacity: 0.55,
+        }}
+      />
+    </div>
+  )
 }
 
 function hourNum(h) {
@@ -116,24 +114,91 @@ function formatRainWindows(windows) {
 }
 
 function LocationBlock({ location }) {
-  const { name, current, daily_high_celsius, daily_rainfall, rain_windows } = location
-  const rainfallText =
-    daily_rainfall != null
-      ? `Rain: ${daily_rainfall.total_mm} mm · ${daily_rainfall.probability_percent}% chance`
-      : null
+  const { name, current, daily_high_celsius, daily_rainfall, rain_windows, icon } = location
   const windowsText = formatRainWindows(rain_windows)
+
   return (
-    <div className="wc-location" data-testid="weather-location-block">
-      <div className="wc-location-name">{name}</div>
-      <div className="wc-location-temp">{current.temperature_celsius}°C</div>
-      <div className="wc-location-desc">{current.weather_description}</div>
-      <div className="wc-location-meta">
-        <span>High: {daily_high_celsius}°C</span>
-        {rainfallText && <span>{rainfallText}</span>}
+    <div
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}
+      data-testid="weather-location-block"
+    >
+      <WeatherGlyph kind={icon ?? 'cloud'} size={56} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 16,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-faint)',
+            fontWeight: 500,
+          }}
+        >
+          {name}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontWeight: 400,
+              fontSize: 88,
+              lineHeight: 0.9,
+              color: 'var(--ink)',
+              letterSpacing: '-0.03em',
+            }}
+          >
+            {current.temperature_celsius}°C
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontStyle: 'italic',
+              fontSize: 28,
+              color: 'var(--ink-dim)',
+              lineHeight: 1.1,
+            }}
+          >
+            {current.weather_description}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 36,
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            fontFamily: 'var(--f-display)',
+            fontSize: 24,
+            color: 'var(--ink-dim)',
+          }}
+        >
+          <span>High: {daily_high_celsius}°C</span>
+          {daily_rainfall && (
+            <span>
+              Rain: {daily_rainfall.total_mm} mm · {daily_rainfall.probability_percent}% chance
+            </span>
+          )}
+        </div>
+
+        {windowsText && (
+          <div
+            style={{
+              fontFamily: 'var(--f-mono)',
+              fontSize: 15,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-faint)',
+              fontWeight: 500,
+              marginTop: 2,
+            }}
+            data-testid="rain-windows"
+          >
+            {windowsText}
+          </div>
+        )}
       </div>
-      {windowsText && (
-        <div className="wc-location-meta" data-testid="rain-windows">{windowsText}</div>
-      )}
     </div>
   )
 }
@@ -144,8 +209,6 @@ function WeatherCard() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    injectStyles()
-
     let cancelled = false
 
     fetch('/api/weather')
@@ -173,7 +236,18 @@ function WeatherCard() {
 
   if (loading) {
     return (
-      <div className="wc-loading" role="status">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint)',
+        }}
+        role="status"
+      >
         Loading weather…
       </div>
     )
@@ -181,7 +255,19 @@ function WeatherCard() {
 
   if (error) {
     return (
-      <div className="wc-error" role="alert">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-display)',
+          fontStyle: 'italic',
+          fontSize: 28,
+          color: 'var(--alert)',
+          padding: '24px 0',
+        }}
+        role="alert"
+      >
         Unable to load weather data
       </div>
     )
@@ -191,18 +277,50 @@ function WeatherCard() {
 
   if (locations.length === 0) {
     return (
-      <div className="wc-loading" role="status">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          color: 'var(--ink-faint)',
+        }}
+        role="status"
+      >
         Weather unavailable
       </div>
     )
   }
 
   return (
-    <div className="wc-wrap">
-      {locations.map((location, i) => (
-        <LocationBlock key={i} location={location} />
-      ))}
-    </div>
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      <div
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--ink-dim)',
+          fontWeight: 500,
+        }}
+      >
+        Weather
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {locations.map((loc, i) => (
+          <div key={loc.name ?? i}>
+            {i > 0 && (
+              <div
+                style={{ height: 1, background: 'var(--rule)', marginBottom: 28 }}
+                aria-hidden="true"
+              />
+            )}
+            <LocationBlock location={loc} />
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 

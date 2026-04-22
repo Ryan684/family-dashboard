@@ -3,7 +3,109 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Family Dashboard</title>
+    <title>Family Dashboard — Morning</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg:         #16130f;
+        --bg-raise:   #1c1914;
+        --ink:        #f3ece0;
+        --ink-dim:    #a59d8f;
+        --ink-faint:  #6c6558;
+        --rule:       #2a2620;
+        --ok:         oklch(72% 0.09 150);
+        --warn:       oklch(72% 0.09 75);
+        --alert:      oklch(64% 0.14 35);
+        --alert-tint: oklch(64% 0.14 35 / 0.12);
+        --f-display:  "Instrument Serif", ui-serif, Georgia, serif;
+        --f-mono:     "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root { height: 100%; }
+
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--f-display);
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+
+      /* subtle paper grain — pure CSS, no images */
+      body::before {
+        content: "";
+        position: fixed; inset: 0;
+        pointer-events: none;
+        background-image:
+          radial-gradient(rgba(255,245,220,0.025) 1px, transparent 1px),
+          radial-gradient(rgba(255,245,220,0.015) 1px, transparent 1px);
+        background-size: 3px 3px, 7px 7px;
+        background-position: 0 0, 1px 2px;
+        z-index: 100;
+        mix-blend-mode: overlay;
+      }
+
+      /* vignette */
+      body::after {
+        content: "";
+        position: fixed; inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.35) 100%);
+        z-index: 99;
+      }
+
+      #root { position: relative; z-index: 1; }
+
+      /* 1920×1080 canvas scaled to fit the viewport */
+      .dash-stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .dash-frame {
+        width: 1920px;
+        height: 1080px;
+        transform-origin: top left;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      /* staggered reveal on mount */
+      @keyframes fd-fade-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .fd-reveal > * { animation: fd-fade-in 0.7s cubic-bezier(0.22,1,0.36,1) both; }
+      .fd-reveal > *:nth-child(1) { animation-delay: 0.00s; }
+      .fd-reveal > *:nth-child(2) { animation-delay: 0.08s; }
+      .fd-reveal > *:nth-child(3) { animation-delay: 0.16s; }
+      .fd-reveal > *:nth-child(4) { animation-delay: 0.24s; }
+      .fd-reveal > *:nth-child(5) { animation-delay: 0.32s; }
+      .fd-reveal > *:nth-child(6) { animation-delay: 0.40s; }
+
+      /* delay bar pulse for red routes */
+      @keyframes fd-pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.5; }
+      }
+
+      /* alert banner soft pulse */
+      @keyframes fd-pulse-soft {
+        0%, 100% { background-color: var(--alert-tint); }
+        50%       { background-color: oklch(64% 0.14 35 / 0.20); }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

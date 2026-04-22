@@ -1,162 +1,125 @@
 import { useState, useEffect } from 'react'
 
-const STYLES_ID = 'calendar-card-styles'
-
-function injectStyles() {
-  if (typeof document === 'undefined') return
-  if (document.getElementById(STYLES_ID)) return
-  const style = document.createElement('style')
-  style.id = STYLES_ID
-  style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700&family=Jost:wght@300;400&display=swap');
-
-    .cal-wrap {
-      font-family: 'Jost', 'Helvetica Neue', sans-serif;
-      color: #F8F5EF;
-      padding: 32px 40px;
-    }
-
-    .cal-section {
-      margin-bottom: 36px;
-    }
-
-    .cal-section-heading {
-      font-family: 'Jost', sans-serif;
-      font-size: 24px;
-      font-weight: 400;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: #7A756E;
-      margin: 0 0 16px 0;
-    }
-
-    .cal-event {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 20px;
-      background: #232019;
-      border: 1px solid #2E2B26;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-
-    .cal-event-colour {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .cal-event-time {
-      font-size: 24px;
-      font-weight: 400;
-      color: #7A756E;
-      min-width: 72px;
-      flex-shrink: 0;
-    }
-
-    .cal-event-body {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-
-    .cal-event-summary {
-      font-size: 28px;
-      font-weight: 300;
-      color: #F8F5EF;
-    }
-
-    .cal-event-travel {
-      font-size: 20px;
-      font-weight: 300;
-      color: #7A756E;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .cal-empty {
-      font-size: 24px;
-      font-weight: 300;
-      color: #7A756E;
-      padding: 12px 0;
-    }
-
-    .cal-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: #7A756E;
-    }
-
-    .cal-error {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      font-size: 24px;
-      color: #D95F4B;
-      padding: 24px;
-      text-align: center;
-    }
-  `
-  document.head.appendChild(style)
+function formatDuration(seconds) {
+  const m = Math.round(seconds / 60)
+  if (m < 60) return `${m} min`
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  return `${h} ${h === 1 ? 'hr' : 'hrs'} ${r} min`
 }
 
-function formatTime(event) {
-  if (event.all_day) return 'All day'
-  return event.start.slice(11, 16)
-}
+function EventRow({ event }) {
+  const time = event.all_day ? 'All day' : event.start.slice(11, 16)
 
-function formatTravelTime(travel) {
-  const totalMinutes = Math.round(travel.travel_time_seconds / 60)
-  let duration
-  if (totalMinutes < 60) {
-    duration = `${totalMinutes} min`
-  } else {
-    const hrs = Math.floor(totalMinutes / 60)
-    const mins = totalMinutes % 60
-    duration = `${hrs} ${hrs === 1 ? 'hr' : 'hrs'} ${mins} min`
-  }
-  const parts = [duration]
-  if (travel.description) parts.push(travel.description)
-  return parts.join(' · ')
-}
-
-function CalendarEvent({ event }) {
   return (
-    <div className="cal-event">
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '110px 14px 1fr',
+        alignItems: 'center',
+        gap: 20,
+        padding: '14px 0',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 24,
+          color: 'var(--ink-dim)',
+          fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '0.02em',
+        }}
+      >
+        {time}
+      </div>
       <span
-        className="cal-event-colour"
+        style={{
+          display: 'inline-block',
+          width: 12,
+          height: 12,
+          borderRadius: 999,
+          background: event.calendar_color || 'var(--ink-dim)',
+          flexShrink: 0,
+        }}
         data-testid="event-colour"
-        style={{ backgroundColor: event.calendar_color }}
       />
-      <span className="cal-event-time">{formatTime(event)}</span>
-      <div className="cal-event-body">
-        <span className="cal-event-summary">{event.summary}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-display)',
+            fontSize: 30,
+            color: 'var(--ink)',
+            lineHeight: 1.15,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {event.summary}
+        </div>
         {event.travel ? (
-          <span className="cal-event-travel" data-testid="event-travel">
-            {formatTravelTime(event.travel)}
-          </span>
+          <div
+            style={{
+              fontFamily: 'var(--f-mono)',
+              fontSize: 15,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-faint)',
+              fontWeight: 500,
+            }}
+            data-testid="event-travel"
+          >
+            {formatDuration(event.travel.travel_time_seconds)}
+            {event.travel.description ? ` · ${event.travel.description}` : ''}
+          </div>
         ) : null}
       </div>
     </div>
   )
 }
 
-function EventSection({ heading, events, emptyMessage }) {
+function EventGroup({ heading, events, emptyMessage }) {
   return (
-    <section className="cal-section">
-      <h2 className="cal-section-heading">{heading}</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div
+        style={{
+          fontFamily: 'var(--f-display)',
+          fontStyle: 'italic',
+          fontSize: 30,
+          color: 'var(--ink)',
+          marginBottom: 2,
+        }}
+      >
+        {heading}
+      </div>
       {events.length === 0 ? (
-        <div className="cal-empty">{emptyMessage}</div>
+        <div
+          style={{
+            fontFamily: 'var(--f-display)',
+            fontStyle: 'italic',
+            fontSize: 22,
+            color: 'var(--ink-faint)',
+            padding: '6px 0',
+          }}
+        >
+          {emptyMessage}
+        </div>
       ) : (
-        events.map((evt) => <CalendarEvent key={evt.id} event={evt} />)
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {events.map((evt, i) => (
+            <div key={evt.id}>
+              {i > 0 && (
+                <div
+                  style={{ height: 1, background: 'var(--rule)', opacity: 0.6 }}
+                  aria-hidden="true"
+                />
+              )}
+              <EventRow event={evt} />
+            </div>
+          ))}
+        </div>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -166,8 +129,6 @@ function CalendarCard() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    injectStyles()
-
     let cancelled = false
 
     fetch('/api/calendar')
@@ -195,7 +156,18 @@ function CalendarCard() {
 
   if (loading) {
     return (
-      <div className="cal-loading" role="status">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          letterSpacing: '0.1em',
+          color: 'var(--ink-faint)',
+        }}
+        role="status"
+      >
         Loading calendar…
       </div>
     )
@@ -203,25 +175,41 @@ function CalendarCard() {
 
   if (error) {
     return (
-      <div className="cal-error" role="alert">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          minHeight: 160,
+          fontFamily: 'var(--f-display)',
+          fontStyle: 'italic',
+          fontSize: 28,
+          color: 'var(--alert)',
+          padding: '24px 0',
+        }}
+        role="alert"
+      >
         Unable to load calendar data
       </div>
     )
   }
 
   return (
-    <div className="cal-wrap">
-      <EventSection
-        heading="Today"
-        events={data.today}
-        emptyMessage="No events today"
-      />
-      <EventSection
-        heading="Tomorrow"
-        events={data.tomorrow}
-        emptyMessage="No events tomorrow"
-      />
-    </div>
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 18,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--ink-dim)',
+          fontWeight: 500,
+        }}
+      >
+        Calendar
+      </div>
+      <EventGroup heading="Today" events={data.today} emptyMessage="No events today" />
+      <EventGroup heading="Tomorrow" events={data.tomorrow} emptyMessage="No events tomorrow" />
+    </section>
   )
 }
 
