@@ -526,3 +526,95 @@ async def test_fetch_travel_data_incidents_included_in_commuter_result():
         assert "incidents" in commuter
         assert len(commuter["incidents"]) == 1
         assert commuter["incidents"][0]["type"] == "ACCIDENT"
+
+
+# ---------------------------------------------------------------------------
+# ETA in fetch_travel_data
+# ---------------------------------------------------------------------------
+
+_SCHEDULE_WITH_DEPARTURE = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {
+                "monday": {"mode": "office", "nursery_drop": False, "departure_time": "07:30"}
+            },
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": [], "weekly_dropper": ""},
+}
+
+_SCHEDULE_WITHOUT_DEPARTURE = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {"monday": {"mode": "office", "nursery_drop": False}},
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": [], "weekly_dropper": ""},
+}
+
+_COORDS = {
+    "home": (51.5, -0.1),
+    "work": {"Ryan": (51.52, -0.08)},
+    "nursery": (51.51, -0.09),
+    "dog_daycare": (51.53, -0.07),
+}
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_includes_eta_when_departure_configured():
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITH_DEPARTURE),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 0, 0)),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    assert "eta" in commuter
+    assert commuter["eta"] == "08:00"  # 07:30 departure + 1800s (30min) = 08:00
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_eta_none_when_no_departure_configured():
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITHOUT_DEPARTURE),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 0, 0)),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    assert "eta" in commuter
+    assert commuter["eta"] is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_eta_uses_now_when_departure_elapsed():
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITH_DEPARTURE),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 45, 0)),
+        patch("routers.travel.fetch_routes", new_callable=AsyncMock, return_value=_ROUTES_RESPONSE),
+        patch("routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    # departure 07:30 already elapsed at 07:45 → use now (07:45) + 1800s = 08:15
+    assert commuter["eta"] == "08:15"

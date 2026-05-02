@@ -344,3 +344,41 @@ describe('TravelCard — stale indicator', () => {
     expect(screen.queryByTestId('stale-warning')).not.toBeInTheDocument()
   })
 })
+
+// ── ETA display ─────────────────────────────────────────────────────────────
+
+describe('TravelCard — ETA display', () => {
+  it('shows ETA when commuter.eta is provided', () => {
+    const commuter = makeCommuter({ eta: '08:15' })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('ETA 08:15')).toBeInTheDocument()
+  })
+
+  it('does not render an ETA element when eta is null', () => {
+    const commuter = makeCommuter({ eta: null })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.queryByTestId('commuter-eta')).not.toBeInTheDocument()
+  })
+
+  it('does not render an ETA element when eta field is absent', () => {
+    const commuter = makeCommuter()  // no eta field
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.queryByTestId('commuter-eta')).not.toBeInTheDocument()
+  })
+
+  it('shows the correct ETA for each commuter independently', () => {
+    const commuters = [
+      makeCommuter({ name: 'Ryan', eta: '08:00' }),
+      makeCommuter({ name: 'Emily', eta: '09:30' }),
+    ]
+    render(<TravelCard loading={false} commuters={commuters} isStale={false} error={null} />)
+    expect(screen.getByText('ETA 08:00')).toBeInTheDocument()
+    expect(screen.getByText('ETA 09:30')).toBeInTheDocument()
+  })
+})

@@ -40,7 +40,9 @@ def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
     # Apply drop_order to produce a deterministic ordered list
     drops = [d for d in commuter.get("drop_order", []) if d in active_drops]
 
-    return {"mode": mode, "drops": drops}
+    departure_time = day_config.get("departure_time")
+
+    return {"mode": mode, "drops": drops, "departure_time": departure_time}
 
 
 def build_waypoints(

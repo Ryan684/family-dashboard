@@ -4,10 +4,10 @@
       "name": "Commuter1",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true },
-        "tuesday":   { "mode": "office", "nursery_drop": false },
+        "monday":    { "mode": "office", "nursery_drop": true,  "departure_time": "07:30" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "departure_time": "08:00" },
         "wednesday": { "mode": "off",    "nursery_drop": false },
-        "thursday":  { "mode": "office", "nursery_drop": true },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "departure_time": "07:30" },
         "friday":    { "mode": "wfh",    "nursery_drop": false }
       }
     },
@@ -15,9 +15,9 @@
       "name": "Commuter2",
       "drop_order": ["nursery", "dog"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": false },
-        "tuesday":   { "mode": "office", "nursery_drop": true },
-        "wednesday": { "mode": "office", "nursery_drop": false },
+        "monday":    { "mode": "office", "nursery_drop": false, "departure_time": "08:15" },
+        "tuesday":   { "mode": "office", "nursery_drop": true,  "departure_time": "07:45" },
+        "wednesday": { "mode": "office", "nursery_drop": false, "departure_time": "08:30" },
         "thursday":  { "mode": "wfh",    "nursery_drop": false },
         "friday":    { "mode": "off",    "nursery_drop": false }
       }

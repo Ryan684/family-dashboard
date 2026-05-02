@@ -341,3 +341,44 @@ def test_build_waypoints_off_both_drops_out_and_back():
         COORDS["nursery"],
         COORDS["home"],
     ]
+
+
+# ---------------------------------------------------------------------------
+# departure_time in resolve_commuter_day
+# ---------------------------------------------------------------------------
+
+_SCHEDULE_WITH_DEPARTURE = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {
+                "monday": {"mode": "office", "nursery_drop": False, "departure_time": "07:30"},
+                "tuesday": {"mode": "office", "nursery_drop": False},
+            },
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": [], "weekly_dropper": ""},
+}
+
+
+def test_resolve_commuter_day_returns_departure_time_when_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "monday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] == "07:30"
+
+
+def test_resolve_commuter_day_returns_none_departure_time_when_not_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "tuesday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] is None
+
+
+def test_resolve_commuter_day_returns_none_departure_time_for_unknown_day():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "sunday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] is None

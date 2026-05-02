@@ -2,7 +2,7 @@
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 from fastapi import APIRouter
@@ -86,6 +86,21 @@ def expand_bounding_box(bbox: dict, degrees: float = 0.02) -> dict:
         "min_lon": bbox["min_lon"] - degrees,
         "max_lon": bbox["max_lon"] + degrees,
     }
+
+
+def compute_eta(departure_time_str: str | None, travel_time_seconds: int, now: datetime) -> str | None:
+    """Return arrival time as HH:MM string, or None if no departure_time configured.
+
+    Uses departure_time_str as effective departure when it hasn't elapsed yet;
+    falls back to now when the departure time is at or past the current time.
+    """
+    if not departure_time_str:
+        return None
+    hour, minute = int(departure_time_str[:2]), int(departure_time_str[3:])
+    dep = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    effective = now if now >= dep else dep
+    arrival = effective + timedelta(seconds=travel_time_seconds)
+    return arrival.strftime("%H:%M")
 
 
 def is_within_poll_window(now: datetime, start, end) -> bool:
@@ -395,13 +410,19 @@ async def fetch_travel_data() -> dict:
             except Exception:
                 incidents = []
 
+            routes = [_build_route_option(r) for r in routes_raw.get("routes", [])]
+            primary_travel_time = routes[0]["travel_time_seconds"] if routes else 0
+            eta = compute_eta(day.get("departure_time"), primary_travel_time, _get_now())
+
             commuter_results.append(
                 {
                     "name": commuter["name"],
                     "mode": day["mode"],
                     "drops": day["drops"],
-                    "routes": [_build_route_option(r) for r in routes_raw.get("routes", [])],
+                    "routes": routes,
                     "incidents": incidents,
+                    "departure_time": day.get("departure_time"),
+                    "eta": eta,
                 }
             )
 
