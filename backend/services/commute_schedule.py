@@ -16,25 +16,24 @@ def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
     - Nursery drop only occurs when today is in nursery.days AND commuter
       has nursery_drop=True in their schedule.
     - Dog drop only occurs when today is in dog_daycare.days AND commuter
-      matches weekly_dropper.
+      has dog_drop=True in their schedule.
 
     Drop order follows commuter's drop_order config.
 
-    Returns dict with keys: mode, drops.
+    Returns dict with keys: mode, drops, departure_time.
     """
     day_config = commuter["schedule"].get(weekday, {"mode": "off", "nursery_drop": False})
     mode = day_config["mode"]
 
     nursery_days = schedule["nursery"]["days"]
     dog_days = schedule["dog_daycare"]["days"]
-    weekly_dropper = schedule["dog_daycare"]["weekly_dropper"]
 
     active_drops: set[str] = set()
 
     if day_config.get("nursery_drop") and weekday in nursery_days:
         active_drops.add("nursery")
 
-    if weekday in dog_days and commuter["name"] == weekly_dropper:
+    if day_config.get("dog_drop") and weekday in dog_days:
         active_drops.add("dog")
 
     # Apply drop_order to produce a deterministic ordered list

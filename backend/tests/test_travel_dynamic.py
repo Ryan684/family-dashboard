@@ -199,7 +199,7 @@ async def test_fetch_travel_data_office_no_drops():
             }
         ],
         "nursery": {"days": []},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -238,7 +238,7 @@ async def test_fetch_travel_data_wfh_no_drops_excluded():
             }
         ],
         "nursery": {"days": []},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -270,7 +270,7 @@ async def test_fetch_travel_data_office_with_nursery_drop():
             }
         ],
         "nursery": {"days": ["monday"]},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -312,7 +312,7 @@ async def test_fetch_travel_data_off_no_drops_excluded():
             }
         ],
         "nursery": {"days": []},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -349,7 +349,7 @@ async def test_fetch_travel_data_first_wfh_second_active():
             },
         ],
         "nursery": {"days": []},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -389,7 +389,7 @@ async def test_fetch_travel_data_both_commuters_active():
             },
         ],
         "nursery": {"days": []},
-        "dog_daycare": {"days": [], "weekly_dropper": ""},
+        "dog_daycare": {"days": []},
     }
     coords = {
         "home": (51.5, -0.1),
@@ -432,7 +432,7 @@ _TWO_COMMUTER_SCHEDULE = {
         },
     ],
     "nursery": {"days": []},
-    "dog_daycare": {"days": [], "weekly_dropper": ""},
+    "dog_daycare": {"days": []},
 }
 
 _TWO_COMMUTER_COORDS = {
@@ -543,7 +543,7 @@ _SCHEDULE_WITH_DEPARTURE = {
         }
     ],
     "nursery": {"days": []},
-    "dog_daycare": {"days": [], "weekly_dropper": ""},
+    "dog_daycare": {"days": []},
 }
 
 _SCHEDULE_WITHOUT_DEPARTURE = {
@@ -555,7 +555,7 @@ _SCHEDULE_WITHOUT_DEPARTURE = {
         }
     ],
     "nursery": {"days": []},
-    "dog_daycare": {"days": [], "weekly_dropper": ""},
+    "dog_daycare": {"days": []},
 }
 
 _COORDS = {
