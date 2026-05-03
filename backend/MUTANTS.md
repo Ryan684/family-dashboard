@@ -104,6 +104,23 @@ This else branch fires only when `location.description` in the HERE response is 
 cannot be reproduced with realistic HERE responses. Unkillable without crafting invalid
 API payloads.
 
+### `x_compute_eta__mutmut_14`, `__mutmut_15`, `__mutmut_16`, `__mutmut_17`, `__mutmut_19` (survived)
+
+**What was mutated:**
+- mutmut_14: Removes `second=0` from `now.replace(...)`, keeping `now`'s second in `dep`.
+- mutmut_15: Removes `microsecond=0`, keeping `now`'s microsecond in `dep`.
+- mutmut_16: Changes `second=0` to `second=1` in `dep`.
+- mutmut_17: Changes `microsecond=0` to `microsecond=1` in `dep`.
+- mutmut_19: Changes `>=` to `>` in `effective = now if now >= dep else dep`.
+
+**Why acceptable:** `compute_eta` returns `arrival.strftime("%H:%M")` — output is minute-level
+precision only. Sub-second differences in `dep` only change the arrival time by at most 1 second,
+which never crosses a minute boundary in practice (travel times from the Google Routes API are
+whole-second values, and a single second difference would need to land exactly on a minute
+boundary to change the output). Mutant_19 is equivalent because when `now == dep` (the only
+case where `>=` and `>` differ), both paths select a datetime with the same value, producing an
+identical arrival string.
+
 ### `x_fetch_travel_data__mutmut_*` (survived — orchestration glue)
 
 **What was mutated:** Various string literals, dict key accesses, and index/fallback

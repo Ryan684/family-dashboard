@@ -26,7 +26,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
   Scenario: Office commuter with dog drop gets a waypoint route via dog daycare
     Given "Ryan" has mode "office" today with no nursery drop
     And today is a dog daycare day
-    And "Ryan" is the weekly dog dropper
+    And "Ryan" has dog_drop true in their schedule
     When the travel endpoint is called
     Then "Ryan" has 2 route alternatives from home via dog daycare to work
     And "Ryan" drops list contains "dog"
@@ -35,7 +35,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
     Given "Ryan" has mode "office" today
     And "Ryan" has drop_order ["dog", "nursery"]
     And today is a nursery day and a dog daycare day
-    And "Ryan" has nursery_drop true and is the weekly dog dropper
+    And "Ryan" has nursery_drop true and dog_drop true in their schedule
     When the travel endpoint is called
     Then "Ryan" has 2 route alternatives from home via dog daycare then nursery to work
     And "Ryan" drops list is ["dog", "nursery"]
@@ -44,7 +44,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
     Given "Emily" has mode "office" today
     And "Emily" has drop_order ["nursery", "dog"]
     And today is a nursery day and a dog daycare day
-    And "Emily" has nursery_drop true and is the weekly dog dropper
+    And "Emily" has nursery_drop true and dog_drop true in their schedule
     When the travel endpoint is called
     Then "Emily" has 2 route alternatives from home via nursery then dog daycare to work
     And "Emily" drops list is ["nursery", "dog"]
@@ -59,7 +59,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
   Scenario: WFH commuter with dog drop gets an out-and-back route
     Given "Ryan" has mode "wfh" today
     And today is a dog daycare day
-    And "Ryan" is the weekly dog dropper
+    And "Ryan" has dog_drop true in their schedule
     When the travel endpoint is called
     Then "Ryan" has 2 route alternatives from home via dog daycare back to home
     And "Ryan" drops list contains "dog"
@@ -76,7 +76,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
     Given "Ryan" has mode "wfh" today
     And "Ryan" has drop_order ["dog", "nursery"]
     And today is a nursery day and a dog daycare day
-    And "Ryan" has nursery_drop true and is the weekly dog dropper
+    And "Ryan" has nursery_drop true and dog_drop true in their schedule
     When the travel endpoint is called
     Then "Ryan" has 2 route alternatives from home via dog daycare then nursery back to home
 
@@ -90,7 +90,7 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
   Scenario: Day-off commuter with drops gets an out-and-back route
     Given "Ryan" has mode "off" today
     And today is a dog daycare day
-    And "Ryan" is the weekly dog dropper
+    And "Ryan" has dog_drop true in their schedule
     When the travel endpoint is called
     Then "Ryan" has 2 route alternatives from home via dog daycare back to home
 
@@ -106,18 +106,18 @@ Feature: Dynamic commutes backend — per-commuter schedule-driven routing
 
   Scenario: Dog gate blocks drop when today is not a dog daycare day
     Given "Ryan" has mode "office" today
-    And "Ryan" is the weekly dog dropper
+    And "Ryan" has dog_drop true in their schedule
     But today is not a dog daycare day
     When the travel endpoint is called
     Then "Ryan" drops list is empty
 
-  Scenario: Dog gate blocks drop when commuter is not the weekly dropper
+  Scenario: Dog gate blocks drop when commuter has dog_drop false
     Given today is a dog daycare day
-    And "Emily" is the weekly dog dropper
-    And "Ryan" has mode "office" today
+    And "Emily" has dog_drop false in their schedule
+    And "Ryan" has dog_drop true in their schedule and mode "office" today
     When the travel endpoint is called
-    Then "Ryan" drops list does not contain "dog"
-    And "Emily" drops list contains "dog"
+    Then "Ryan" drops list contains "dog"
+    And "Emily" drops list does not contain "dog"
 
   # --- Multi-commuter response ---
 

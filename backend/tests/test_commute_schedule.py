@@ -20,27 +20,27 @@ SCHEDULE = {
             "name": "Ryan",
             "drop_order": ["dog", "nursery"],
             "schedule": {
-                "monday":    {"mode": "office", "nursery_drop": True},
-                "tuesday":   {"mode": "office", "nursery_drop": False},
-                "wednesday": {"mode": "off",    "nursery_drop": False},
-                "thursday":  {"mode": "office", "nursery_drop": True},
-                "friday":    {"mode": "wfh",    "nursery_drop": False},
+                "monday":    {"mode": "office", "nursery_drop": True,  "dog_drop": False},
+                "tuesday":   {"mode": "office", "nursery_drop": False, "dog_drop": False},
+                "wednesday": {"mode": "off",    "nursery_drop": False, "dog_drop": True},
+                "thursday":  {"mode": "office", "nursery_drop": True,  "dog_drop": False},
+                "friday":    {"mode": "wfh",    "nursery_drop": False, "dog_drop": False},
             },
         },
         {
             "name": "Emily",
             "drop_order": ["nursery", "dog"],
             "schedule": {
-                "monday":    {"mode": "office", "nursery_drop": False},
-                "tuesday":   {"mode": "office", "nursery_drop": True},
-                "wednesday": {"mode": "office", "nursery_drop": False},
-                "thursday":  {"mode": "wfh",    "nursery_drop": False},
-                "friday":    {"mode": "off",    "nursery_drop": False},
+                "monday":    {"mode": "office", "nursery_drop": False, "dog_drop": False},
+                "tuesday":   {"mode": "office", "nursery_drop": True,  "dog_drop": False},
+                "wednesday": {"mode": "office", "nursery_drop": False, "dog_drop": False},
+                "thursday":  {"mode": "wfh",    "nursery_drop": False, "dog_drop": False},
+                "friday":    {"mode": "off",    "nursery_drop": False, "dog_drop": False},
             },
         },
     ],
     "nursery": {"days": ["monday", "tuesday", "thursday"]},
-    "dog_daycare": {"days": ["wednesday"], "weekly_dropper": "Ryan"},
+    "dog_daycare": {"days": ["wednesday"]},
 }
 
 COORDS = {
@@ -93,8 +93,8 @@ def test_resolve_off_day_no_drops():
     assert result["drops"] == ["dog"]
 
 
-def test_resolve_office_with_dog_drop():
-    # Emily is office on wednesday, Ryan is dropper — Emily gets no dog drop
+def test_resolve_office_with_dog_drop_false():
+    # Emily is office on wednesday, but dog_drop is False — no dog drop
     result = resolve_commuter_day(SCHEDULE["commuters"][1], "wednesday", SCHEDULE)
     assert result["mode"] == "office"
     assert "dog" not in result["drops"]
@@ -136,14 +136,14 @@ def test_dog_gate_blocks_when_not_dog_day():
     assert "dog" not in result["drops"]
 
 
-def test_dog_gate_blocks_when_not_weekly_dropper():
-    # Emily on wednesday: dog day but weekly_dropper is Ryan
+def test_dog_gate_blocks_when_dog_drop_false():
+    # Emily on wednesday: dog day but dog_drop is False
     result = resolve_commuter_day(SCHEDULE["commuters"][1], "wednesday", SCHEDULE)
     assert "dog" not in result["drops"]
 
 
-def test_dog_gate_allows_when_dog_day_and_weekly_dropper():
-    # Ryan on wednesday: dog day, Ryan is weekly_dropper
+def test_dog_gate_allows_when_dog_day_and_dog_drop_true():
+    # Ryan on wednesday: dog day and dog_drop is True
     result = resolve_commuter_day(SCHEDULE["commuters"][0], "wednesday", SCHEDULE)
     assert "dog" in result["drops"]
 
@@ -154,23 +154,30 @@ def test_dog_gate_allows_when_dog_day_and_weekly_dropper():
 
 
 def test_drop_order_dog_first_for_ryan():
-    # Thursday: Ryan has nursery_drop=True AND if it were also dog day, dog would be first
-    # Use a modified schedule where thursday is also a dog day
-    schedule = {
-        **SCHEDULE,
-        "dog_daycare": {"days": ["thursday"], "weekly_dropper": "Ryan"},
+    # Thursday: nursery_drop=True AND dog_drop=True → dog comes first per drop_order
+    ryan = {
+        **SCHEDULE["commuters"][0],
+        "schedule": {
+            **SCHEDULE["commuters"][0]["schedule"],
+            "thursday": {"mode": "office", "nursery_drop": True, "dog_drop": True},
+        },
     }
-    result = resolve_commuter_day(SCHEDULE["commuters"][0], "thursday", schedule)
+    schedule = {**SCHEDULE, "dog_daycare": {"days": ["thursday"]}}
+    result = resolve_commuter_day(ryan, "thursday", schedule)
     assert result["drops"] == ["dog", "nursery"]
 
 
 def test_drop_order_nursery_first_for_emily():
     # Emily with nursery and dog on same day — nursery first per her drop_order
-    schedule = {
-        **SCHEDULE,
-        "dog_daycare": {"days": ["tuesday"], "weekly_dropper": "Emily"},
+    emily = {
+        **SCHEDULE["commuters"][1],
+        "schedule": {
+            **SCHEDULE["commuters"][1]["schedule"],
+            "tuesday": {"mode": "office", "nursery_drop": True, "dog_drop": True},
+        },
     }
-    result = resolve_commuter_day(SCHEDULE["commuters"][1], "tuesday", schedule)
+    schedule = {**SCHEDULE, "dog_daycare": {"days": ["tuesday"]}}
+    result = resolve_commuter_day(emily, "tuesday", schedule)
     assert result["drops"] == ["nursery", "dog"]
 
 
@@ -190,6 +197,13 @@ def test_resolve_unknown_weekday_default_nursery_drop_is_false():
     schedule = {**SCHEDULE, "nursery": {"days": ["sunday"]}}
     result = resolve_commuter_day(SCHEDULE["commuters"][0], "sunday", schedule)
     assert "nursery" not in result["drops"]
+
+
+def test_resolve_unknown_weekday_default_dog_drop_is_false():
+    """Missing weekday → dog_drop defaults to False, so even if today is dog daycare day, no drop."""
+    schedule = {**SCHEDULE, "dog_daycare": {"days": ["sunday"]}}
+    result = resolve_commuter_day(SCHEDULE["commuters"][0], "sunday", schedule)
+    assert "dog" not in result["drops"]
 
 
 def test_resolve_commuter_without_drop_order_key():
@@ -341,3 +355,44 @@ def test_build_waypoints_off_both_drops_out_and_back():
         COORDS["nursery"],
         COORDS["home"],
     ]
+
+
+# ---------------------------------------------------------------------------
+# departure_time in resolve_commuter_day
+# ---------------------------------------------------------------------------
+
+_SCHEDULE_WITH_DEPARTURE = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {
+                "monday": {"mode": "office", "nursery_drop": False, "departure_time": "07:30"},
+                "tuesday": {"mode": "office", "nursery_drop": False},
+            },
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": []},
+}
+
+
+def test_resolve_commuter_day_returns_departure_time_when_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "monday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] == "07:30"
+
+
+def test_resolve_commuter_day_returns_none_departure_time_when_not_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "tuesday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] is None
+
+
+def test_resolve_commuter_day_returns_none_departure_time_for_unknown_day():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_DEPARTURE["commuters"][0], "sunday", _SCHEDULE_WITH_DEPARTURE
+    )
+    assert result["departure_time"] is None

@@ -18,6 +18,7 @@ from routers.travel import (
     _parse_duration,
     calculate_bounding_box,
     classify_delay,
+    compute_eta,
     expand_bounding_box,
     extract_road_names,
     fetch_incidents,
@@ -1133,3 +1134,45 @@ async def test_fetch_incidents_api_key_param_name_and_value():
     await fetch_incidents(mock_client, _BBOX, "my-here-key")
     params = mock_client.get.call_args[1]["params"]
     assert params["apiKey"] == "my-here-key"
+
+
+# ---------------------------------------------------------------------------
+# compute_eta
+# ---------------------------------------------------------------------------
+
+
+def test_compute_eta_departure_in_future():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_eta("07:30", 1800, now) == "08:00"
+
+
+def test_compute_eta_departure_elapsed():
+    now = datetime(2026, 5, 2, 7, 45, 0)
+    assert compute_eta("07:30", 1800, now) == "08:15"
+
+
+def test_compute_eta_departure_exactly_now():
+    now = datetime(2026, 5, 2, 7, 30, 0)
+    assert compute_eta("07:30", 1800, now) == "08:00"
+
+
+def test_compute_eta_no_departure_time_returns_none():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_eta(None, 1800, now) is None
+
+
+def test_compute_eta_crosses_midnight():
+    now = datetime(2026, 5, 2, 23, 0, 0)
+    assert compute_eta("23:50", 1800, now) == "00:20"
+
+
+def test_compute_eta_whole_hours():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_eta("08:00", 3600, now) == "09:00"
+
+
+def test_compute_eta_uses_now_seconds_when_elapsed():
+    now = datetime(2026, 5, 2, 7, 45, 30)
+    result = compute_eta("07:00", 600, now)
+    # now + 600s = 07:55:30 → rounds to 07:55 on strftime
+    assert result == "07:55"

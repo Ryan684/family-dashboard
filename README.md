@@ -63,11 +63,11 @@ Edit `commute-schedule.json` to match your household. This file controls who goe
       "name": "YourName",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true },
-        "tuesday":   { "mode": "office", "nursery_drop": false },
-        "wednesday": { "mode": "off",    "nursery_drop": false },
-        "thursday":  { "mode": "office", "nursery_drop": true },
-        "friday":    { "mode": "wfh",    "nursery_drop": false }
+        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00" },
+        "wednesday": { "mode": "off",    "nursery_drop": false, "dog_drop": true },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "friday":    { "mode": "wfh",    "nursery_drop": false, "dog_drop": false }
       }
     }
   ],
@@ -75,8 +75,7 @@ Edit `commute-schedule.json` to match your household. This file controls who goe
     "days": ["monday", "tuesday", "thursday"]
   },
   "dog_daycare": {
-    "days": ["wednesday"],
-    "weekly_dropper": "YourName"
+    "days": ["wednesday"]
   }
 }
 ```
@@ -85,9 +84,9 @@ Edit `commute-schedule.json` to match your household. This file controls who goe
 
 **Drop gates:**
 - Nursery drop only happens if today is in `nursery.days` AND `nursery_drop: true` for that commuter
-- Dog drop only happens if today is in `dog_daycare.days` AND the commuter matches `weekly_dropper`
+- Dog drop only happens if today is in `dog_daycare.days` AND `dog_drop: true` for that commuter
 
-**`weekly_dropper`** is the only field that needs editing week-to-week when dog drop responsibility alternates.
+**`dog_drop`** and **`nursery_drop`** work identically — set `true` on the days each commuter does that drop. To change who does the dog drop in a given week, flip the `dog_drop` flag on the relevant days for each commuter.
 
 See [`family-dashboard.md`](family-dashboard.md#commute-schedule-config) for full routing logic and waypoint ordering.
 
