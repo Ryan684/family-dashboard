@@ -6,29 +6,19 @@ Human reference only. Not needed during coding sessions.
 
 ## Hardware Options
 
-### Recommended — Raspberry Pi 5 + 21–24" Touchscreen Monitor
+### Recommended — Raspberry Pi 5 + Official Raspberry Pi Monitor (SC0940)
 
-The Pi 5 outputs 4K HDMI and will drive any monitor. At this screen size, mainstream touchscreen monitors are a better choice than Pi-specific displays — better panels, better value, and more mounting flexibility. Touch input runs over USB (HDMI for video, USB for touch), and works driver-free on Raspberry Pi OS with any modern touchscreen monitor.
+The [Official Raspberry Pi Monitor](https://www.raspberrypi.com/products/raspberry-pi-monitor/) (SC0940) is a 15.6" 1080p IPS display with VESA 100×100mm mounting and a red/white colour scheme that matches the Raspberry Pi case. It connects via HDMI for video and USB for power, keeping the cable run minimal. No touch input — the dashboard is a read-only display.
 
 | Component | Source | ~Cost |
 |---|---|---|
 | Raspberry Pi 5 (4GB) | The Pi Hut / Pimoroni | £55 |
-| 21–24" touchscreen monitor (see suggestions below) | Amazon | £230–320 |
+| Official Raspberry Pi Monitor (SC0940, 15.6") | The Pi Hut / Raspberry Pi | £80–90 |
 | Pi VESA mount bracket | Amazon / The Pi Hut / 3D print | £10–15 |
 | Freestanding VESA monitor arm | Amazon | £30–50 |
 | MicroSD card (32GB+) | Any | £8 |
 | Official Pi 5 power supply | The Pi Hut | £12 |
-| **Total** | | **~£345–460** |
-
-**Monitor suggestions (21–24", all 1080p IPS, VESA 100x100, USB touch):**
-
-| Model | Size | Approx. price | Notes |
-|---|---|---|---|
-| ViewSonic TD2465 | 24" | ~£300 | Consistently recommended in Pi community; 10-point touch |
-| Hannspree HT249PPB | 24" | ~£250 | Well documented with Pi; solid IPS panel |
-| AOC T2470W | 24" | ~£240 | Widely available; good value |
-
-Final monitor choice TBD — confirm VESA 100x100 and USB touch before purchasing.
+| **Total** | | **~£195–230** |
 
 ### Fallback — Android Tablet (Lenovo Tab M10 Plus)
 
@@ -41,13 +31,13 @@ Final monitor choice TBD — confirm VESA 100x100 and USB touch before purchasin
 
 - **Amazon Fire HD** — locked-down OS, sideloading friction
 - **iPad** — expensive for a dedicated display; kiosk mode requires workarounds
-- **Pi-specific displays under 15"** — too small for multi-card dashboard readability at kitchen distance
+- **Pi-specific displays under 13"** — too small for multi-card dashboard readability at kitchen distance
 
 ---
 
 ## Chosen Hardware Path
 
-**Raspberry Pi 5 (4GB) + 21–24" mainstream touchscreen monitor**, to be purchased once the software is stable and tested on localhost.
+**Raspberry Pi 5 (4GB) + Official Raspberry Pi Monitor SC0940 (15.6")**, to be purchased once the software is stable and tested on localhost.
 
 ---
 
@@ -60,7 +50,7 @@ The Pi mounts on the back of the monitor using a **VESA bracket**, making the wh
 - **Ready-made bracket** — search "Raspberry Pi 5 VESA mount" on Amazon or The Pi Hut; fits 75x75mm or 100x100mm VESA patterns; ~£10–15
 - **3D printed bracket** — well-rated designs on Printables.com if you have printer access; free to print, perfect fit for the Pi 5 case
 
-With the Pi VESA-mounted behind the monitor, the only external cables are one power cable to the monitor and one to the Pi.
+With the Pi VESA-mounted behind the monitor, the only external cables are one power cable to the monitor (which also powers the Pi via USB) and a HDMI cable between them.
 
 ### Temporary freestanding setup (pre-move)
 

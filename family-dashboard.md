@@ -46,16 +46,15 @@ Use the **Anthropic frontend-design skill** when building the UI (invoke via `/f
 - Calm and readable at a glance — this is the primary constraint given the use case
 - The `ClockCard` is the hero element — time should be the largest text on screen, date slightly smaller beneath it. No border or card chrome needed; it should feel like it belongs to the layout, not sit inside a box
 
-#### Screen size design notes (21–24", landscape 1920×1080, viewed from ~1–2m)
+#### Screen size design notes (15.6", landscape 1920×1080, viewed from ~0.5–1m)
 
 Pass these notes to the frontend-design skill as context when building any UI component:
 
-- **Pixel density vs. viewing distance** — at 1–2m from a 24" 1080p display, fine detail (hairline borders, small icons, subtle gradients) will be lost. Design for boldness, not intricacy
-- **Generous whitespace** — cards should breathe; a layout that looks fine on a laptop will feel cramped at a glance from across a room. Prefer fewer, larger elements over many small ones
-- **Minimum font sizes** — secondary text no smaller than 24px; primary information (ETA times, temperature, clock) should be 48px or larger
+- **Pixel density vs. viewing distance** — at 0.5–1m from a 15.6" 1080p display, fine detail is more legible than on a large wall-mounted screen, but the dashboard is still read at a glance rather than studied. Design for clarity and quick scanning, not dense information
+- **Generous whitespace** — cards should breathe; a layout that looks fine on a laptop will feel cramped when read across the kitchen. Prefer fewer, larger elements over many small ones
+- **Minimum font sizes** — secondary text no smaller than 18px; primary information (ETA times, temperature, clock) should be 36px or larger
 - **Card grid** — with 1920×1080 and 4–5 cards, a 2- or 3-column grid works well in landscape. ClockCard should span full width or sit prominently at the top; never squeezed into a corner
-- **Touch targets** — any interactive element should be at least 48×48px and usable from a standing position without precision
-- **No hover-dependent UI** — nothing important should be hidden behind hover states or tooltips; this is a wall-mounted touchscreen
+- **No hover-dependent UI** — nothing important should be hidden behind hover states or tooltips; this is a wall-mounted read-only display with no touchscreen
 - **Dark theme preferred** — high-contrast dark background outperforms light themes at distance and in variable kitchen lighting; target minimum 7:1 contrast ratio for primary text
 
 ### APIs
@@ -89,11 +88,11 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
       "name": "Ryan",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true },
-        "tuesday":   { "mode": "office", "nursery_drop": false },
-        "wednesday": { "mode": "off",    "nursery_drop": false },
-        "thursday":  { "mode": "office", "nursery_drop": true },
-        "friday":    { "mode": "wfh",    "nursery_drop": false }
+        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00" },
+        "wednesday": { "mode": "off",    "nursery_drop": false, "dog_drop": true },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "friday":    { "mode": "wfh",    "nursery_drop": false, "dog_drop": false }
       }
     },
     {
@@ -106,19 +105,18 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
     "days": ["monday", "tuesday", "thursday"]
   },
   "dog_daycare": {
-    "days": ["wednesday"],
-    "weekly_dropper": "Ryan"
+    "days": ["wednesday"]
   }
 }
 ```
-
-`weekly_dropper` is the only field that needs editing week-to-week (when dog drop responsibility alternates).
 
 **Day states per commuter:** `"office"` | `"wfh"` | `"off"`
 
 **Drop gate rules:**
 - Nursery drop only occurs if today is in `nursery.days` AND the commuter has `nursery_drop: true` in their schedule
-- Dog drop only occurs if today is in `dog_daycare.days` AND the commuter matches `weekly_dropper`
+- Dog drop only occurs if today is in `dog_daycare.days` AND the commuter has `dog_drop: true` in their schedule
+
+**`departure_time`** (optional, `"HH:MM"`) — the time the commuter aims to leave. When set, the card shows an ETA computed as `departure_time + travel_time`; if the current time has already passed the departure time, the ETA is computed from now instead. Omit on days where the commuter is not active or no ETA is needed.
 
 #### Route data (Google Maps Routes API)
 
@@ -167,7 +165,9 @@ The guidance instructions in the routing response include named road segments. T
       "mode": "office",
       "drops": ["dog", "nursery"],
       "routes": [ ...2 alternatives... ],
-      "incidents": [ ... ]
+      "incidents": [ ... ],
+      "departure_time": "07:30",
+      "eta": "08:15"
     }
   ],
   "is_stale": false
@@ -326,7 +326,7 @@ POLL_WINDOW_START=06:30
 POLL_WINDOW_END=09:30
 ```
 
-Commuter names, schedules, drop assignments, and drop ordering are configured in `commute-schedule.json` (committed to the repo — no secrets). The `weekly_dropper` field in `dog_daycare` is the only entry that changes week-to-week.
+Commuter names, schedules, drop assignments, and drop ordering are configured in `commute-schedule.json` (committed to the repo — no secrets). To change who does a drop in a given week, update the `dog_drop` or `nursery_drop` flags on the relevant days for each commuter.
 
 ---
 

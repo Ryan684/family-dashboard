@@ -1,6 +1,6 @@
 # Family Dashboard
 
-Full spec: `family-dashboard.md`. Session prompts: `session-prompts.md`.
+Full spec: `family-dashboard.md`.
 
 ## Commands
 - Backend: `cd backend && uvicorn main:app --reload`
