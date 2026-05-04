@@ -8,17 +8,27 @@ Human reference only. Not needed during coding sessions.
 
 ### Recommended — Raspberry Pi 5 + Official Raspberry Pi Monitor (SC0940)
 
-The [Official Raspberry Pi Monitor](https://www.raspberrypi.com/products/raspberry-pi-monitor/) (SC0940) is a 15.6" 1080p IPS display with VESA 100×100mm mounting and a red/white colour scheme that matches the Raspberry Pi case. It connects via HDMI for video and USB for power, keeping the cable run minimal. No touch input — the dashboard is a read-only display.
+The official Pi monitor is purpose-built for the Pi 5: plug-and-play HDMI, VESA 100×100, powered via USB-C from its own supply (no draw on the Pi's USB budget), and IPS panel with 178° viewing angles. No driver configuration required.
+
+This is not a touchscreen — interaction (adjusting config, restarting services) is done over SSH or with a wireless keyboard. For a dashboard that auto-refreshes every 60 seconds, this is not a meaningful limitation.
+
+Viewing distance is ~1m rather than 1.5–2m; place on a counter or cabinet at arm's length rather than across the room.
 
 | Component | Source | ~Cost |
 |---|---|---|
 | Raspberry Pi 5 (4GB) | The Pi Hut / Pimoroni | £55 |
-| Official Raspberry Pi Monitor (SC0940, 15.6") | The Pi Hut / Raspberry Pi | £80–90 |
+| Official Raspberry Pi Monitor (SC0940) | The Pi Hut | £96 |
 | Pi VESA mount bracket | Amazon / The Pi Hut / 3D print | £10–15 |
 | Freestanding VESA monitor arm | Amazon | £30–50 |
 | MicroSD card (32GB+) | Any | £8 |
 | Official Pi 5 power supply | The Pi Hut | £12 |
-| **Total** | | **~£195–230** |
+| **Total** | | **~£211–236** |
+
+**Monitor spec:**
+
+| Model | Size | Resolution | Panel | Touch | VESA | Source |
+|---|---|---|---|---|---|---|
+| Raspberry Pi Monitor SC0940 | 15.6" | 1920×1080 | IPS, 250 nits, anti-glare | None | 100×100 | The Pi Hut (~£96) |
 
 ### Fallback — Android Tablet (Lenovo Tab M10 Plus)
 
@@ -31,13 +41,13 @@ The [Official Raspberry Pi Monitor](https://www.raspberrypi.com/products/raspber
 
 - **Amazon Fire HD** — locked-down OS, sideloading friction
 - **iPad** — expensive for a dedicated display; kiosk mode requires workarounds
-- **Pi-specific displays under 13"** — too small for multi-card dashboard readability at kitchen distance
+- **Pi-specific displays under 13"** — too small for multi-card dashboard readability even at 1m
 
 ---
 
 ## Chosen Hardware Path
 
-**Raspberry Pi 5 (4GB) + Official Raspberry Pi Monitor SC0940 (15.6")**, to be purchased once the software is stable and tested on localhost.
+**Raspberry Pi 5 (4GB) + Official Raspberry Pi Monitor (SC0940, 15.6")**, to be purchased once the software is stable and tested on localhost.
 
 ---
 

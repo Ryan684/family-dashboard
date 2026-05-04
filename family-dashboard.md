@@ -46,15 +46,16 @@ Use the **Anthropic frontend-design skill** when building the UI (invoke via `/f
 - Calm and readable at a glance — this is the primary constraint given the use case
 - The `ClockCard` is the hero element — time should be the largest text on screen, date slightly smaller beneath it. No border or card chrome needed; it should feel like it belongs to the layout, not sit inside a box
 
-#### Screen size design notes (15.6", landscape 1920×1080, viewed from ~0.5–1m)
+#### Screen size design notes (15.6", landscape 1920×1080, viewed from ~1m)
 
 Pass these notes to the frontend-design skill as context when building any UI component:
 
-- **Pixel density vs. viewing distance** — at 0.5–1m from a 15.6" 1080p display, fine detail is more legible than on a large wall-mounted screen, but the dashboard is still read at a glance rather than studied. Design for clarity and quick scanning, not dense information
-- **Generous whitespace** — cards should breathe; a layout that looks fine on a laptop will feel cramped when read across the kitchen. Prefer fewer, larger elements over many small ones
-- **Minimum font sizes** — secondary text no smaller than 18px; primary information (ETA times, temperature, clock) should be 36px or larger
+- **Pixel density vs. viewing distance** — at ~1m from a 15.6" 1080p display (141 PPI), fine detail is preserved but design should still favour boldness. The monitor sits on a counter or cabinet at arm's length, not across the room.
+- **Generous whitespace** — cards should breathe; a layout that looks fine on a laptop will feel cramped at a glance. Prefer fewer, larger elements over many small ones
+- **Minimum font sizes** — secondary text no smaller than 24px; primary information (ETA times, temperature, clock) should be 48px or larger. Labels smaller than ~20px will be unreadable from 1.5m+, so avoid placing critical information in very small type
 - **Card grid** — with 1920×1080 and 4–5 cards, a 2- or 3-column grid works well in landscape. ClockCard should span full width or sit prominently at the top; never squeezed into a corner
-- **No hover-dependent UI** — nothing important should be hidden behind hover states or tooltips; this is a wall-mounted read-only display with no touchscreen
+- **No touch** — the monitor is not a touchscreen; do not add touch-dependent interactions. Any interactive controls should be accessible over SSH or a wireless keyboard
+- **No hover-dependent UI** — nothing important should be hidden behind hover states or tooltips; this is a wall-mounted display
 - **Dark theme preferred** — high-contrast dark background outperforms light themes at distance and in variable kitchen lighting; target minimum 7:1 contrast ratio for primary text
 
 ### APIs
