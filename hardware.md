@@ -6,7 +6,7 @@ Human reference only. Not needed during coding sessions.
 
 ## Hardware Options
 
-### Recommended — Raspberry Pi 5 + Official Raspberry Pi 15.6" Monitor (SC0940)
+### Recommended — Raspberry Pi 5 + Official Raspberry Pi Monitor (SC0940)
 
 The official Pi monitor is purpose-built for the Pi 5: plug-and-play HDMI, VESA 100×100, powered via USB-C from its own supply (no draw on the Pi's USB budget), and IPS panel with 178° viewing angles. No driver configuration required.
 
@@ -60,7 +60,7 @@ The Pi mounts on the back of the monitor using a **VESA bracket**, making the wh
 - **Ready-made bracket** — search "Raspberry Pi 5 VESA mount" on Amazon or The Pi Hut; fits 75x75mm or 100x100mm VESA patterns; ~£10–15
 - **3D printed bracket** — well-rated designs on Printables.com if you have printer access; free to print, perfect fit for the Pi 5 case
 
-With the Pi VESA-mounted behind the monitor, the only external cables are one power cable to the monitor and one to the Pi.
+With the Pi VESA-mounted behind the monitor, the only external cables are one power cable to the monitor (which also powers the Pi via USB) and a HDMI cable between them.
 
 ### Temporary freestanding setup (pre-move)
 

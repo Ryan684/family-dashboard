@@ -1,6 +1,6 @@
 # Family Dashboard
 
-A wall-mounted morning dashboard for a Raspberry Pi + touchscreen. Shows live commute ETAs for each active household member, current weather, and upcoming calendar events — all visible at a glance before leaving the house.
+A wall-mounted morning dashboard for a Raspberry Pi 5 + Official Raspberry Pi Monitor SC0940 (15.6"). Shows live commute ETAs for each active household member, current weather, and upcoming calendar events — all visible at a glance before leaving the house.
 
 Full project spec and design rationale: [`family-dashboard.md`](family-dashboard.md)
 

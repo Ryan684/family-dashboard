@@ -89,11 +89,11 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
       "name": "Ryan",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true },
-        "tuesday":   { "mode": "office", "nursery_drop": false },
-        "wednesday": { "mode": "off",    "nursery_drop": false },
-        "thursday":  { "mode": "office", "nursery_drop": true },
-        "friday":    { "mode": "wfh",    "nursery_drop": false }
+        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00" },
+        "wednesday": { "mode": "off",    "nursery_drop": false, "dog_drop": true },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "friday":    { "mode": "wfh",    "nursery_drop": false, "dog_drop": false }
       }
     },
     {
@@ -106,19 +106,18 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
     "days": ["monday", "tuesday", "thursday"]
   },
   "dog_daycare": {
-    "days": ["wednesday"],
-    "weekly_dropper": "Ryan"
+    "days": ["wednesday"]
   }
 }
 ```
-
-`weekly_dropper` is the only field that needs editing week-to-week (when dog drop responsibility alternates).
 
 **Day states per commuter:** `"office"` | `"wfh"` | `"off"`
 
 **Drop gate rules:**
 - Nursery drop only occurs if today is in `nursery.days` AND the commuter has `nursery_drop: true` in their schedule
-- Dog drop only occurs if today is in `dog_daycare.days` AND the commuter matches `weekly_dropper`
+- Dog drop only occurs if today is in `dog_daycare.days` AND the commuter has `dog_drop: true` in their schedule
+
+**`departure_time`** (optional, `"HH:MM"`) — the time the commuter aims to leave. When set, the card shows an ETA computed as `departure_time + travel_time`; if the current time has already passed the departure time, the ETA is computed from now instead. Omit on days where the commuter is not active or no ETA is needed.
 
 #### Route data (Google Maps Routes API)
 
@@ -167,7 +166,9 @@ The guidance instructions in the routing response include named road segments. T
       "mode": "office",
       "drops": ["dog", "nursery"],
       "routes": [ ...2 alternatives... ],
-      "incidents": [ ... ]
+      "incidents": [ ... ],
+      "departure_time": "07:30",
+      "eta": "08:15"
     }
   ],
   "is_stale": false
@@ -326,7 +327,7 @@ POLL_WINDOW_START=06:30
 POLL_WINDOW_END=09:30
 ```
 
-Commuter names, schedules, drop assignments, and drop ordering are configured in `commute-schedule.json` (committed to the repo — no secrets). The `weekly_dropper` field in `dog_daycare` is the only entry that changes week-to-week.
+Commuter names, schedules, drop assignments, and drop ordering are configured in `commute-schedule.json` (committed to the repo — no secrets). To change who does a drop in a given week, update the `dog_drop` or `nursery_drop` flags on the relevant days for each commuter.
 
 ---
 
