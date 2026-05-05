@@ -130,7 +130,7 @@ cd frontend && npx stryker run
 ## Deploying to a Raspberry Pi
 
 See [`family-dashboard.md`](family-dashboard.md) for:
-- Recommended hardware (Pi 5 + 21–24" touchscreen monitor)
+- Recommended hardware (Pi 5 + 15.6" touchscreen monitor)
 - Systemd service setup
 - Chromium kiosk mode boot command
 - Display on/off cron schedule
