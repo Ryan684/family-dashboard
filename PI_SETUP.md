@@ -101,10 +101,10 @@ sudo apt install -y \
     build-essential curl git \
     libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev libffi-dev \
-    liblzma-dev tk-dev chromium-browser
+    liblzma-dev tk-dev chromium
 ```
 
-`chromium-browser` is the kiosk browser. The rest are needed to compile Python.
+`chromium` is the kiosk browser (note: the package is `chromium`, not `chromium-browser` — the name changed in Raspberry Pi OS Bookworm). The rest are needed to compile Python.
 
 ---
 
@@ -231,17 +231,24 @@ The output goes to `frontend/dist/`. FastAPI serves this at `http://localhost:80
 
 ## Part 12 — Test the backend manually
 
-Before automating, verify the backend starts and the dashboard loads.
+Before automating, verify the backend responds correctly. The SC0940 monitor has no USB ports for a mouse, so test over SSH rather than opening Chromium directly.
 
 ```bash
-cd ~/projects/family-dashboard/backend
-source .venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+sudo systemctl start family-dashboard
+curl http://localhost:8000/api/travel
 ```
 
-On the Pi's desktop, open Chromium and go to `http://localhost:8000`. You should see the dashboard. If the API keys in `.env` are correct, data will load within a few seconds.
+This should return JSON (even if the commuters array is empty outside poll hours). If you get a connection refused error, check the service logs:
 
-Press `Ctrl+C` to stop the backend.
+```bash
+sudo journalctl -u family-dashboard -n 30
+```
+
+Stop the service again before the next step:
+
+```bash
+sudo systemctl stop family-dashboard
+```
 
 ---
 
@@ -305,24 +312,19 @@ Common issues:
 
 ## Part 14 — Configure Chromium kiosk autostart
 
-Chromium should launch automatically when the desktop loads, pointed at the local dashboard.
+Raspberry Pi OS Bookworm uses **labwc** (a Wayland compositor), not a GNOME-based session. The standard `~/.config/autostart/*.desktop` mechanism is not used — labwc has its own autostart file.
 
 ```bash
-mkdir -p ~/.config/autostart
-nano ~/.config/autostart/kiosk.desktop
+mkdir -p ~/.config/labwc
+echo 'sleep 10 && XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic http://localhost:8000 &' > ~/.config/labwc/autostart
 ```
 
-Paste:
-
-```ini
-[Desktop Entry]
-Type=Application
-Name=Dashboard Kiosk
-Exec=bash -c "sleep 10 && chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble http://localhost:8000"
-X-GNOME-Autostart-enabled=true
-```
-
-The `sleep 10` gives the systemd backend time to finish starting before Chromium loads. Save and exit.
+Key flags explained:
+- `XDG_RUNTIME_DIR=/run/user/1000` — points Chromium to the user's Wayland runtime socket directory
+- `WAYLAND_DISPLAY=wayland-0` — the Wayland display socket name on Raspberry Pi OS Bookworm
+- `--ozone-platform=wayland` — tells Chromium to use Wayland rather than X11
+- `--password-store=basic` — prevents a keyring password popup appearing on first launch
+- `sleep 10` — gives the systemd backend time to start before Chromium loads
 
 ---
 
@@ -406,6 +408,8 @@ Claude Code will pick up the `CLAUDE.md` in the project root automatically and h
 | Dashboard shows no travel cards | Both commuters are WFH or off today — correct by design |
 | Backend won't start | `sudo journalctl -u family-dashboard -n 50` — usually a bad `.env` value |
 | Chromium shows "site can't be reached" | Service hasn't started yet — wait a few more seconds or check `systemctl status` |
+| Chromium shows a "Choose password for new keyring" popup on screen | Missing `--password-store=basic` flag in `~/.config/labwc/autostart` — add it and reboot |
+| Chromium doesn't launch on boot | Check `~/.config/labwc/autostart` exists and has the correct command. The XDG `.desktop` approach does not work on labwc. |
 | `vcgencmd` not found | Pi OS Bookworm moves it to `/usr/bin/vcgencmd` — verify with `which vcgencmd` |
 | Display stays on all day | Cron not installed — re-run step 15 and verify with `crontab -l` |
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
