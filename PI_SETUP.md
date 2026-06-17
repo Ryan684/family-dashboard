@@ -101,10 +101,10 @@ sudo apt install -y \
     build-essential curl git \
     libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev libffi-dev \
-    liblzma-dev tk-dev chromium
+    liblzma-dev tk-dev chromium wlopm
 ```
 
-`chromium` is the kiosk browser (note: the package is `chromium`, not `chromium-browser` — the name changed in Raspberry Pi OS Bookworm). The rest are needed to compile Python.
+`chromium` is the kiosk browser (note: the package is `chromium`, not `chromium-browser` — the name changed in Raspberry Pi OS Bookworm). `wlopm` is the Wayland display power tool used to control the screen on Pi 5 (note: `vcgencmd display_power` does not work on Pi 5). The rest are needed to compile Python.
 
 ---
 
@@ -340,16 +340,18 @@ If prompted to choose an editor, select `nano`. Add these two lines at the botto
 
 ```cron
 # Family dashboard display schedule
-30 6 * * 1-5 /usr/bin/vcgencmd display_power 1
-0  9 * * 1-5 /usr/bin/vcgencmd display_power 0
+30 6 * * 1-5 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1
+0  9 * * 1-5 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
 ```
 
 Save and exit. To test display control manually:
 
 ```bash
-vcgencmd display_power 0   # screen off
-vcgencmd display_power 1   # screen back on
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1   # screen off
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1    # screen back on
 ```
+
+If `wlopm --off HDMI-A-1` gives an error, run `wlopm` with no arguments to list available output names and substitute accordingly.
 
 ---
 
@@ -410,6 +412,7 @@ Claude Code will pick up the `CLAUDE.md` in the project root automatically and h
 | Chromium shows "site can't be reached" | Service hasn't started yet — wait a few more seconds or check `systemctl status` |
 | Chromium shows a "Choose password for new keyring" popup on screen | Missing `--password-store=basic` flag in `~/.config/labwc/autostart` — add it and reboot |
 | Chromium doesn't launch on boot | Check `~/.config/labwc/autostart` exists and has the correct command. The XDG `.desktop` approach does not work on labwc. |
-| `vcgencmd` not found | Pi OS Bookworm moves it to `/usr/bin/vcgencmd` — verify with `which vcgencmd` |
+| `wlopm` command not found | Run `sudo apt install -y wlopm` |
+| `wlopm --off HDMI-A-1` gives an error | Run `wlopm` with no arguments to list output names, then substitute the correct name |
 | Display stays on all day | Cron not installed — re-run step 15 and verify with `crontab -l` |
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
