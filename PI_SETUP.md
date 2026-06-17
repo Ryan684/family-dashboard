@@ -323,7 +323,7 @@ Key flags explained:
 - `XDG_RUNTIME_DIR=/run/user/1000` — points Chromium to the user's Wayland runtime socket directory
 - `WAYLAND_DISPLAY=wayland-0` — the Wayland display socket name on Raspberry Pi OS Bookworm
 - `--ozone-platform=wayland` — tells Chromium to use Wayland rather than X11
-- `--password-store=basic` — prevents a keyring password popup appearing on first launch
+- `--password-store=basic` — prevents a keyring password popup on first launch. Without this, Chromium prompts you to set a keyring password on screen, which you cannot dismiss without a mouse. The popup only appears once per fresh Chromium profile, but the flag must stay in place permanently to suppress it reliably.
 - `sleep 10` — gives the systemd backend time to start before Chromium loads
 
 ---
