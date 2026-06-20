@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import WeatherCard from './WeatherCard'
 
@@ -300,5 +300,33 @@ describe('WeatherCard — multiple locations', () => {
     render(<WeatherCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
     expect(screen.getAllByTestId('weather-location-block')).toHaveLength(1)
+  })
+})
+
+describe('WeatherCard — error recovery', () => {
+  let capturedCallback
+
+  beforeEach(() => {
+    capturedCallback = undefined
+    vi.stubGlobal('fetch', vi.fn())
+    vi.stubGlobal('setInterval', (fn) => { capturedCallback = fn; return 1 })
+    vi.stubGlobal('clearInterval', () => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('clears the error and shows data when a retry succeeds after an initial failure', async () => {
+    fetch
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ ok: true, json: async () => makeApiResponse() })
+
+    await act(async () => { render(<WeatherCard />) })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    await act(async () => { capturedCallback() })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Partly cloudy')).toBeInTheDocument()
   })
 })

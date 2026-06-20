@@ -55,6 +55,7 @@ function App() {
           if (!cancelled) {
             setTravelData(json)
             setTravelLoading(false)
+            setTravelError(null)
           }
         })
         .catch((err) => {

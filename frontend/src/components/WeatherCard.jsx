@@ -203,6 +203,8 @@ function LocationBlock({ location }) {
   )
 }
 
+const POLL_INTERVAL_MS = 60_000
+
 function WeatherCard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -211,26 +213,33 @@ function WeatherCard() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/weather')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then((json) => {
-        if (!cancelled) {
-          setData(json)
-          setLoading(false)
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err.message)
-          setLoading(false)
-        }
-      })
+    function fetchWeather() {
+      fetch('/api/weather')
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
+        .then((json) => {
+          if (!cancelled) {
+            setData(json)
+            setLoading(false)
+            setError(null)
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setError(err.message)
+            setLoading(false)
+          }
+        })
+    }
+
+    fetchWeather()
+    const id = setInterval(fetchWeather, POLL_INTERVAL_MS)
 
     return () => {
       cancelled = true
+      clearInterval(id)
     }
   }, [])
 
