@@ -1,12 +1,28 @@
 """Commute schedule resolver — loads config and resolves per-commuter day state."""
 
 import json
+import re
+
+_DEPARTURE_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+
+
+def _validate_schedule(schedule: dict) -> None:
+    for commuter in schedule.get("commuters", []):
+        name = commuter.get("name", "unknown")
+        for day, config in commuter.get("schedule", {}).items():
+            dt = config.get("departure_time")
+            if dt is not None and not _DEPARTURE_TIME_RE.match(dt):
+                raise ValueError(
+                    f"Invalid departure_time {dt!r} for commuter {name!r} on {day} — expected HH:MM"
+                )
 
 
 def load_schedule(path: str) -> dict:
     """Load and return the commute schedule config from a JSON file."""
     with open(path) as f:
-        return json.load(f)
+        schedule = json.load(f)
+    _validate_schedule(schedule)
+    return schedule
 
 
 def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
