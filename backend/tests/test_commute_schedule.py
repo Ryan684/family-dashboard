@@ -396,3 +396,70 @@ def test_resolve_commuter_day_returns_none_departure_time_for_unknown_day():
         _SCHEDULE_WITH_DEPARTURE["commuters"][0], "sunday", _SCHEDULE_WITH_DEPARTURE
     )
     assert result["departure_time"] is None
+
+
+# ---------------------------------------------------------------------------
+# load_schedule — departure_time validation
+# ---------------------------------------------------------------------------
+
+def _schedule_with_departure_time(value):
+    return {
+        "commuters": [
+            {
+                "name": "Ryan",
+                "drop_order": [],
+                "schedule": {
+                    "friday": {"mode": "office", "nursery_drop": False, "departure_time": value},
+                },
+            }
+        ],
+        "nursery": {"days": []},
+        "dog_daycare": {"days": []},
+    }
+
+
+def _schedule_without_departure_time():
+    return {
+        "commuters": [
+            {
+                "name": "Ryan",
+                "drop_order": [],
+                "schedule": {
+                    "friday": {"mode": "office", "nursery_drop": False},
+                },
+            }
+        ],
+        "nursery": {"days": []},
+        "dog_daycare": {"days": []},
+    }
+
+
+def test_load_schedule_accepts_valid_hhmm_departure_time(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_departure_time("07:25")))
+    result = load_schedule(str(config_file))
+    assert result["commuters"][0]["schedule"]["friday"]["departure_time"] == "07:25"
+
+
+def test_load_schedule_rejects_single_digit_hour(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_departure_time("7:25")))
+    with pytest.raises(ValueError):
+        load_schedule(str(config_file))
+
+
+def test_load_schedule_accepts_absent_departure_time(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_without_departure_time()))
+    result = load_schedule(str(config_file))
+    assert "departure_time" not in result["commuters"][0]["schedule"]["friday"]
+
+
+def test_load_schedule_error_message_contains_context(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_departure_time("7:25")))
+    with pytest.raises(ValueError, match="Ryan") as exc_info:
+        load_schedule(str(config_file))
+    message = str(exc_info.value)
+    assert "friday" in message
+    assert "7:25" in message
