@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import CalendarCard from './CalendarCard'
 
@@ -207,5 +207,34 @@ describe('CalendarCard — event travel ETA', () => {
     })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('1 hr 0 min')).toBeInTheDocument())
+  })
+})
+
+describe('CalendarCard — error recovery', () => {
+  let capturedCallback
+
+  beforeEach(() => {
+    capturedCallback = undefined
+    vi.stubGlobal('fetch', vi.fn())
+    vi.stubGlobal('setInterval', (fn) => { capturedCallback = fn; return 1 })
+    vi.stubGlobal('clearInterval', () => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('clears the error and shows data when a retry succeeds after an initial failure', async () => {
+    const calendarData = { today: [makeEvent()], tomorrow: [] }
+    fetch
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ ok: true, json: async () => calendarData })
+
+    await act(async () => { render(<CalendarCard />) })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    await act(async () => { capturedCallback() })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Test Event')).toBeInTheDocument()
   })
 })

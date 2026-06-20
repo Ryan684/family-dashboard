@@ -123,6 +123,8 @@ function EventGroup({ heading, events, emptyMessage }) {
   )
 }
 
+const POLL_INTERVAL_MS = 60_000
+
 function CalendarCard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -131,26 +133,33 @@ function CalendarCard() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/calendar')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then((json) => {
-        if (!cancelled) {
-          setData(json)
-          setLoading(false)
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err.message)
-          setLoading(false)
-        }
-      })
+    function fetchCalendar() {
+      fetch('/api/calendar')
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
+        .then((json) => {
+          if (!cancelled) {
+            setData(json)
+            setLoading(false)
+            setError(null)
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setError(err.message)
+            setLoading(false)
+          }
+        })
+    }
+
+    fetchCalendar()
+    const id = setInterval(fetchCalendar, POLL_INTERVAL_MS)
 
     return () => {
       cancelled = true
+      clearInterval(id)
     }
   }, [])
 
