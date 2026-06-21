@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Family Dashboard deploy check nightly at 02:00
+Requires=family-dashboard-deploy.service
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

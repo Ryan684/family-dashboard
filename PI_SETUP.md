@@ -404,6 +404,60 @@ Claude Code will pick up the `CLAUDE.md` in the project root automatically and h
 
 ---
 
+## Part 18 — Nightly auto-deploy
+
+The deploy script checks once a night (at 02:00) whether new commits have been pushed to `main`. If the local SHA differs it pulls, rebuilds the frontend, reinstalls the backend, and restarts the service — all without any manual SSH. If the Pi was off at 02:00 the timer runs on next boot (`Persistent=true`).
+
+### 18.1 — Allow the Pi user to restart the service without a password
+
+Add a sudoers rule so the deploy script can call `systemctl restart` unattended:
+
+```bash
+sudo visudo -f /etc/sudoers.d/family-dashboard-deploy
+```
+
+Add this single line (replace `pi` with your username if different):
+
+```
+pi ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart family-dashboard
+```
+
+### 18.2 — Install the systemd units
+
+Copy the bundled unit files into place:
+
+```bash
+sudo cp ~/family-dashboard/scripts/family-dashboard-deploy.service /etc/systemd/system/
+sudo cp ~/family-dashboard/scripts/family-dashboard-deploy.timer   /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now family-dashboard-deploy.timer
+```
+
+Verify the timer is scheduled:
+
+```bash
+systemctl list-timers family-dashboard-deploy.timer
+```
+
+### 18.3 — Test a manual deploy run
+
+```bash
+sudo systemctl start family-dashboard-deploy.service
+sudo journalctl -u family-dashboard-deploy.service -n 30
+```
+
+If the repo was already up to date you will see "Already up to date". Push a change from your laptop, then re-run to confirm the full deploy path works.
+
+### 18.4 — Deploy logs
+
+All output (stdout + stderr) goes to:
+
+```
+/var/log/family-dashboard-deploy.log
+```
+
+---
+
 ## Troubleshooting quick reference
 
 | Symptom | Check |
@@ -418,3 +472,5 @@ Claude Code will pick up the `CLAUDE.md` in the project root automatically and h
 | `wlopm --off HDMI-A-1` gives an error | Run `wlopm` with no arguments to list output names, then substitute the correct name |
 | Display stays on all day | Cron not installed — re-run step 15 and verify with `crontab -l` |
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
+| Auto-deploy never runs | Check `systemctl list-timers family-dashboard-deploy.timer` and re-run step 18.2 |
+| Auto-deploy ran but service is old | Check `/var/log/family-dashboard-deploy.log` for build or pull errors |

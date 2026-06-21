@@ -1,0 +1,12 @@
+[Unit]
+Description=Family Dashboard nightly deploy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/family-dashboard
+ExecStart=/home/pi/family-dashboard/scripts/deploy.sh
+StandardOutput=append:/var/log/family-dashboard-deploy.log
+StandardError=append:/var/log/family-dashboard-deploy.log

@@ -286,3 +286,14 @@ mocks the CalDAV `date_search` call. The mock returns a fixed list of synthetic 
 so mutations affecting the date-range query or icalendar key case are invisible to tests.
 icalendar key mutations are also equivalent (library is case-insensitive). The function
 requires a live CalDAV connection for full coverage; mocking is the practical limit.
+
+---
+
+## `scripts/deploy.sh`
+
+### Mutation testing not applicable
+
+`deploy.sh` is a bash shell script. The mutmut configuration targets Python modules only
+(`paths_to_mutate` in `pyproject.toml`). Behaviour is covered by the four subprocess-based
+tests in `tests/test_deploy.py` which stub git/npm/pip3/systemctl and assert correct
+invocation order and exit codes.
