@@ -46,6 +46,13 @@ async def poll_once(
             pass  # keep stale cache; logged at the source
 
 
+def _should_poll_calendar(now: datetime, last_poll: datetime | None) -> bool:
+    """Return True if the calendar interval has elapsed since last_poll (or never polled)."""
+    if last_poll is None:
+        return True
+    return (now - last_poll).total_seconds() >= settings.calendar_poll_interval_seconds
+
+
 async def poll_if_in_window(
     now: datetime,
     fetch_travel: Callable,
@@ -92,10 +99,20 @@ async def run_scheduler(
 
     _get_now = get_now or datetime.now
 
+    await poll_once(fetch_travel, fetch_weather, fetch_calendar)
+    last_calendar_poll: datetime = _get_now()
+
     while True:
         now = _get_now()
+        in_travel_window = is_within_poll_window(now)
+        calendar_due = in_travel_window and _should_poll_calendar(now, last_calendar_poll)
         try:
-            await poll_if_in_window(now, fetch_travel, fetch_weather, fetch_calendar)
+            await poll_if_in_window(
+                now, fetch_travel, fetch_weather,
+                fetch_calendar if calendar_due else None,
+            )
         except Exception:
             pass  # one bad cycle must not kill the scheduler task
+        if calendar_due:
+            last_calendar_poll = now
         await asyncio.sleep(settings.poll_interval_seconds)

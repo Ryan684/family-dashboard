@@ -76,3 +76,32 @@ Feature: Background polling scheduler
     Given the poll cycle raises an exception on the first call
     When the scheduler runs two cycles
     Then the scheduler completes both cycles without crashing
+
+  Scenario: All caches primed on startup regardless of poll window
+    Given the current time is outside the poll window
+    When the scheduler starts
+    Then travel, weather, and calendar are each fetched once immediately
+
+  Scenario: Calendar not re-polled until its interval has elapsed
+    Given the current time is within the poll window
+    And the calendar was fetched at startup
+    And the calendar poll interval has not elapsed
+    When the scheduler runs a poll cycle
+    Then the calendar fetch function is not called
+    And the travel and weather fetch functions are called
+
+  Scenario: Calendar re-fetched once its interval has elapsed
+    Given the current time is within the poll window
+    And the calendar poll interval has elapsed since the last fetch
+    When the scheduler runs a poll cycle
+    Then the calendar fetch function is called
+
+  Scenario: WEATHER_POLL_WINDOW_END is required in environment
+    Given WEATHER_POLL_WINDOW_END is absent from the environment
+    When settings are loaded
+    Then a configuration error is raised
+
+  Scenario: CALENDAR_POLL_INTERVAL_SECONDS is required in environment
+    Given CALENDAR_POLL_INTERVAL_SECONDS is absent from the environment
+    When settings are loaded
+    Then a configuration error is raised

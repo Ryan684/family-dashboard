@@ -297,3 +297,36 @@ requires a live CalDAV connection for full coverage; mocking is the practical li
 (`paths_to_mutate` in `pyproject.toml`). Behaviour is covered by the four subprocess-based
 tests in `tests/test_deploy.py` which stub git/npm/pip3/systemctl and assert correct
 invocation order and exit codes.
+
+---
+
+## `scheduler.py` — new mutants from startup-fetch / calendar-interval feature
+
+### `x_run_scheduler__mutmut_2`, `__mutmut_4`, `__mutmut_6` (survived)
+
+**What was mutated:** Default fetcher assignment (`fetch_X = fetch_X_data` → `fetch_X = None`).
+
+**Why acceptable:** Pre-existing pattern. Every test that calls `run_scheduler` passes
+explicit fetcher mocks, so the default-assignment branches are never exercised. The
+real fetchers are integration code (live HTTP calls) that cannot be unit-tested here.
+
+### `x_run_scheduler__mutmut_30`–`__mutmut_33` (timeout)
+
+**What was mutated:** Argument list to `poll_if_in_window` in the loop — arguments
+removed or reordered, causing `TypeError` inside the loop's `except Exception: pass`.
+
+**Why timeout not failure:** The `TestClient(app)` created at module level fires the
+FastAPI startup event, which starts `run_scheduler()` as a real background task. When the
+mutation causes the loop to fall into the `except` handler, it still reaches
+`asyncio.sleep(120)` — a real 120-second sleep in the background task — which exceeds
+mutmut's per-test timeout. The mutations are caught (the test would fail if given enough
+time), but the timeout is an infrastructure artefact, not a coverage gap.
+
+### `x_run_scheduler__mutmut_35` (survived)
+
+**What was mutated:** `asyncio.sleep(settings.poll_interval_seconds)` → `asyncio.sleep(None)`.
+
+**Why acceptable:** All `run_scheduler` tests patch `asyncio.sleep`, so the argument
+passed to the real sleep is never observed by any test. This is an infrastructure-loop
+sleep whose correctness is guaranteed by the config test that validates
+`poll_interval_seconds` is set.

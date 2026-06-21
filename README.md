@@ -47,11 +47,12 @@ Edit `.env` and fill in your values:
 | `APPLE_CALDAV_USERNAME` | Yes | Your Apple ID email address |
 | `APPLE_CALDAV_PASSWORD` | Yes | App-specific password from appleid.apple.com |
 | `APPLE_CALDAV_CALENDAR_NAME` | Yes | Name of the shared calendar (e.g. `Family`) |
-| `POLL_INTERVAL_SECONDS` | No | How often to refresh data (default: 120) |
+| `POLL_INTERVAL_SECONDS` | No | How often travel and weather tick (default: 120 s) |
 | `POLL_WINDOW_START/END` | No | Morning window for travel and calendar live data (default: 06:30–09:30) |
-| `WEATHER_POLL_WINDOW_END` | No | End of weather polling window; weather stays fresh until this time (default: 22:00) |
+| `WEATHER_POLL_WINDOW_END` | **Yes** | End of weather polling window — no default, must be set (e.g. `22:00`) |
+| `CALENDAR_POLL_INTERVAL_SECONDS` | **Yes** | Re-fetch calendar this often within the travel window — no default (e.g. `1800`) |
 
-Coordinates are decimal degrees (e.g. `51.5074`, `-0.1278`). Travel and calendar stop refreshing outside their poll window. Weather refreshes from `POLL_WINDOW_START` until `WEATHER_POLL_WINDOW_END` — Open-Meteo is free with no API key, so extending the weather window all day has no cost impact.
+Coordinates are decimal degrees (e.g. `51.5074`, `-0.1278`). Travel and calendar stop refreshing outside their poll window. Weather refreshes from `POLL_WINDOW_START` until `WEATHER_POLL_WINDOW_END` — Open-Meteo is free with no API key, so extending the weather window all day has no cost impact. All caches are primed immediately on startup so the dashboard is never empty after a service restart.
 
 ### 3. Configure the commute schedule
 
