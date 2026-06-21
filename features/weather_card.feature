@@ -57,6 +57,11 @@ Feature: Weather card frontend
     When the WeatherCard renders
     Then no rainfall line is visible
 
+  Scenario: Rainfall row is hidden when total_mm is zero
+    Given the API returns a location with daily_rainfall total_mm 0 and probability_percent 20
+    When the WeatherCard renders
+    Then no rainfall line is visible
+
   Scenario: Rainfall label uses "· X% chance" format
     Given the API returns a location with daily_rainfall probability_percent 60
     When the WeatherCard renders

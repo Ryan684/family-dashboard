@@ -168,6 +168,13 @@ describe('WeatherCard — rainfall', () => {
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
     expect(screen.queryByText(/Rain:/)).not.toBeInTheDocument()
   })
+
+  it('does not show a rainfall line when total_mm is 0', async () => {
+    mockFetchOk(makeApiResponse({ locations: [makeLocation({ daily_rainfall: { total_mm: 0, probability_percent: 20 } })] }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText(/Rain:/)).not.toBeInTheDocument()
+  })
 })
 
 describe('WeatherCard — rain windows', () => {
