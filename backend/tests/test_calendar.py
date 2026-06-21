@@ -474,10 +474,28 @@ def test_fetch_event_travel_returns_none_when_location_empty():
     assert result is None
 
 
+def test_fetch_event_travel_returns_none_when_location_empty_regardless_of_api():
+    # Mocking httpx ensures the guard fires (not just the exception fallback).
+    from routers.calendar import fetch_event_travel
+
+    with patch("httpx.post", return_value=_mock_routes_resp(travel_secs=1200)):
+        result = fetch_event_travel("", 51.5, -0.1, "real-key")
+    assert result is None
+
+
 def test_fetch_event_travel_returns_none_when_api_key_empty():
     from routers.calendar import fetch_event_travel
 
     result = fetch_event_travel("London W1", 51.5, -0.1, "")
+    assert result is None
+
+
+def test_fetch_event_travel_returns_none_when_api_key_empty_regardless_of_location():
+    # Mocking httpx ensures the guard fires (not just the exception fallback).
+    from routers.calendar import fetch_event_travel
+
+    with patch("httpx.post", return_value=_mock_routes_resp(travel_secs=1200)):
+        result = fetch_event_travel("London W1", 51.5, -0.1, "")
     assert result is None
 
 

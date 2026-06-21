@@ -47,11 +47,23 @@ Feature: Background polling scheduler
     Then the response contains the cached weather data
     And is_stale is false
 
-  Scenario: Weather endpoint stale flag outside poll window
+  Scenario: Weather endpoint stale flag outside weather poll window
     Given the weather cache contains conditions and forecast data
-    And the current time is outside the poll window
+    And the current time is outside the weather poll window
     When the dashboard calls GET /api/weather
     Then is_stale is true
+
+  Scenario: Weather continues to poll after the travel window closes
+    Given the current time is after the travel window end but before the weather window end
+    When the scheduler runs a poll cycle
+    Then the weather fetch function is called
+    But the travel and calendar fetch functions are not called
+
+  Scenario: Weather endpoint is not stale between travel window end and weather window end
+    Given the weather cache contains conditions and forecast data
+    And the current time is after the travel window end but before the weather window end
+    When the dashboard calls GET /api/weather
+    Then is_stale is false
 
   Scenario: One fetcher failing does not skip remaining fetchers
     Given the weather fetcher raises a timeout error

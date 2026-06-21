@@ -7,6 +7,36 @@ Any mutant not listed here must be killed by a test.
 
 ## `services/commute_schedule.py`
 
+### `x__validate_schedule__mutmut_2`, `__mutmut_4` (survived)
+
+**What was mutated:** Default value for missing `commuters` key changed from `[]` to `None`
+or removed. `for commuter in None:` would raise `TypeError`, but tests always supply valid
+schedules with a `commuters` list, so this path is never exercised.
+
+**Why acceptable:** The defensive `[]` default handles malformed input. All realistic callers
+provide valid schedules loaded from `commute-schedule.json`. Testing with a missing `commuters`
+key would test Python's iteration behaviour rather than business logic.
+
+### `x__validate_schedule__mutmut_9`, `__mutmut_11`, `__mutmut_14`, `__mutmut_15` (survived)
+
+**What was mutated:** Default value for missing commuter `name` changed (`"unknown"` → `None`,
+removed, `"XXunknownXX"`, or `"UNKNOWN"`).
+
+**Why acceptable:** `name` is used solely to format the `ValueError` message. Tests assert
+that `ValueError` is raised for invalid `departure_time` values, but no test checks the
+exact message content. Equivalent for the tested behaviour. Unkillable without asserting
+on the error message text.
+
+### `x__validate_schedule__mutmut_17`, `__mutmut_19` (survived)
+
+**What was mutated:** Default for missing `schedule` key changed from `{}` to `None` or
+removed. `None.items()` would raise `AttributeError`, but tests always supply commuters
+with a `schedule` dict.
+
+**Why acceptable:** Same reasoning as `x__validate_schedule__mutmut_2/4` — defensive default
+that guards against malformed JSON; not exercised in tests because all test schedules are
+well-formed.
+
 ### `x_resolve_commuter_day__mutmut_12` and `__mutmut_13`
 
 **What was mutated:** The key name `"nursery_drop"` in the fallback default dict
@@ -121,6 +151,25 @@ boundary to change the output). Mutant_19 is equivalent because when `now == dep
 case where `>=` and `>` differ), both paths select a datetime with the same value, producing an
 identical arrival string.
 
+### `x__parse_duration__mutmut_4` (survived)
+
+**What was mutated:** `rstrip("s")` changed to `rstrip("XXsXX")`.
+
+**Why acceptable:** `str.rstrip` removes any characters in its argument set. Both `"s"` and
+`"XXsXX"` include `'s'`, so `"1800s".rstrip("XXsXX")` still strips the trailing `'s'` to
+produce `"1800"`. Observable behaviour is identical. Equivalent mutant.
+
+### `x__normalize_google_response__mutmut_3`, `__mutmut_5` and default-value survivors (survived)
+
+**What was mutated:** `.get("routes", [])` default changed to `None` or removed; similarly
+`lengthInMeters` default (`0` → `None`) and various other `.get()` defaults inside the function.
+
+**Why acceptable:** `_normalize_google_response` is an internal adapter for the Google Maps
+HTTP response. All tests that exercise routing logic mock `fetch_routes` at the boundary,
+so this function is never called in tests. The default-value mutations are also equivalent
+for the non-empty-response path (all realistic API responses include the mutated keys).
+Same category as the existing `x_fetch_routes__mutmut_*` survivors.
+
 ### `x_fetch_travel_data__mutmut_*` (survived — orchestration glue)
 
 **What was mutated:** Various string literals, dict key accesses, and index/fallback
@@ -152,7 +201,42 @@ behaviour.
 parsing is tested but this specific mutation targets a key that appears in both the input
 and output dict, making it invisible to equality checks. Acceptable.
 
-### `x_fetch_weather__mutmut_*` and `x_fetch_weather_data__mutmut_*` (no tests)
+### `x_parse_daily_high__mutmut_3`, `__mutmut_5` (survived)
+
+**What was mutated:** The default value in `.get("temperature_2m_max", [])` changed from
+`[]` to `None` (mutmut_3) or removed entirely (mutmut_5).
+
+**Why acceptable:** Both `[]` and `None` are falsy. The guard `if temps else None` returns
+`None` in both cases when the key is absent. Equivalent mutant — unkillable without
+coupling tests to implementation details of the default argument.
+
+### `x_parse_daily_rainfall__mutmut_3`, `__mutmut_5`, `__mutmut_10`, `__mutmut_12` (survived)
+
+**What was mutated:** Default values in `.get("precipitation_sum", [])` and
+`.get("precipitation_probability_max", [])` changed to `None` or removed.
+
+**Why acceptable:** Same reasoning as `x_parse_daily_high__mutmut_3/5` — both `[]` and
+`None` are falsy, producing identical results via `if totals else None`.
+
+### `x_resolve_weather_locations__mutmut_17`, `__mutmut_18` (survived)
+
+**What was mutated:** The default value `"off"` in `.get(weekday, {"mode": "off"})` changed
+to `"XXoffXX"` (mutmut_17) or `"OFF"` (mutmut_18).
+
+**Why acceptable:** The code only checks `if mode == "office"`. Any non-"office" string —
+including `"off"`, `"wfh"`, `"XXoffXX"`, or `"OFF"` — falls to the else branch and returns
+the home location. The specific string value of the fallback mode does not affect observable
+behaviour. Equivalent mutant.
+
+### `x_resolve_weather_locations__mutmut_29` (survived)
+
+**What was mutated:** `i < len(work_coords)` changed to `i <= len(work_coords)`.
+
+**Why acceptable:** There are exactly 2 commuters (i=0 and i=1) and 2 work_coords (len=2).
+The difference between `<` and `<=` only manifests for i=2, which is never reached. Equivalent
+mutant with the current commuter count.
+
+### `x_fetch_weather__mutmut_*`, `x_fetch_weather_data__mutmut_*`, `x_fetch_location_name__mutmut_*` (no tests)
 
 **Why acceptable:** Same reasoning as `fetch_routes` — live HTTP wrappers, always mocked.
 
@@ -166,6 +250,42 @@ and output dict, making it invisible to equality checks. Acceptable.
 APScheduler. It is an infrastructure entry point with no return value — testing it
 would require running the scheduler in a thread with timing assertions. Covered by the
 `poll_if_in_window` and `poll_once` tests which exercise the core scheduling logic.
+
+---
+
+## `routers/calendar.py`
+
+### `x_fetch_event_travel__mutmut_20` through `__mutmut_107` (survived — orchestration/HTTP glue)
+
+**What was mutated:** String literals (API URL, field masks, dict key names), default
+values in `.get()` calls, and arithmetic inside `fetch_event_travel` and related helpers.
+
+**Why acceptable:** The mutations affect the HTTP request body construction and response
+parsing. All tests that exercise higher-level calendar behaviour mock `fetch_event_travel`
+at the boundary. Direct unit tests exist for the early-exit guards and successful HTTP
+responses (via mocked `httpx.post`), but internal string constants and key names are
+unkillable without a live Google Maps key.
+
+### `x_parse_event__mutmut_4`, `__mutmut_15`, `__mutmut_21`, `__mutmut_29` (survived)
+
+**What was mutated:** icalendar component key names (`"dtstart"` → `"DTSTART"`, etc.) and
+string-default values in `.get()` calls.
+
+**Why acceptable:** The icalendar library normalises property names to uppercase internally.
+`component.get("dtstart")` and `component.get("DTSTART")` both resolve correctly, making
+the mutation invisible. Default-value mutations (`None` vs `""`) for optional fields produce
+equivalent observable results because the same `if ...: ...` guard handles both falsy values.
+
+### `x__fetch_sync__mutmut_25`, `__mutmut_30`, `__mutmut_36`–`__mutmut_49`, `__mutmut_62`–`__mutmut_78` (survived)
+
+**What was mutated:** Date arithmetic, icalendar key lookups (`"location"` → `"LOCATION"`,
+etc.), and list-construction logic inside `_fetch_sync`.
+
+**Why acceptable:** `_fetch_sync` is exercised only via `_fetch_sync_with_mocks`, which
+mocks the CalDAV `date_search` call. The mock returns a fixed list of synthetic events,
+so mutations affecting the date-range query or icalendar key case are invisible to tests.
+icalendar key mutations are also equivalent (library is case-insensitive). The function
+requires a live CalDAV connection for full coverage; mocking is the practical limit.
 
 ---
 

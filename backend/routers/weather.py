@@ -221,7 +221,7 @@ async def fetch_weather(client: httpx.AsyncClient, lat: float, lon: float) -> di
 
 @router.get("")
 async def get_weather():
-    from scheduler import is_within_poll_window as _scheduler_in_window
+    from scheduler import is_within_weather_poll_window as _scheduler_in_window
 
     is_stale = not _scheduler_in_window(_get_now())
     if _cache is None:

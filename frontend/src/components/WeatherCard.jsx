@@ -175,7 +175,7 @@ function LocationBlock({ location }) {
           }}
         >
           <span>High: {daily_high_celsius}°C</span>
-          {daily_rainfall && (
+          {daily_rainfall && daily_rainfall.total_mm > 0 && (
             <span>
               Rain: {daily_rainfall.total_mm} mm · {daily_rainfall.probability_percent}% chance
             </span>
