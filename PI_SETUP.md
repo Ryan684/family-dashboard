@@ -330,7 +330,7 @@ Key flags explained:
 
 ## Part 15 — Set up the display schedule
 
-The screen turns on at 06:30 and off at 22:00 on weekdays, matching the `WEATHER_POLL_WINDOW_END` default. Travel and calendar data stop refreshing at 09:30 (`POLL_WINDOW_END`), but weather stays live until 22:00 — so the screen stays on as long as fresh data is being served.
+The screen turns on at 06:30 and off at 22:00 every day, matching the `WEATHER_POLL_WINDOW_END` default. Travel and calendar data stop refreshing at 09:30 (`POLL_WINDOW_END`), but weather stays live until 22:00 — so the screen stays on as long as fresh data is being served.
 
 If you change `WEATHER_POLL_WINDOW_END` in `.env`, update the off time in the cron entry below to match.
 
@@ -342,8 +342,8 @@ If prompted to choose an editor, select `nano`. Add these two lines at the botto
 
 ```cron
 # Family dashboard display schedule
-30 6  * * 1-5 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1
-0  22 * * 1-5 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
+30 6  * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1
+0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
 ```
 
 Save and exit. To test display control manually:
