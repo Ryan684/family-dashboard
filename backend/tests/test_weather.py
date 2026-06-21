@@ -447,6 +447,14 @@ def test_resolve_off_commuter_home_has_geocode_false():
     assert locs[0]["geocode"] is False
 
 
+def test_resolve_commuter_with_no_schedule_for_weekday_defaults_to_home():
+    # _TEST_SCHEDULE only covers Mon–Thu; Friday is absent from both commuters.
+    # The defensive default {"mode": "off"} must kick in and map both to home.
+    locs = resolve_weather_locations(_TEST_SCHEDULE, "friday", _MOCK_SETTINGS)
+    assert len(locs) == 1
+    assert locs[0]["name"] == "Home"
+
+
 # ---------------------------------------------------------------------------
 # Endpoint integration tests — new response shape
 # ---------------------------------------------------------------------------
