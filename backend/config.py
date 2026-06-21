@@ -12,6 +12,13 @@ def _parse_time(value: str, default: str) -> time:
     return time(int(hour), int(minute))
 
 
+def _require_env(name: str) -> str:
+    val = os.getenv(name)
+    if not val:
+        raise ValueError(f"{name} is required but not set in the environment")
+    return val
+
+
 class Settings:
     google_maps_api_key: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     here_api_key: str = os.getenv("HERE_API_KEY", "")
@@ -32,9 +39,8 @@ class Settings:
         os.getenv("POLL_WINDOW_START", ""), "06:30"
     )
     poll_window_end: time = _parse_time(os.getenv("POLL_WINDOW_END", ""), "09:30")
-    weather_poll_window_end: time = _parse_time(
-        os.getenv("WEATHER_POLL_WINDOW_END", ""), "22:00"
-    )
+    weather_poll_window_end: time = _parse_time(_require_env("WEATHER_POLL_WINDOW_END"), "")
+    calendar_poll_interval_seconds: int = int(_require_env("CALENDAR_POLL_INTERVAL_SECONDS"))
 
     apple_caldav_url: str = os.getenv("APPLE_CALDAV_URL", "https://caldav.icloud.com")
     apple_caldav_username: str = os.getenv("APPLE_CALDAV_USERNAME", "")

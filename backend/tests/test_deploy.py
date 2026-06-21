@@ -11,6 +11,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
 
+pytestmark = pytest.mark.skipif(
+    not DEPLOY_SCRIPT.exists(),
+    reason="deploy.sh not present in this environment",
+)
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

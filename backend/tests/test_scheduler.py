@@ -7,7 +7,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from scheduler import is_within_poll_window, is_within_weather_poll_window, poll_if_in_window, poll_once, run_scheduler
+from scheduler import (
+    _should_poll_calendar,
+    is_within_poll_window,
+    is_within_weather_poll_window,
+    poll_if_in_window,
+    poll_once,
+    run_scheduler,
+)
 
 client = TestClient(app)
 
@@ -364,3 +371,229 @@ async def test_run_scheduler_continues_after_failed_poll_cycle():
             pass
 
     assert call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _should_poll_calendar — pure interval check
+# ---------------------------------------------------------------------------
+
+
+def test_should_poll_calendar_true_when_never_polled():
+    assert _should_poll_calendar(datetime(2025, 1, 1, 7, 30), None) is True
+
+
+def test_should_poll_calendar_false_when_interval_not_elapsed():
+    from datetime import timedelta
+
+    now = datetime(2025, 1, 1, 7, 30)
+    last = now - timedelta(seconds=100)
+    assert _should_poll_calendar(now, last) is False
+
+
+def test_should_poll_calendar_true_when_interval_elapsed():
+    from datetime import timedelta
+
+    now = datetime(2025, 1, 1, 7, 30)
+    last = now - timedelta(seconds=1800)
+    assert _should_poll_calendar(now, last) is True
+
+
+def test_should_poll_calendar_true_at_exact_boundary():
+    from datetime import timedelta
+
+    now = datetime(2025, 1, 1, 7, 30)
+    last = now - timedelta(seconds=1800)
+    assert _should_poll_calendar(now, last) is True
+
+
+# ---------------------------------------------------------------------------
+# run_scheduler — startup fetch primes caches regardless of poll window
+# ---------------------------------------------------------------------------
+
+
+async def test_run_scheduler_primes_caches_on_startup():
+    import asyncio
+
+    mock_travel = AsyncMock(return_value={"commuters": []})
+    mock_weather = AsyncMock(return_value={"current": {}, "forecast": []})
+    mock_calendar = AsyncMock(return_value={"today": [], "tomorrow": []})
+
+    async def mock_sleep(_):
+        raise asyncio.CancelledError
+
+    outside = datetime(2025, 1, 1, 2, 0)  # outside all poll windows
+
+    with patch("asyncio.sleep", side_effect=mock_sleep):
+        try:
+            await run_scheduler(
+                get_now=lambda: outside,
+                fetch_travel=mock_travel,
+                fetch_weather=mock_weather,
+                fetch_calendar=mock_calendar,
+            )
+        except asyncio.CancelledError:
+            pass
+
+    mock_travel.assert_called_once()
+    mock_weather.assert_called_once()
+    mock_calendar.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# run_scheduler — calendar interval throttling
+# ---------------------------------------------------------------------------
+
+
+async def test_calendar_not_polled_when_interval_not_elapsed():
+    import asyncio
+
+    calendar_args = []
+
+    async def capturing_poll_if_in_window(now, ft, fw, fc):
+        calendar_args.append(fc)
+        raise asyncio.CancelledError
+
+    fixed = datetime(2025, 1, 1, 7, 30)  # in travel window; time never advances
+
+    with patch("scheduler.poll_if_in_window", side_effect=capturing_poll_if_in_window):
+        try:
+            await run_scheduler(
+                get_now=lambda: fixed,
+                fetch_travel=AsyncMock(return_value={"commuters": []}),
+                fetch_weather=AsyncMock(return_value={"current": {}, "forecast": []}),
+                fetch_calendar=AsyncMock(return_value={"today": [], "tomorrow": []}),
+            )
+        except asyncio.CancelledError:
+            pass
+
+    assert calendar_args[0] is None
+
+
+async def test_calendar_polled_when_interval_elapsed():
+    import asyncio
+    from datetime import timedelta
+
+    calendar_args = []
+
+    async def capturing_poll_if_in_window(now, ft, fw, fc):
+        calendar_args.append(fc)
+        raise asyncio.CancelledError
+
+    startup_time = datetime(2025, 1, 1, 7, 0)
+    loop_time = startup_time + timedelta(seconds=1800)
+    times = iter([startup_time, loop_time])
+
+    with patch("scheduler.poll_if_in_window", side_effect=capturing_poll_if_in_window):
+        try:
+            await run_scheduler(
+                get_now=lambda: next(times),
+                fetch_travel=AsyncMock(return_value={"commuters": []}),
+                fetch_weather=AsyncMock(return_value={"current": {}, "forecast": []}),
+                fetch_calendar=AsyncMock(return_value={"today": [], "tomorrow": []}),
+            )
+        except (asyncio.CancelledError, StopIteration):
+            pass
+
+    assert calendar_args[0] is not None
+
+
+# ---------------------------------------------------------------------------
+# config — required env vars
+# ---------------------------------------------------------------------------
+
+
+async def test_run_scheduler_loop_passes_correct_fetchers_to_poll():
+    """Loop must pass the real travel and weather fetchers; checks mutmut_26/27/28."""
+    import asyncio
+
+    mock_travel = AsyncMock(return_value={"commuters": []})
+    mock_weather = AsyncMock(return_value={"current": {}, "forecast": []})
+    mock_calendar = AsyncMock(return_value={"today": [], "tomorrow": []})
+
+    sleep_calls = 0
+
+    async def mock_sleep(_):
+        nonlocal sleep_calls
+        sleep_calls += 1
+        if sleep_calls >= 1:
+            raise asyncio.CancelledError
+
+    inside = datetime(2025, 1, 1, 7, 30)
+
+    with patch("asyncio.sleep", side_effect=mock_sleep):
+        try:
+            await run_scheduler(
+                get_now=lambda: inside,
+                fetch_travel=mock_travel,
+                fetch_weather=mock_weather,
+                fetch_calendar=mock_calendar,
+            )
+        except asyncio.CancelledError:
+            pass
+
+    import routers.travel as travel_mod
+    import routers.weather as weather_mod
+
+    # startup(1) + one loop cycle(1) = 2 calls each; mutations drop this to 1
+    assert mock_travel.call_count >= 2
+    assert mock_weather.call_count >= 2
+
+    travel_mod._cache = None
+    weather_mod._cache = None
+
+
+async def test_calendar_last_poll_timestamp_reset_after_poll():
+    """After a calendar poll, last_calendar_poll must be set to now; checks mutmut_34."""
+    import asyncio
+    from datetime import timedelta
+
+    cycle = 0
+    second_cycle_calendar_arg = []
+
+    async def capturing_poll_if_in_window(now, ft, fw, fc):
+        nonlocal cycle
+        cycle += 1
+        if cycle == 2:
+            second_cycle_calendar_arg.append(fc)
+            raise asyncio.CancelledError
+
+    startup_time = datetime(2025, 1, 1, 7, 0)
+    loop_time = startup_time + timedelta(seconds=1800)
+    times = iter([startup_time, loop_time, loop_time])
+
+    with patch("scheduler.poll_if_in_window", side_effect=capturing_poll_if_in_window), \
+         patch("asyncio.sleep", new_callable=AsyncMock):
+        try:
+            await run_scheduler(
+                get_now=lambda: next(times),
+                fetch_travel=AsyncMock(return_value={"commuters": []}),
+                fetch_weather=AsyncMock(return_value={"current": {}, "forecast": []}),
+                fetch_calendar=AsyncMock(return_value={"today": [], "tomorrow": []}),
+            )
+        except (asyncio.CancelledError, StopIteration):
+            pass
+
+    # Second cycle: calendar was just polled at 7:30, so interval not yet elapsed → None
+    assert second_cycle_calendar_arg[0] is None
+
+
+def test_require_env_raises_when_absent():
+    import os
+    from unittest.mock import patch as mpatch
+
+    from config import _require_env
+
+    with mpatch.dict(os.environ, {}, clear=False):
+        os.environ.pop("_TEST_MISSING_VAR_XYZ", None)
+        with pytest.raises(ValueError, match="_TEST_MISSING_VAR_XYZ"):
+            _require_env("_TEST_MISSING_VAR_XYZ")
+
+
+def test_require_env_returns_value_when_present():
+    import os
+    from unittest.mock import patch as mpatch
+
+    from config import _require_env
+
+    with mpatch.dict(os.environ, {"_TEST_PRESENT_VAR": "hello"}):
+        assert _require_env("_TEST_PRESENT_VAR") == "hello"
