@@ -13,15 +13,21 @@ def is_within_poll_window(now: datetime) -> bool:
     return settings.poll_window_start <= current <= settings.poll_window_end
 
 
+def is_within_weather_poll_window(now: datetime) -> bool:
+    """Return True if now.time() falls within [poll_window_start, weather_poll_window_end]."""
+    current = now.time()
+    return settings.poll_window_start <= current <= settings.weather_poll_window_end
+
+
 async def poll_once(
-    fetch_travel: Callable,
-    fetch_weather: Callable,
-    fetch_calendar: Callable,
+    fetch_travel: Callable | None,
+    fetch_weather: Callable | None,
+    fetch_calendar: Callable | None,
 ) -> None:
-    """Fetch fresh data from all sources and update router module caches.
+    """Fetch fresh data from active sources and update router module caches.
 
     Each fetcher is isolated — a failure in one does not prevent the others
-    from running or updating their caches.
+    from running or updating their caches. Pass None to skip a fetcher.
     """
     import routers.travel as travel_mod
     import routers.weather as weather_mod
@@ -32,6 +38,8 @@ async def poll_once(
         (fetch_weather, weather_mod, "_cache"),
         (fetch_calendar, calendar_mod, "_cache"),
     ):
+        if fetch is None:
+            continue
         try:
             setattr(mod, attr, await fetch())
         except Exception:
@@ -44,10 +52,21 @@ async def poll_if_in_window(
     fetch_weather: Callable,
     fetch_calendar: Callable,
 ) -> bool:
-    """Poll only if now is within the configured window. Returns True if polled."""
-    if not is_within_poll_window(now):
+    """Poll each source only within its own configured window.
+
+    Travel and calendar share the commute window; weather uses its own
+    (wider) window so temperature stays fresh throughout the day.
+    Returns True if any source was polled.
+    """
+    in_travel_window = is_within_poll_window(now)
+    in_weather_window = is_within_weather_poll_window(now)
+    if not in_travel_window and not in_weather_window:
         return False
-    await poll_once(fetch_travel, fetch_weather, fetch_calendar)
+    await poll_once(
+        fetch_travel if in_travel_window else None,
+        fetch_weather if in_weather_window else None,
+        fetch_calendar if in_travel_window else None,
+    )
     return True
 
 

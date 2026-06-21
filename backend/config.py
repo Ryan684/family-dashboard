@@ -32,6 +32,9 @@ class Settings:
         os.getenv("POLL_WINDOW_START", ""), "06:30"
     )
     poll_window_end: time = _parse_time(os.getenv("POLL_WINDOW_END", ""), "09:30")
+    weather_poll_window_end: time = _parse_time(
+        os.getenv("WEATHER_POLL_WINDOW_END", ""), "22:00"
+    )
 
     apple_caldav_url: str = os.getenv("APPLE_CALDAV_URL", "https://caldav.icloud.com")
     apple_caldav_username: str = os.getenv("APPLE_CALDAV_USERNAME", "")

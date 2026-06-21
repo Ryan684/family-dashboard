@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from scheduler import is_within_poll_window, poll_if_in_window, poll_once, run_scheduler
+from scheduler import is_within_poll_window, is_within_weather_poll_window, poll_if_in_window, poll_once, run_scheduler
 
 client = TestClient(app)
 
@@ -43,6 +43,41 @@ def test_is_within_poll_window_true_at_end_boundary():
 
 
 # ---------------------------------------------------------------------------
+# is_within_weather_poll_window (start shared with travel; end defaults 22:00)
+# ---------------------------------------------------------------------------
+
+
+def test_is_within_weather_poll_window_returns_true_inside():
+    now = datetime(2025, 1, 1, 14, 0)
+    assert is_within_weather_poll_window(now) is True
+
+
+def test_is_within_weather_poll_window_returns_false_before_window():
+    now = datetime(2025, 1, 1, 5, 0)
+    assert is_within_weather_poll_window(now) is False
+
+
+def test_is_within_weather_poll_window_returns_false_after_window():
+    now = datetime(2025, 1, 1, 23, 0)
+    assert is_within_weather_poll_window(now) is False
+
+
+def test_is_within_weather_poll_window_true_at_start_boundary():
+    now = datetime(2025, 1, 1, 6, 30)
+    assert is_within_weather_poll_window(now) is True
+
+
+def test_is_within_weather_poll_window_true_at_end_boundary():
+    now = datetime(2025, 1, 1, 22, 0)
+    assert is_within_weather_poll_window(now) is True
+
+
+def test_is_within_weather_poll_window_true_after_travel_window_end():
+    now = datetime(2025, 1, 1, 10, 0)
+    assert is_within_weather_poll_window(now) is True
+
+
+# ---------------------------------------------------------------------------
 # poll_if_in_window — window enforcement
 # ---------------------------------------------------------------------------
 
@@ -74,6 +109,20 @@ async def test_api_calls_made_inside_poll_window():
     mock_travel.assert_called_once()
     mock_weather.assert_called_once()
     mock_calendar.assert_called_once()
+    assert result is True
+
+
+async def test_weather_polled_after_travel_window_closes():
+    mock_travel = AsyncMock()
+    mock_weather = AsyncMock(return_value={"locations": []})
+    mock_calendar = AsyncMock()
+    after_travel = datetime(2025, 1, 1, 10, 0)  # after 09:30 travel end, before 22:00 weather end
+
+    result = await poll_if_in_window(after_travel, mock_travel, mock_weather, mock_calendar)
+
+    mock_travel.assert_not_called()
+    mock_weather.assert_called_once()
+    mock_calendar.assert_not_called()
     assert result is True
 
 
@@ -209,8 +258,8 @@ def test_weather_endpoint_serves_cached_data(mock_now):
     weather_mod._cache = None  # cleanup
 
 
-@patch("scheduler.is_within_poll_window", return_value=False)
-def test_weather_endpoint_stale_flag_outside_poll_window(_mock_window):
+@patch("scheduler.is_within_weather_poll_window", return_value=False)
+def test_weather_endpoint_stale_flag_outside_weather_poll_window(_mock_window):
     import routers.weather as weather_mod
 
     weather_mod._cache = {"current": {}, "forecast": []}
@@ -221,7 +270,20 @@ def test_weather_endpoint_stale_flag_outside_poll_window(_mock_window):
     weather_mod._cache = None  # cleanup
 
 
-@patch("scheduler.is_within_poll_window", return_value=False)
+@patch("routers.weather._get_now")
+def test_weather_endpoint_not_stale_between_travel_and_weather_windows(mock_now):
+    import routers.weather as weather_mod
+
+    weather_mod._cache = {"current": {}, "forecast": []}
+    mock_now.return_value = datetime(2025, 1, 1, 14, 0)
+
+    resp = client.get("/api/weather")
+
+    assert resp.json()["is_stale"] is False
+    weather_mod._cache = None  # cleanup
+
+
+@patch("scheduler.is_within_weather_poll_window", return_value=False)
 def test_weather_endpoint_returns_empty_defaults_when_no_cache(_mock_window):
     import routers.weather as weather_mod
 
