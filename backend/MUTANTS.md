@@ -166,3 +166,14 @@ and output dict, making it invisible to equality checks. Acceptable.
 APScheduler. It is an infrastructure entry point with no return value — testing it
 would require running the scheduler in a thread with timing assertions. Covered by the
 `poll_if_in_window` and `poll_once` tests which exercise the core scheduling logic.
+
+---
+
+## `scripts/deploy.sh`
+
+### Mutation testing not applicable
+
+`deploy.sh` is a bash shell script. The mutmut configuration targets Python modules only
+(`paths_to_mutate` in `pyproject.toml`). Behaviour is covered by the four subprocess-based
+tests in `tests/test_deploy.py` which stub git/npm/pip3/systemctl and assert correct
+invocation order and exit codes.
