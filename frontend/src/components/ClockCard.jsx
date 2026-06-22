@@ -88,7 +88,7 @@ function ClockCard() {
           }}
           aria-hidden="true"
         >
-          {week} · Good morning
+          {week}
         </div>
       </div>
     </div>
