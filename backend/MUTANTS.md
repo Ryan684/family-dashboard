@@ -310,7 +310,7 @@ invocation order and exit codes.
 explicit fetcher mocks, so the default-assignment branches are never exercised. The
 real fetchers are integration code (live HTTP calls) that cannot be unit-tested here.
 
-### `x_run_scheduler__mutmut_30`–`__mutmut_33` (timeout)
+### `x_run_scheduler__mutmut_27`–`__mutmut_30` (timeout)
 
 **What was mutated:** Argument list to `poll_if_in_window` in the loop — arguments
 removed or reordered, causing `TypeError` inside the loop's `except Exception: pass`.
@@ -322,7 +322,10 @@ mutation causes the loop to fall into the `except` handler, it still reaches
 mutmut's per-test timeout. The mutations are caught (the test would fail if given enough
 time), but the timeout is an infrastructure artefact, not a coverage gap.
 
-### `x_run_scheduler__mutmut_35` (survived)
+(Renumbered from `__mutmut_30`–`__mutmut_33` after removing the `in_travel_window` line
+from the loop in the calendar-all-day refactor.)
+
+### `x_run_scheduler__mutmut_32` (survived)
 
 **What was mutated:** `asyncio.sleep(settings.poll_interval_seconds)` → `asyncio.sleep(None)`.
 
@@ -330,3 +333,5 @@ time), but the timeout is an infrastructure artefact, not a coverage gap.
 passed to the real sleep is never observed by any test. This is an infrastructure-loop
 sleep whose correctness is guaranteed by the config test that validates
 `poll_interval_seconds` is set.
+
+(Renumbered from `__mutmut_35` after removing the `in_travel_window` line.)

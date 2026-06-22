@@ -67,12 +67,12 @@ async def poll_if_in_window(
     """
     in_travel_window = is_within_poll_window(now)
     in_weather_window = is_within_weather_poll_window(now)
-    if not in_travel_window and not in_weather_window:
+    if not in_travel_window and not in_weather_window and fetch_calendar is None:
         return False
     await poll_once(
         fetch_travel if in_travel_window else None,
         fetch_weather if in_weather_window else None,
-        fetch_calendar if in_travel_window else None,
+        fetch_calendar,
     )
     return True
 
@@ -104,8 +104,7 @@ async def run_scheduler(
 
     while True:
         now = _get_now()
-        in_travel_window = is_within_poll_window(now)
-        calendar_due = in_travel_window and _should_poll_calendar(now, last_calendar_poll)
+        calendar_due = _should_poll_calendar(now, last_calendar_poll)
         try:
             await poll_if_in_window(
                 now, fetch_travel, fetch_weather,

@@ -1,11 +1,13 @@
 Feature: Background polling scheduler
-  The scheduler polls travel, weather, and calendar APIs on a configurable
-  interval within the morning window and caches the results. Routes serve
-  fast local data from the cache; the stale flag indicates when live
-  polling is inactive.
+  The scheduler polls travel and weather APIs within their configured windows
+  and caches the results. Calendar is polled on its own interval throughout
+  the day regardless of the travel window, and all caches are primed on
+  startup. Routes serve fast local data from the cache; the stale flag
+  indicates when live polling is inactive.
 
-  Scenario: No API calls made outside the poll window
+  Scenario: No travel or weather calls outside the poll window when no calendar is due
     Given the current time is outside the poll window
+    And the calendar poll interval has not elapsed
     When the scheduler runs a poll cycle
     Then no travel, weather, or calendar API calls are made
 
@@ -57,7 +59,14 @@ Feature: Background polling scheduler
     Given the current time is after the travel window end but before the weather window end
     When the scheduler runs a poll cycle
     Then the weather fetch function is called
-    But the travel and calendar fetch functions are not called
+    But the travel fetch function is not called
+
+  Scenario: Calendar polled outside the travel window when its interval has elapsed
+    Given the current time is outside the travel window
+    And the calendar poll interval has elapsed
+    When the scheduler runs a poll cycle
+    Then the calendar fetch function is called
+    And the travel fetch function is not called
 
   Scenario: Weather endpoint is not stale between travel window end and weather window end
     Given the weather cache contains conditions and forecast data
@@ -83,16 +92,13 @@ Feature: Background polling scheduler
     Then travel, weather, and calendar are each fetched once immediately
 
   Scenario: Calendar not re-polled until its interval has elapsed
-    Given the current time is within the poll window
-    And the calendar was fetched at startup
+    Given the calendar was fetched at startup
     And the calendar poll interval has not elapsed
     When the scheduler runs a poll cycle
     Then the calendar fetch function is not called
-    And the travel and weather fetch functions are called
 
   Scenario: Calendar re-fetched once its interval has elapsed
-    Given the current time is within the poll window
-    And the calendar poll interval has elapsed since the last fetch
+    Given the calendar poll interval has elapsed since the last fetch
     When the scheduler runs a poll cycle
     Then the calendar fetch function is called
 

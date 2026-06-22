@@ -92,14 +92,12 @@ def test_is_within_weather_poll_window_true_after_travel_window_end():
 async def test_no_api_calls_outside_poll_window():
     mock_travel = AsyncMock()
     mock_weather = AsyncMock()
-    mock_calendar = AsyncMock()
     outside = datetime(2025, 1, 1, 2, 0)
 
-    result = await poll_if_in_window(outside, mock_travel, mock_weather, mock_calendar)
+    result = await poll_if_in_window(outside, mock_travel, mock_weather, None)
 
     mock_travel.assert_not_called()
     mock_weather.assert_not_called()
-    mock_calendar.assert_not_called()
     assert result is False
 
 
@@ -122,14 +120,25 @@ async def test_api_calls_made_inside_poll_window():
 async def test_weather_polled_after_travel_window_closes():
     mock_travel = AsyncMock()
     mock_weather = AsyncMock(return_value={"locations": []})
-    mock_calendar = AsyncMock()
     after_travel = datetime(2025, 1, 1, 10, 0)  # after 09:30 travel end, before 22:00 weather end
+
+    result = await poll_if_in_window(after_travel, mock_travel, mock_weather, None)
+
+    mock_travel.assert_not_called()
+    mock_weather.assert_called_once()
+    assert result is True
+
+
+async def test_calendar_polled_outside_travel_window():
+    mock_travel = AsyncMock()
+    mock_weather = AsyncMock(return_value={"locations": []})
+    mock_calendar = AsyncMock(return_value={"today": [], "tomorrow": []})
+    after_travel = datetime(2025, 1, 1, 10, 0)  # outside travel window (09:30), inside weather window
 
     result = await poll_if_in_window(after_travel, mock_travel, mock_weather, mock_calendar)
 
     mock_travel.assert_not_called()
-    mock_weather.assert_called_once()
-    mock_calendar.assert_not_called()
+    mock_calendar.assert_called_once()
     assert result is True
 
 
