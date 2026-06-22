@@ -67,6 +67,14 @@ describe('App — travel section grid reflow', () => {
     )
   })
 
+  it('hides the travel section when is_stale is true even with commuters', async () => {
+    mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: true })
+    render(<App />)
+    await waitFor(() =>
+      expect(screen.queryByTestId('travel-section')).not.toBeInTheDocument()
+    )
+  })
+
   it('shows the travel section while loading (before fetch resolves)', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {}))) // never resolves
     render(<App />)
@@ -94,14 +102,6 @@ describe('App — travel section grid reflow', () => {
 })
 
 describe('App — stale indicator', () => {
-  it('passes isStale=true to TravelCard when API returns is_stale: true', async () => {
-    mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: true })
-    render(<App />)
-    await waitFor(() =>
-      expect(screen.getByTestId('stale-warning')).toBeInTheDocument()
-    )
-  })
-
   it('does not show stale warning when is_stale is false', async () => {
     mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: false })
     render(<App />)

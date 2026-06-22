@@ -78,7 +78,7 @@ function App() {
   const commuters = travelData?.commuters ?? []
   const isStale = travelData?.is_stale ?? false
   const commuterCount = commuters.length
-  const showTravel = travelLoading || travelError || commuterCount > 0
+  const showTravel = travelLoading || travelError || (!isStale && commuterCount > 0)
 
   const gridCols = showTravel ? '1.6fr 1px 1fr 1px 1.1fr' : '1fr 1px 1fr'
 
