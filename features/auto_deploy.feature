@@ -36,3 +36,14 @@ Feature: Nightly auto-deploy on Raspberry Pi
     When the deploy script runs
     Then systemctl restart is not called
     And the script exits with a non-zero code
+
+  Scenario: Chromium is restarted after a successful deploy
+    Given the local HEAD SHA differs from origin/main
+    When the deploy script runs
+    Then pkill is called to stop Chromium
+    And Chromium is relaunched in the background
+
+  Scenario: Chromium is not restarted when already up to date
+    Given the local HEAD SHA matches origin/main
+    When the deploy script runs
+    Then pkill is not called
