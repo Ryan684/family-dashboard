@@ -188,7 +188,7 @@ function IncidentList({ incidents }) {
 }
 
 function CommuterColumn({ commuter }) {
-  const { name, mode, drops, routes, incidents, eta } = commuter
+  const { name, mode, drops, routes, incidents, eta, departure_time } = commuter
   const destination = mode === 'office' ? 'Work' : 'Home'
   const [primary, alt] = routes
 
@@ -235,6 +235,22 @@ function CommuterColumn({ commuter }) {
           }}
         >
           ETA {eta}
+        </div>
+      )}
+
+      {departure_time && (
+        <div
+          data-testid="commuter-departure"
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 20,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.06em',
+            color: 'var(--ink-faint)',
+            fontWeight: 500,
+          }}
+        >
+          Dep {departure_time}
         </div>
       )}
 

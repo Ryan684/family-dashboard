@@ -345,6 +345,34 @@ describe('TravelCard — stale indicator', () => {
   })
 })
 
+// ── Departure time display ───────────────────────────────────────────────────
+
+describe('TravelCard — departure time display', () => {
+  it('shows departure time when departure_time is provided', () => {
+    const commuter = makeCommuter({ departure_time: '07:30', eta: '08:15' })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.getByText('Dep 07:30')).toBeInTheDocument()
+  })
+
+  it('shows ETA alongside departure time', () => {
+    const commuter = makeCommuter({ departure_time: '07:30', eta: '08:15' })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.getByText('ETA 08:15')).toBeInTheDocument()
+  })
+
+  it('does not render a departure time element when departure_time is absent', () => {
+    const commuter = makeCommuter()
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.queryByTestId('commuter-departure')).not.toBeInTheDocument()
+  })
+
+  it('does not render a departure time element when departure_time is null', () => {
+    const commuter = makeCommuter({ departure_time: null })
+    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    expect(screen.queryByTestId('commuter-departure')).not.toBeInTheDocument()
+  })
+})
+
 // ── ETA display ─────────────────────────────────────────────────────────────
 
 describe('TravelCard — ETA display', () => {

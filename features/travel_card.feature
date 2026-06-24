@@ -62,3 +62,19 @@ Feature: Travel card frontend
     Given a route with an encoded polyline
     When the TravelCard renders
     Then no route map container is rendered
+
+  Scenario: Departure time shown below ETA when configured
+    Given a commuter with departure_time "07:30" and eta "08:15"
+    When the TravelCard renders
+    Then "Dep 07:30" is visible
+    And "ETA 08:15" is visible
+
+  Scenario: Departure time not shown when absent
+    Given a commuter with no departure_time
+    When the TravelCard renders
+    Then no departure time element is rendered
+
+  Scenario: Departure time not shown when null
+    Given a commuter with departure_time null
+    When the TravelCard renders
+    Then no departure time element is rendered
