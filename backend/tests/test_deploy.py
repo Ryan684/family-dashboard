@@ -134,6 +134,9 @@ def test_full_deploy_when_sha_differs(tmp_path):
     pip_log = _stub(b, "pip3")
     _stub(b, "pip")
     systemctl_log = _stub(b, "systemctl")
+    _stub(b, "pkill")
+    _stub(b, "setsid")
+    _stub(b, "sleep")
 
     result = _run_deploy(tmp_path, b)
 
@@ -184,3 +187,49 @@ def test_abort_on_npm_build_failure(tmp_path):
     assert result.returncode != 0
     assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
     assert _calls(systemctl_log) == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario: Chromium restarted after successful deploy
+# ---------------------------------------------------------------------------
+
+
+def test_chromium_restarted_after_deploy(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip3")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+    _stub(b, "sleep")
+    pkill_log = _stub(b, "pkill")
+    setsid_log = _stub(b, "setsid")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert any("chromium" in c for c in _calls(pkill_log)), _calls(pkill_log)
+    assert any("chromium" in c for c in _calls(setsid_log)), _calls(setsid_log)
+
+
+# ---------------------------------------------------------------------------
+# Scenario: Chromium not restarted when already up to date
+# ---------------------------------------------------------------------------
+
+
+def test_chromium_not_restarted_when_up_to_date(tmp_path):
+    b = _make_bin(tmp_path)
+    same = "abc123"
+    _git_stub(b, local_sha=same, remote_sha=same)
+    _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "pip3")
+    _stub(b, "systemctl")
+    _stub(b, "sleep")
+    pkill_log = _stub(b, "pkill")
+    _stub(b, "setsid")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert _calls(pkill_log) == []

@@ -30,4 +30,8 @@ pip3 install -e backend/
 
 sudo systemctl restart family-dashboard
 
+pkill -f chromium || true
+sleep 5
+setsid bash -c 'XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic http://localhost:8000 >/dev/null 2>&1' &
+
 echo "Deploy complete."

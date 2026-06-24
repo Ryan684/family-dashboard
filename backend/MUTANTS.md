@@ -335,3 +335,16 @@ sleep whose correctness is guaranteed by the config test that validates
 `poll_interval_seconds` is set.
 
 (Renumbered from `__mutmut_35` after removing the `in_travel_window` line.)
+
+
+---
+
+## `scripts/deploy.sh` — mutation testing not applicable
+
+**Tool:** mutmut operates on Python source files only. `scripts/deploy.sh` is a bash script
+and cannot be mutated by mutmut.
+
+**Coverage assurance:** The integration tests in `tests/test_deploy.py` exercise all
+decision branches in the script (SHA match / mismatch, pull failure, build failure, Chromium
+restart) using real subprocess execution with stubbed commands, giving effective line and
+branch coverage without a Python-level mutation harness.
