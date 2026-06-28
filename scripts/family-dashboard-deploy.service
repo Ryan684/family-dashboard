@@ -6,8 +6,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=pi
-WorkingDirectory=/home/pi/family-dashboard
-ExecStart=/home/pi/family-dashboard/scripts/deploy.sh
+WorkingDirectory=/home/pi/projects/family-dashboard
+ExecStart=/home/pi/projects/family-dashboard/scripts/deploy.sh
 StandardOutput=append:/var/log/family-dashboard-deploy.log
 StandardError=append:/var/log/family-dashboard-deploy.log
 KillMode=process
