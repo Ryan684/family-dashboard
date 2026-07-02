@@ -78,3 +78,13 @@ Feature: Travel card frontend
     Given a commuter with departure_time null
     When the TravelCard renders
     Then no departure time element is rendered
+
+  Scenario: Delay minutes shown alongside the status label when delayed
+    Given a route with delay_colour "amber" and delay_seconds 480
+    When the TravelCard renders
+    Then "+8 min · Slow" is visible on the route card
+
+  Scenario: No delay minutes prefix shown when delay_seconds is zero
+    Given a route with delay_colour "green" and delay_seconds 0
+    When the TravelCard renders
+    Then only "On time" is visible, with no "+" prefix

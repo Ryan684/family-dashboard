@@ -43,9 +43,7 @@ function formatTimeDisplay(seconds) {
 function RouteRow({ route, primary = false }) {
   if (!route) return null
   const meta = DELAY_META[route.delay_colour] || DELAY_META.green
-  const delaySec =
-    route.travel_time_seconds - (route.static_duration_seconds ?? route.travel_time_seconds)
-  const delayMin = Math.round(delaySec / 60)
+  const delayMin = Math.round((route.delay_seconds ?? 0) / 60)
   const { bigNum, unit } = formatTimeDisplay(route.travel_time_seconds)
   const timeStr = formatTimeString(route.travel_time_seconds)
   const isRed = route.delay_colour === 'red'
