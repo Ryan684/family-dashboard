@@ -89,6 +89,38 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
   )
 }
 
+function StaleTag() {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        fontFamily: 'var(--f-mono)',
+        fontSize: 14,
+        letterSpacing: '0.2em',
+        textTransform: 'uppercase',
+        color: 'var(--ink-faint)',
+        fontWeight: 500,
+      }}
+      data-testid="stale-warning"
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: 'var(--ink-faint)',
+          flexShrink: 0,
+        }}
+        aria-hidden="true"
+      />
+      Cached · outside window
+    </div>
+  )
+}
+
 function hourNum(h) {
   const mod = h % 12
   return mod === 0 ? 12 : mod
@@ -304,17 +336,20 @@ function WeatherCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <div
-        style={{
-          fontFamily: 'var(--f-mono)',
-          fontSize: 18,
-          letterSpacing: '0.22em',
-          textTransform: 'uppercase',
-          color: 'var(--ink-dim)',
-          fontWeight: 500,
-        }}
-      >
-        Weather
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 18,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--ink-dim)',
+            fontWeight: 500,
+          }}
+        >
+          Weather
+        </div>
+        {data.is_stale && <StaleTag />}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {locations.map((loc, i) => (

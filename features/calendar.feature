@@ -57,3 +57,14 @@ Feature: Calendar backend
     When the dashboard calls GET /api/calendar
     Then the event in "today" has "travel" set to null
     And the event is still present in the response
+
+  Scenario: Calendar response is not stale once cached, regardless of the travel poll window
+    Given the calendar cache contains events
+    And the current time is outside the configured travel poll window
+    When the dashboard calls GET /api/calendar
+    Then the response field is_stale is false
+
+  Scenario: Calendar response is stale before the first successful poll
+    Given the calendar cache is empty
+    When the dashboard calls GET /api/calendar
+    Then the response field is_stale is true

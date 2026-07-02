@@ -140,8 +140,8 @@ function IncidentList({ incidents }) {
   return (
     <div
       style={{
-        marginTop: 10,
-        padding: '16px 20px',
+        marginTop: 8,
+        padding: '8px 16px',
         background: 'var(--alert-tint)',
         borderLeft: '2px solid var(--alert)',
         display: 'flex',
@@ -194,7 +194,7 @@ function CommuterColumn({ commuter }) {
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', gap: 22 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
       data-testid="travel-card"
       data-commuter={name}
     >

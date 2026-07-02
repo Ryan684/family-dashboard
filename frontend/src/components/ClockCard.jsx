@@ -37,13 +37,13 @@ function ClockCard() {
   const week = `Week ${String(isoWeek(now)).padStart(2, '0')}`
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* giant serif time — single text node so getByText('HH:MM') works */}
       <div
         style={{
           fontFamily: 'var(--f-display)',
           fontWeight: 400,
-          fontSize: 192,
+          fontSize: 136,
           lineHeight: 0.86,
           letterSpacing: '-0.04em',
           color: 'var(--ink)',
@@ -65,7 +65,7 @@ function ClockCard() {
         <div
           style={{
             fontFamily: 'var(--f-display)',
-            fontSize: 52,
+            fontSize: 44,
             lineHeight: 1,
           }}
           aria-hidden="true"

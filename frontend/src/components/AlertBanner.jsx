@@ -33,7 +33,7 @@ function AlertBanner({ travelData }) {
         display: 'flex',
         alignItems: 'center',
         gap: 32,
-        padding: '18px 0',
+        padding: '10px 0',
         borderTop: '1px solid var(--alert)',
         borderBottom: '1px solid var(--alert)',
         background: 'var(--alert-tint)',
@@ -59,7 +59,7 @@ function AlertBanner({ travelData }) {
         style={{
           fontFamily: 'var(--f-display)',
           fontStyle: 'italic',
-          fontSize: 32,
+          fontSize: 26,
           color: 'var(--ink)',
           flex: 1,
           lineHeight: 1.1,

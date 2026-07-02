@@ -90,6 +90,21 @@ describe('WeatherCard — empty locations', () => {
   })
 })
 
+describe('WeatherCard — stale indicator', () => {
+  it('shows stale data warning when is_stale is true', async () => {
+    mockFetchOk(makeApiResponse({ is_stale: true }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByTestId('stale-warning')).toBeInTheDocument())
+  })
+
+  it('does not show stale data warning when is_stale is false', async () => {
+    mockFetchOk(makeApiResponse({ is_stale: false }))
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByTestId('stale-warning')).not.toBeInTheDocument()
+  })
+})
+
 describe('WeatherCard — location block', () => {
   it('displays the location name', async () => {
     mockFetchOk(makeApiResponse())

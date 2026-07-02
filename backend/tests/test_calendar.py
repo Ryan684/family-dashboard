@@ -651,7 +651,9 @@ def test_endpoint_empty_cache_returns_empty_lists():
         cal_mod._cache = original
 
 
-def test_endpoint_outside_window_is_stale_true():
+def test_endpoint_cached_data_not_stale_outside_travel_window():
+    # Calendar is polled on its own interval throughout the day, independent
+    # of the travel window — cached data must not be marked stale because of it.
     import routers.calendar as cal_mod
 
     original = cal_mod._cache
@@ -659,20 +661,20 @@ def test_endpoint_outside_window_is_stale_true():
     try:
         with patch("scheduler.is_within_poll_window", return_value=False):
             resp = client.get("/api/calendar")
-        assert resp.json()["is_stale"] is True
+        assert resp.json()["is_stale"] is False
     finally:
         cal_mod._cache = original
 
 
-def test_endpoint_inside_window_is_stale_false():
+def test_endpoint_empty_cache_is_stale_true():
     import routers.calendar as cal_mod
 
     original = cal_mod._cache
-    cal_mod._cache = {"today": [], "tomorrow": []}
+    cal_mod._cache = None
     try:
         with patch("scheduler.is_within_poll_window", return_value=True):
             resp = client.get("/api/calendar")
-        assert resp.json()["is_stale"] is False
+        assert resp.json()["is_stale"] is True
     finally:
         cal_mod._cache = original
 

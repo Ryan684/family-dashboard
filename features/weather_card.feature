@@ -86,3 +86,13 @@ Feature: Weather card frontend
     Given the API returns a location without a rain_windows field
     When the WeatherCard renders
     Then no rain window row is visible
+
+  Scenario: Stale data indicator shown when is_stale is true
+    Given the API response has is_stale true
+    When the WeatherCard renders
+    Then a stale data warning is visible
+
+  Scenario: Stale data indicator hidden when is_stale is false
+    Given the API response has is_stale false
+    When the WeatherCard renders
+    Then no stale data warning is visible
