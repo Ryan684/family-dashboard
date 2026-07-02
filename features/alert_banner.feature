@@ -34,3 +34,9 @@ Feature: Morning alert banner
     And a home-to-nursery route has delay_colour "red"
     When the alert banner is rendered
     Then the alert banner is visible
+
+  Scenario: Banner not shown when travel data is stale
+    Given a home-to-work route has delay_colour "red"
+    And the travel data is marked stale because the poll window has ended
+    When the alert banner is rendered
+    Then the alert banner is not visible

@@ -1,5 +1,5 @@
 function hasRedRoute(travelData) {
-  if (!travelData) return false
+  if (!travelData || travelData.is_stale) return false
   const commuters = travelData.commuters || []
   return commuters.some((c) => (c.routes || []).some((r) => r.delay_colour === 'red'))
 }

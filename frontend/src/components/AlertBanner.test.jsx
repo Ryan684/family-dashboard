@@ -65,6 +65,12 @@ describe('AlertBanner — visibility', () => {
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
+
+  it('does not render the banner when travel data is stale', () => {
+    const data = { ...makeTravelData([makeCommuter(['red'])]), is_stale: true }
+    render(<AlertBanner travelData={data} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
 
 describe('AlertBanner — message content', () => {
