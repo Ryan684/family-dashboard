@@ -18,6 +18,7 @@ from routers.travel import (
     _parse_duration,
     calculate_bounding_box,
     classify_delay,
+    compute_departure_margin,
     compute_eta,
     expand_bounding_box,
     extract_road_names,
@@ -1176,3 +1177,66 @@ def test_compute_eta_uses_now_seconds_when_elapsed():
     result = compute_eta("07:00", 600, now)
     # now + 600s = 07:55:30 → rounds to 07:55 on strftime
     assert result == "07:55"
+
+
+# ---------------------------------------------------------------------------
+# compute_departure_margin
+# ---------------------------------------------------------------------------
+
+
+def test_compute_departure_margin_positive_when_spare_time_remains():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    result = compute_departure_margin("07:30", "09:00", 1800, now)
+    assert result["latest_departure"] == "08:30"
+    assert result["margin_minutes"] == 60
+
+
+def test_compute_departure_margin_zero_at_the_latest_safe_moment():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    result = compute_departure_margin("07:30", "08:00", 1800, now)
+    assert result["latest_departure"] == "07:30"
+    assert result["margin_minutes"] == 0
+
+
+def test_compute_departure_margin_negative_once_departure_has_elapsed():
+    now = datetime(2026, 5, 2, 7, 45, 0)
+    result = compute_departure_margin("07:30", "08:00", 1800, now)
+    assert result["latest_departure"] == "07:30"
+    assert result["margin_minutes"] == -15
+
+
+def test_compute_departure_margin_none_when_no_arrive_by():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_departure_margin("07:30", None, 1800, now) is None
+
+
+def test_compute_departure_margin_none_when_no_departure_time():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_departure_margin(None, "09:00", 1800, now) is None
+
+
+def test_compute_departure_margin_none_when_neither_configured():
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    assert compute_departure_margin(None, None, 1800, now) is None
+
+
+def test_compute_departure_margin_uses_departure_time_hour_not_now_hour():
+    # Guards against reading `now`'s hour instead of parsing departure_time_str
+    now = datetime(2026, 5, 2, 6, 0, 0)
+    result = compute_departure_margin("07:30", "09:00", 1800, now)
+    assert result["latest_departure"] == "08:30"
+    assert result["margin_minutes"] == 60
+
+
+def test_compute_departure_margin_uses_arrive_by_minute_correctly():
+    # Guards against a minute-parsing slice bug (e.g. "09:15" truncated to "5")
+    now = datetime(2026, 5, 2, 7, 0, 0)
+    result = compute_departure_margin("07:30", "09:15", 1800, now)
+    assert result["latest_departure"] == "08:45"
+
+
+def test_compute_departure_margin_ignores_subminute_precision_in_now():
+    # departure_dt/arrive_by_dt must zero out now's seconds, not inherit them
+    now = datetime(2026, 5, 2, 7, 0, 45)
+    result = compute_departure_margin("07:30", "09:00", 1800, now)
+    assert result["margin_minutes"] == 60

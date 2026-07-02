@@ -96,4 +96,37 @@ describe('AlertBanner — message content', () => {
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toHaveTextContent('Leave 10 min early')
   })
+
+  it('references the deadline when a margin is available', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.deadline = { arrive_by: '09:00', latest_departure: '07:42', margin_minutes: 8 }
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Leave by 07:42')
+  })
+
+  it('treats an exactly-zero margin as on schedule, not behind', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.deadline = { arrive_by: '08:00', latest_departure: '07:30', margin_minutes: 0 }
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Leave by 07:30 · 0 min to spare')
+  })
+
+  it('warns when the margin against the deadline is already negative', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.deadline = { arrive_by: '08:00', latest_departure: '07:30', margin_minutes: -15 }
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Already 15 min behind schedule')
+  })
+
+  it('falls back to the generic floor when no deadline is configured', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.deadline = null
+    commuter.routes[0].delay_seconds = 120
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Leave 10 min early')
+  })
 })

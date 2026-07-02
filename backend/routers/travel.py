@@ -103,6 +103,39 @@ def compute_eta(departure_time_str: str | None, travel_time_seconds: int, now: d
     return arrival.strftime("%H:%M")
 
 
+def compute_departure_margin(
+    departure_time_str: str | None,
+    arrive_by_str: str | None,
+    travel_time_seconds: int,
+    now: datetime,
+) -> dict | None:
+    """Return the latest safe departure time and spare minutes against a deadline.
+
+    Returns None when either departure_time or arrive_by is not configured.
+    latest_departure is when you'd need to leave, right now, to arrive by
+    arrive_by_str given today's live travel time. margin_minutes is the gap
+    between latest_departure and your planned (or already-elapsed, effective)
+    departure time — negative means you're already behind schedule.
+    """
+    if not departure_time_str or not arrive_by_str:
+        return None
+
+    dep_hour, dep_minute = int(departure_time_str[:2]), int(departure_time_str[3:])
+    departure_dt = now.replace(hour=dep_hour, minute=dep_minute, second=0, microsecond=0)
+    effective_departure = now if now >= departure_dt else departure_dt
+
+    arr_hour, arr_minute = int(arrive_by_str[:2]), int(arrive_by_str[3:])
+    arrive_by_dt = now.replace(hour=arr_hour, minute=arr_minute, second=0, microsecond=0)
+    latest_departure_dt = arrive_by_dt - timedelta(seconds=travel_time_seconds)
+
+    margin_minutes = round((latest_departure_dt - effective_departure).total_seconds() / 60)
+
+    return {
+        "latest_departure": latest_departure_dt.strftime("%H:%M"),
+        "margin_minutes": margin_minutes,
+    }
+
+
 def is_within_poll_window(now: datetime, start, end) -> bool:
     """Return True if now.time() falls within [start, end] inclusive."""
     current = now.time()
@@ -413,6 +446,11 @@ async def fetch_travel_data() -> dict:
             routes = [_build_route_option(r) for r in routes_raw.get("routes", [])]
             primary_travel_time = routes[0]["travel_time_seconds"] if routes else 0
             eta = compute_eta(day.get("departure_time"), primary_travel_time, _get_now())
+            arrive_by = day.get("arrive_by")
+            margin = compute_departure_margin(
+                day.get("departure_time"), arrive_by, primary_travel_time, _get_now()
+            )
+            deadline = {"arrive_by": arrive_by, **margin} if margin else None
 
             commuter_results.append(
                 {
@@ -423,6 +461,7 @@ async def fetch_travel_data() -> dict:
                     "incidents": incidents,
                     "departure_time": day.get("departure_time"),
                     "eta": eta,
+                    "deadline": deadline,
                 }
             )
 

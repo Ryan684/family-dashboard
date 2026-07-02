@@ -11,6 +11,16 @@ function buildAlertMessage(travelData) {
   for (const c of commuters) {
     const primary = c.routes?.[0]
     if (!primary || primary.delay_colour !== 'red') continue
+
+    if (c.deadline) {
+      const { latest_departure, margin_minutes } = c.deadline
+      const detail =
+        margin_minutes >= 0
+          ? `Leave by ${latest_departure} · ${margin_minutes} min to spare`
+          : `Already ${Math.abs(margin_minutes)} min behind schedule`
+      return { label: `${c.name} — heavy traffic`, detail }
+    }
+
     const delayMin = Math.round((primary.delay_seconds ?? 0) / 60)
     const extra = Math.max(10, delayMin)
     return {

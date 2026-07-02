@@ -185,8 +185,50 @@ function IncidentList({ incidents }) {
   )
 }
 
+function DeadlineMargin({ deadline }) {
+  if (!deadline) return null
+  const { latest_departure, margin_minutes } = deadline
+  const isLate = margin_minutes < 0
+  const isTight = !isLate && margin_minutes < 10
+  const color = isLate ? 'var(--alert)' : isTight ? 'var(--warn)' : 'var(--ok)'
+  const marginText = isLate
+    ? `${Math.abs(margin_minutes)} min behind schedule`
+    : `${margin_minutes} min to spare`
+
+  return (
+    <>
+      <div
+        data-testid="commuter-deadline"
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 20,
+          fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '0.06em',
+          color: 'var(--ink-faint)',
+          fontWeight: 500,
+        }}
+      >
+        Latest leave {latest_departure}
+      </div>
+      <div
+        data-testid="commuter-margin"
+        style={{
+          fontFamily: 'var(--f-mono)',
+          fontSize: 14,
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color,
+          fontWeight: 500,
+        }}
+      >
+        {marginText}
+      </div>
+    </>
+  )
+}
+
 function CommuterColumn({ commuter }) {
-  const { name, mode, drops, routes, incidents, eta, departure_time } = commuter
+  const { name, mode, drops, routes, incidents, eta, departure_time, deadline } = commuter
   const destination = mode === 'office' ? 'Work' : 'Home'
   const [primary, alt] = routes
 
@@ -251,6 +293,8 @@ function CommuterColumn({ commuter }) {
           Dep {departure_time}
         </div>
       )}
+
+      <DeadlineMargin deadline={deadline} />
 
       {drops?.length > 0 && (
         <div
