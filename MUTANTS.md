@@ -185,6 +185,10 @@ Same pattern as documented in WeatherCard and CalendarCard below: `if (!cancelle
 | `return () => { cancelled = true }` | Body removed / `true → false` | Cleanup function that signals cancellation on unmount. Indirectly tested by the cancellation guard tests above; the same reasoning applies — JSDOM/React 18 does not surface post-unmount state leaks as failures. |
 | `}, [])` | `→ }, ["Stryker was here"])` | `useEffect` empty dependency array. Mutating the deps would cause the effect to re-run on every render where the injected string changes. Tests render once and do not re-render, so this cannot be observed. Accepted as a tool limitation for single-render tests. |
 
+**`StaleTag` indicator (July 2026) — 10 mutants, all inline styles**
+
+Added to surface the `is_stale` flag (previously ignored by this component). All survivors are `ObjectLiteral`/`StringLiteral` mutations to the badge's inline `style={{...}}` objects (lines 95–114), identical to Category 1 documented at the top of this file: JSDOM doesn't render CSS, so no test can observe a mutated style value. The `{data.is_stale && <StaleTag />}` conditional itself (the actual logic) is fully killed — no surviving mutants on that line.
+
 ### `components/TravelCard.jsx` (Session 12)
 
 9 surviving mutants — all in `injectStyles()` infrastructure:

@@ -151,11 +151,10 @@ def _fetch_sync() -> dict:
 
 @router.get("")
 async def get_calendar():
-    from datetime import datetime
-
-    from scheduler import is_within_poll_window as _scheduler_in_window
-
-    is_stale = not _scheduler_in_window(datetime.now())
+    # Calendar is polled on its own interval throughout the day, independent
+    # of the travel poll window, so staleness only reflects whether a
+    # successful poll has populated the cache yet.
+    is_stale = _cache is None
     if _cache is None:
         return {"today": [], "tomorrow": [], "is_stale": is_stale}
     return {**_cache, "is_stale": is_stale}
