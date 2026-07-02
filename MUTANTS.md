@@ -18,19 +18,6 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | `x__extract_traffic_model_id__mutmut_3` | `routes_response.get("routes", [])` → `default None` | Default reached when key is absent — covered by `test_extract_traffic_model_id_missing_routes_key`. With `None`, `if not routes` is still truthy so returns `""`. Behaviourally equivalent for the missing-key case. |
 | `x__extract_traffic_model_id__mutmut_5` | `routes_response.get("routes", [])` → no default arg | Same as mutmut_3 — `.get(key)` returns `None`, `if not None` is truthy, returns `""`. |
 
-**`compute_eta` / `compute_departure_margin` — sub-minute precision and exact-equality boundary (July 2026)**
-
-Both functions build a `datetime` from an `HH:MM` string via `now.replace(hour=.., minute=.., second=0, microsecond=0)`, then compare it against `now` with `now >= dep`. A few mutant classes survive here and are accepted as equivalent, since the feature only ever configures and displays whole-minute times:
-
-| Mutant | Mutation | Justification |
-|--------|----------|---------------|
-| `x_compute_eta__mutmut_17` / `x_compute_departure_margin__mutmut_19`, `_37` | `microsecond=0` → `microsecond=1` | Hardcodes a fixed 1-microsecond offset. Sub-second noise this small can't flip a value rounded to the nearest whole minute except at an exact half-minute boundary that never occurs with `HH:MM`-only configured times. |
-| `x_compute_eta__mutmut_16` / `x_compute_departure_margin__mutmut_18`, `_36` | `second=0` → `second=1` | Same reasoning — a fixed 1-second offset is far below the whole-minute precision the API contract and UI actually expose. |
-| `x_compute_eta__mutmut_14` / `x_compute_departure_margin__mutmut_17`, `_35` | `microsecond=0` removed | Lets `now`'s real microsecond value leak through instead of zeroing it. Killable in principle with a `now` carrying a large enough microsecond component, but the resulting sub-second jitter is still below the whole-minute precision the feature guarantees — not worth a test asserting behaviour at that resolution. |
-| `x_compute_eta__mutmut_19` / `x_compute_departure_margin__mutmut_21` | `now >= dep` → `now > dep` | At the one point this could differ (`now == dep` exactly), both branches (`now` and `dep`) hold the identical instant, so `effective`/`arrival` compute to the same value regardless of the operator. Genuinely equivalent at the only boundary where it matters — no assertion on output can distinguish them. |
-
-Note: `compute_eta__mutmut_14/15/16/17/19` predate this session and were previously undocumented; discovered while adding the analogous `compute_departure_margin` (departure-margin/deadline feature) and documented together here since they're the same root cause.
-
 ### `routers/weather.py`
 
 | Mutant | Mutation | Justification |
@@ -58,12 +45,6 @@ Note: `compute_eta__mutmut_14/15/16/17/19` predate this session and were previou
 | `x_fetch_routes__mutmut_1–22` (22 mutants) | Various mutations inside `fetch_routes()` | HTTP client function making live Google Maps Routes API calls. Untestable in isolation — requires a live network and valid API key. Integration tested end-to-end in Step 6. |
 | `x_fetch_incidents__mutmut_1–48` (48 mutants) | Various mutations inside `fetch_incidents()` | Stub function returning `[]` — no live HTTP calls. Mutants are trivially acceptable as the function has no logic to test. |
 | `x_fetch_travel_data__mutmut_1–59` (59 mutants) | Various mutations inside `fetch_travel_data()` | Scheduler fetch orchestrator that calls `fetch_routes` and `fetch_incidents`. Untestable without live API calls. Scheduler integration tested via mocks in `test_scheduler.py`. |
-
-### `services/commute_schedule.py`
-
-`arrive_by` validation and resolution (added July 2026 for the departure-margin/deadline feature) has no surviving mutants — the new `_validate_schedule` branch and the `resolve_commuter_day` field addition are fully killed, including the error-message content and the HH:MM slice parsing.
-
-This scoped mutation run also surfaced pre-existing survivors on the *unrelated*, untouched `commuters`/`name`/`schedule` `.get()` defaults and the unknown-weekday fallback dict in `resolve_commuter_day` — this file had never previously had a mutation pass recorded here. Those predate this change, fall under the same "`.get()` default equivalence" class noted below, and are out of scope for this session; left undocumented in detail pending a dedicated pass.
 
 ### `routers/calendar.py`
 
@@ -222,15 +203,6 @@ Added to surface the `is_stale` flag (previously ignored by this component). All
 | `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard. JSDOM does not apply styles, so double-injection has no observable effect. |
 | `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores stylesheet text, so empty vs. real CSS is indistinguishable. |
 
-**`DeadlineMargin` component (July 2026) — 13 mutants**
-
-Added to show the latest-safe-departure time and spare/behind-schedule minutes when a commuter has an `arrive_by` deadline configured. All survivors are the same Category 1 class as the rest of this file:
-
-| Location | Mutation | Justification |
-|----------|----------|---------------|
-| `isTight = !isLate && margin_minutes < 10` and the `color` ternary below it | `ConditionalExpression`/`LogicalOperator`/`EqualityOperator`/`BooleanLiteral`/`StringLiteral` variants | `isTight` and `color` only ever feed the `color` property of an inline `style={{...}}` on the margin `<div>`. JSDOM does not render CSS, so no test can observe which colour variable was chosen — same root cause as every other inline-style survivor in this file. The functionally significant boundary (`isLate = margin_minutes < 0`, which also selects the *text* content) is fully killed by the exactly-zero-margin tests in `AlertBanner.test.jsx`/`TravelCard.test.jsx`. |
-| Inline `style={{...}}` objects on the two new rows (lines ~202–219) | `ObjectLiteral`/`StringLiteral` | Same inline-style class as everywhere else in this file. |
-
 ### `components/RouteMap.jsx` (session add-route-maps)
 
 28 surviving mutants — all within the `useEffect` Leaflet initialisation block.
@@ -249,10 +221,6 @@ Added to show the latest-safe-departure time and spare/behind-schedule minutes w
 ### `components/AlertBanner.jsx` (Session 12)
 
 9 surviving mutants — all in `injectStyles()` infrastructure. Same pattern as TravelCard and WeatherCard above.
-
-**Deadline-aware message (July 2026) — 1 mutant**
-
-`return { label: \`${c.name} — heavy traffic\`, detail }` inside the new `c.deadline` branch — a `StringLiteral` mutation to the `label` text survives because no test asserts on the exact "heavy traffic" wording, only on `detail` (the deadline-specific part). This label string is unchanged from, and duplicates, the pre-existing non-deadline branch below it, which has the same untested-wording gap predating this change. Accepted: the wording itself carries no branching logic — asserting it precisely would test copy, not behaviour. The actual new logic (the `margin_minutes >= 0` boundary that selects between "leave by" and "already behind" wording) is fully killed by the exactly-zero-margin test.
 
 ### `App.jsx` (Session 12)
 

@@ -15,11 +15,6 @@ def _validate_schedule(schedule: dict) -> None:
                 raise ValueError(
                     f"Invalid departure_time {dt!r} for commuter {name!r} on {day} — expected HH:MM"
                 )
-            arrive_by = config.get("arrive_by")
-            if arrive_by is not None and not _DEPARTURE_TIME_RE.match(arrive_by):
-                raise ValueError(
-                    f"Invalid arrive_by {arrive_by!r} for commuter {name!r} on {day} — expected HH:MM"
-                )
 
 
 def load_schedule(path: str) -> dict:
@@ -61,9 +56,8 @@ def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
     drops = [d for d in commuter.get("drop_order", []) if d in active_drops]
 
     departure_time = day_config.get("departure_time")
-    arrive_by = day_config.get("arrive_by")
 
-    return {"mode": mode, "drops": drops, "departure_time": departure_time, "arrive_by": arrive_by}
+    return {"mode": mode, "drops": drops, "departure_time": departure_time}
 
 
 def build_waypoints(

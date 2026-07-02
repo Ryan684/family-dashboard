@@ -216,50 +216,6 @@ describe('TravelCard — delay minutes', () => {
   })
 })
 
-// ── Deadline margin ─────────────────────────────────────────────────────────
-
-describe('TravelCard — deadline margin', () => {
-  it('shows latest departure and spare minutes when the margin is positive', () => {
-    const commuter = makeCommuter({
-      deadline: { arrive_by: '09:00', latest_departure: '07:42', margin_minutes: 8 },
-    })
-    render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
-    )
-    expect(screen.getByText('Latest leave 07:42')).toBeInTheDocument()
-    expect(screen.getByText('8 min to spare')).toBeInTheDocument()
-  })
-
-  it('treats an exactly-zero margin as on schedule, not behind', () => {
-    const commuter = makeCommuter({
-      deadline: { arrive_by: '08:00', latest_departure: '07:30', margin_minutes: 0 },
-    })
-    render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
-    )
-    expect(screen.getByText('0 min to spare')).toBeInTheDocument()
-  })
-
-  it('shows behind-schedule wording when the margin is negative', () => {
-    const commuter = makeCommuter({
-      deadline: { arrive_by: '08:00', latest_departure: '07:30', margin_minutes: -15 },
-    })
-    render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
-    )
-    expect(screen.getByText('15 min behind schedule')).toBeInTheDocument()
-  })
-
-  it('renders no deadline element when the commuter has no deadline configured', () => {
-    const commuter = makeCommuter({ deadline: null })
-    render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
-    )
-    expect(screen.queryByTestId('commuter-deadline')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('commuter-margin')).not.toBeInTheDocument()
-  })
-})
-
 // ── Incidents ───────────────────────────────────────────────────────────────
 
 describe('TravelCard — incidents', () => {

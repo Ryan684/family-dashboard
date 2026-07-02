@@ -4,10 +4,10 @@
       "name": "Commuter1",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30", "arrive_by": "09:00" },
-        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00", "arrive_by": "09:00" },
+        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00" },
         "wednesday": { "mode": "off",    "nursery_drop": false, "dog_drop": true },
-        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30", "arrive_by": "09:00" },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
         "friday":    { "mode": "wfh",    "nursery_drop": false, "dog_drop": false }
       }
     },
