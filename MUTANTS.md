@@ -133,9 +133,9 @@ Every component uses inline style objects (`style={{ fontFamily: 'var(--f-displa
 
 Accepted: asserting the exact week number in unit tests would require pinning date arithmetic to known ISO boundary cases and is disproportionate to the display-only value.
 
-**Category 3 — delayMin boundary (TravelCard.jsx, line 115, 4 mutants)**
+**Category 3 — delayMin boundary (TravelCard.jsx, line 113) — RESOLVED (July 2026)**
 
-`{delayMin > 0 ? \`+${delayMin} min · ${meta.label}\` : meta.label}` — the boundary `delayMin === 0` (exactly on time with zero computed delay) is not tested. Mutations to `>= 0` or `<= 0` survive because test fixtures never produce `delayMin === 0`. Accepted: a zero-minute delay is a degenerate edge case that never occurs in practice (routes report static vs live durations that are equal, not equal to the minute).
+This was previously marked accepted on the assumption that `delayMin === 0` "never occurs in practice." That assumption was wrong: `delayMin` was computed from `route.static_duration_seconds`, a field the backend never sends (see `AlertBanner.jsx`/`TravelCard.jsx` fix history), so `delayMin` was silently `0` on every real route — this was the actual bug behind the boundary being untested, not a degenerate case. Fixed to read `route.delay_seconds` (which the backend does send) directly, and both the zero and non-zero branches are now covered by dedicated tests (`TravelCard.test.jsx` — "delay minutes" describe block). No surviving mutants remain on this line or the `delayMin` computation above it.
 
 **Category 4 — inc.road conditional (TravelCard.jsx, line 167, 3 mutants)**
 

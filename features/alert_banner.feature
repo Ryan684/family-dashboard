@@ -40,3 +40,13 @@ Feature: Morning alert banner
     And the travel data is marked stale because the poll window has ended
     When the alert banner is rendered
     Then the alert banner is not visible
+
+  Scenario: Leave-early advice reflects the actual computed delay
+    Given a home-to-work route has delay_colour "red" and delay_seconds 900
+    When the alert banner is rendered
+    Then it displays a message advising the user to leave 15 min early
+
+  Scenario: Leave-early advice is floored at 10 minutes for small delays
+    Given a home-to-work route has delay_colour "red" and delay_seconds 120
+    When the alert banner is rendered
+    Then it displays a message advising the user to leave 10 min early

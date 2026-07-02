@@ -8,6 +8,7 @@ const makeRoute = (overrides = {}) => ({
   travel_time_seconds: 1800,
   description: 'via A3 and M25',
   delay_colour: 'green',
+  delay_seconds: 0,
   ...overrides,
 })
 
@@ -188,6 +189,30 @@ describe('TravelCard — colour states', () => {
       <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
     )
     expect(document.querySelector('[data-colour="red"]')).toBeInTheDocument()
+  })
+})
+
+// ── Delay minutes ────────────────────────────────────────────────────────────
+
+describe('TravelCard — delay minutes', () => {
+  it('shows the delay minutes alongside the status label when delayed', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ delay_colour: 'amber', delay_seconds: 480 })],
+    })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('+8 min · Slow')).toBeInTheDocument()
+  })
+
+  it('shows only the status label with no "+" prefix when delay_seconds is zero', () => {
+    const commuter = makeCommuter({
+      routes: [makeRoute({ delay_colour: 'green', delay_seconds: 0 })],
+    })
+    render(
+      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+    )
+    expect(screen.getByText('On time')).toBeInTheDocument()
   })
 })
 

@@ -6,6 +6,7 @@ const makeRoute = (colour) => ({
   travel_time_seconds: 1800,
   description: 'via A3',
   delay_colour: colour,
+  delay_seconds: 0,
 })
 
 const makeCommuter = (routeColours = ['green']) => ({
@@ -78,5 +79,21 @@ describe('AlertBanner — message content', () => {
     const data = makeTravelData([makeCommuter(['red'])])
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toHaveTextContent(/leave/i)
+  })
+
+  it('reflects the actual computed delay when it exceeds the 10-minute floor', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.routes[0].delay_seconds = 900
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Leave 15 min early')
+  })
+
+  it('floors the leave-early advice at 10 minutes for small delays', () => {
+    const commuter = makeCommuter(['red'])
+    commuter.routes[0].delay_seconds = 120
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Leave 10 min early')
   })
 })
