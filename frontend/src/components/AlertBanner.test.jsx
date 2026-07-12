@@ -96,4 +96,14 @@ describe('AlertBanner — message content', () => {
     render(<AlertBanner travelData={data} />)
     expect(screen.getByRole('alert')).toHaveTextContent('Leave 10 min early')
   })
+
+  it('names the commuter when the red route is their alternate, not primary', () => {
+    const commuter = makeCommuter(['amber', 'red'])
+    commuter.routes[1].delay_seconds = 660
+    const data = makeTravelData([commuter])
+    render(<AlertBanner travelData={data} />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Ryan — heavy traffic')
+    expect(alert).toHaveTextContent('Leave 11 min early')
+  })
 })

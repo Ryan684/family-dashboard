@@ -91,7 +91,7 @@ function App() {
           padding: '72px 96px 80px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 40,
+          gap: 28,
         }}
       >
         {/* masthead */}
