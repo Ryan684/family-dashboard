@@ -9,9 +9,9 @@ function buildAlertMessage(travelData) {
   const commuters = travelData.commuters || []
 
   for (const c of commuters) {
-    const primary = c.routes?.[0]
-    if (!primary || primary.delay_colour !== 'red') continue
-    const delayMin = Math.round((primary.delay_seconds ?? 0) / 60)
+    const redRoute = (c.routes || []).find((r) => r.delay_colour === 'red')
+    if (!redRoute) continue
+    const delayMin = Math.round((redRoute.delay_seconds ?? 0) / 60)
     const extra = Math.max(10, delayMin)
     return {
       label: `${c.name} — heavy traffic`,

@@ -222,6 +222,14 @@ Added to surface the `is_stale` flag (previously ignored by this component). All
 
 9 surviving mutants — all in `injectStyles()` infrastructure. Same pattern as TravelCard and WeatherCard above.
 
+**`buildAlertMessage` — commuter-with-no-red-route fallback (July 2026)**
+
+Fixed a bug where the banner fell back to the generic "Heavy traffic — leave early today" message whenever a commuter's *red* route wasn't their primary (index 0) route — e.g. an amber primary with a red alternate. `buildAlertMessage` now scans all of a commuter's routes for the first red one instead of only checking `routes[0]`, matching `hasRedRoute`'s "any route" semantics. Covered by the new `AlertBanner.test.jsx` case "names the commuter when the red route is their alternate, not primary" (verified to fail against the pre-fix code) and the corresponding Gherkin scenario in `features/alert_banner.feature`.
+
+| Mutant | Mutation | Justification |
+|--------|----------|----------------|
+| `const redRoute = (c.routes || []).find(...)` | `[]` → `["Stryker was here"]` | `NoCoverage`: same defensive-fallback equivalence class as the pre-existing `c.routes || []` / `travelData.commuters || []` fallbacks elsewhere in this file — `routes` is always an array in every fixture, matching the backend's actual API contract. |
+
 ### `App.jsx` (Session 12)
 
 17 surviving mutants across four accepted categories:

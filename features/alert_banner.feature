@@ -50,3 +50,9 @@ Feature: Morning alert banner
     Given a home-to-work route has delay_colour "red" and delay_seconds 120
     When the alert banner is rendered
     Then it displays a message advising the user to leave 10 min early
+
+  Scenario: Leave-early advice names the commuter when the red route is their alternate, not primary
+    Given a commuter's primary route has delay_colour "amber"
+    And the same commuter's alternate route has delay_colour "red" and delay_seconds 660
+    When the alert banner is rendered
+    Then it displays a message naming that commuter and advising them to leave 11 min early
