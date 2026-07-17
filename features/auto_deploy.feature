@@ -1,12 +1,13 @@
 Feature: Nightly auto-deploy on Raspberry Pi
   A systemd timer fires at 02:00 each night and runs a deploy script.
-  The script compares the local git SHA with origin/main: if they differ
-  it pulls the latest code, rebuilds the frontend, reinstalls the backend,
-  and restarts the family-dashboard service. If they match it exits quickly
-  without touching the running service.
+  The script compares the last successfully deployed SHA (stored in a marker
+  file) with origin/main: if they differ it pulls the latest code, rebuilds
+  the frontend, reinstalls the backend via the backend venv, and restarts the
+  family-dashboard service. If the marker SHA matches origin/main it exits
+  quickly without touching the running service.
 
-  Scenario: No action when already up to date
-    Given the local HEAD SHA matches origin/main
+  Scenario: No action when already successfully deployed
+    Given the deploy marker file records the current origin/main SHA
     When the deploy script runs
     Then git pull is not called
     And the npm build is not called
@@ -43,7 +44,28 @@ Feature: Nightly auto-deploy on Raspberry Pi
     Then pkill is called to stop Chromium
     And Chromium is relaunched in the background
 
-  Scenario: Chromium is not restarted when already up to date
-    Given the local HEAD SHA matches origin/main
+  Scenario: Chromium is not restarted when already successfully deployed
+    Given the deploy marker file records the current origin/main SHA
     When the deploy script runs
     Then pkill is not called
+
+  Scenario: Backend pip install uses the virtual environment
+    Given the local HEAD SHA differs from origin/main
+    When the deploy script runs
+    Then pip install is called via the backend virtual environment
+    And system pip3 is not called
+
+  Scenario: Marker file is written after a successful deploy
+    Given the local HEAD SHA differs from origin/main
+    When the deploy script runs
+    Then a marker file is written containing the deployed SHA
+
+  Scenario: A previously failed partial deploy is retried on the next run
+    Given a previous deploy advanced local HEAD to origin/main but failed before completing
+    And no deploy marker file exists
+    When the deploy script runs
+    Then git pull is called
+    And npm run build is called
+    And pip install is called
+    And systemctl restart family-dashboard is called
+    And the script exits with code 0
