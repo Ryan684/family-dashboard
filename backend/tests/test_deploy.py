@@ -86,11 +86,31 @@ def _make_sudo_stub(bin_dir: Path) -> None:
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def _run_deploy(tmp: Path, bin_dir: Path, *, repo_root: Path | None = None) -> subprocess.CompletedProcess:
+def _run_deploy(
+    tmp: Path,
+    bin_dir: Path,
+    *,
+    deployed_sha: str | None = None,
+) -> subprocess.CompletedProcess:
+    """
+    Run deploy.sh in an isolated fake repo dir.
+
+    deployed_sha: if provided, writes .last-deployed-sha with this value to
+                  simulate a prior successful deploy; if None, no marker exists.
+    """
+    repo_root = tmp / "repo"
+    (repo_root / "frontend").mkdir(parents=True, exist_ok=True)
+    (repo_root / "backend").mkdir(parents=True, exist_ok=True)
+
+    if deployed_sha is not None:
+        (repo_root / ".last-deployed-sha").write_text(deployed_sha)
+
     _make_sudo_stub(bin_dir)
     env = os.environ.copy()
     env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
-    env["DEPLOY_REPO_DIR"] = str(repo_root or REPO_ROOT)
+    env["DEPLOY_REPO_DIR"] = str(repo_root)
+    # Point the venv pip to our stub pip so tests don't need a real venv.
+    env["DEPLOY_VENV_PIP"] = str(bin_dir / "pip")
     env["HOME"] = str(tmp)
     return subprocess.run(
         ["bash", str(DEPLOY_SCRIPT)],
@@ -101,7 +121,7 @@ def _run_deploy(tmp: Path, bin_dir: Path, *, repo_root: Path | None = None) -> s
 
 
 # ---------------------------------------------------------------------------
-# Scenario: already up to date — nothing happens
+# Scenario: already successfully deployed — nothing happens
 # ---------------------------------------------------------------------------
 
 
@@ -111,10 +131,9 @@ def test_no_action_when_sha_matches(tmp_path):
     _git_stub(b, local_sha=same, remote_sha=same)
     npm_log = _stub(b, "npm")
     pip_log = _stub(b, "pip")
-    _stub(b, "pip3")
     systemctl_log = _stub(b, "systemctl")
 
-    result = _run_deploy(tmp_path, b)
+    result = _run_deploy(tmp_path, b, deployed_sha=same)
 
     assert result.returncode == 0
     assert _calls(npm_log) == []
@@ -131,8 +150,7 @@ def test_full_deploy_when_sha_differs(tmp_path):
     b = _make_bin(tmp_path)
     _git_stub(b, local_sha="aaa", remote_sha="bbb")
     npm_log = _stub(b, "npm")
-    pip_log = _stub(b, "pip3")
-    _stub(b, "pip")
+    pip_log = _stub(b, "pip")
     systemctl_log = _stub(b, "systemctl")
     _stub(b, "pkill")
     _stub(b, "setsid")
@@ -141,11 +159,8 @@ def test_full_deploy_when_sha_differs(tmp_path):
     result = _run_deploy(tmp_path, b)
 
     assert result.returncode == 0
-    # npm run build must have been called
     assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
-    # pip install must have been called
     assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
-    # systemctl restart family-dashboard must have been called
     assert any("restart" in c and "family-dashboard" in c for c in _calls(systemctl_log)), _calls(systemctl_log)
 
 
@@ -160,7 +175,6 @@ def test_abort_on_git_pull_failure(tmp_path):
     npm_log = _stub(b, "npm")
     systemctl_log = _stub(b, "systemctl")
     _stub(b, "pip")
-    _stub(b, "pip3")
 
     result = _run_deploy(tmp_path, b)
 
@@ -180,7 +194,6 @@ def test_abort_on_npm_build_failure(tmp_path):
     npm_log = _stub(b, "npm", exit_code=1)
     systemctl_log = _stub(b, "systemctl")
     _stub(b, "pip")
-    _stub(b, "pip3")
 
     result = _run_deploy(tmp_path, b)
 
@@ -198,7 +211,6 @@ def test_chromium_restarted_after_deploy(tmp_path):
     b = _make_bin(tmp_path)
     _git_stub(b, local_sha="aaa", remote_sha="bbb")
     _stub(b, "npm")
-    _stub(b, "pip3")
     _stub(b, "pip")
     _stub(b, "systemctl")
     _stub(b, "sleep")
@@ -213,7 +225,7 @@ def test_chromium_restarted_after_deploy(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Scenario: Chromium not restarted when already up to date
+# Scenario: Chromium not restarted when already successfully deployed
 # ---------------------------------------------------------------------------
 
 
@@ -223,13 +235,104 @@ def test_chromium_not_restarted_when_up_to_date(tmp_path):
     _git_stub(b, local_sha=same, remote_sha=same)
     _stub(b, "npm")
     _stub(b, "pip")
-    _stub(b, "pip3")
     _stub(b, "systemctl")
     _stub(b, "sleep")
     pkill_log = _stub(b, "pkill")
     _stub(b, "setsid")
 
-    result = _run_deploy(tmp_path, b)
+    result = _run_deploy(tmp_path, b, deployed_sha=same)
 
     assert result.returncode == 0
     assert _calls(pkill_log) == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario: pip install uses the backend virtual environment
+# ---------------------------------------------------------------------------
+
+
+def test_pip_install_uses_venv_not_system_pip3(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    pip_log = _stub(b, "pip")
+    pip3_log = _stub(b, "pip3")
+    _stub(b, "systemctl")
+    _stub(b, "pkill")
+    _stub(b, "setsid")
+    _stub(b, "sleep")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
+    assert _calls(pip3_log) == [], f"pip3 should not be called; got: {_calls(pip3_log)}"
+
+
+# ---------------------------------------------------------------------------
+# Scenario: marker file written after successful deploy
+# ---------------------------------------------------------------------------
+
+
+def test_successful_deploy_writes_marker(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+    _stub(b, "pkill")
+    _stub(b, "setsid")
+    _stub(b, "sleep")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    marker = tmp_path / "repo" / ".last-deployed-sha"
+    assert marker.exists(), "marker file should be written after successful deploy"
+    assert marker.read_text().strip() == "bbb"
+
+
+# ---------------------------------------------------------------------------
+# Scenario: marker file NOT written when deploy fails
+# ---------------------------------------------------------------------------
+
+
+def test_failed_deploy_does_not_write_marker(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm", exit_code=1)
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode != 0
+    marker = tmp_path / "repo" / ".last-deployed-sha"
+    assert not marker.exists(), "marker file must not be written when deploy fails"
+
+
+# ---------------------------------------------------------------------------
+# Scenario: previously failed partial deploy is retried
+# (HEAD already matches origin/main due to prior git pull, but no marker file)
+# ---------------------------------------------------------------------------
+
+
+def test_failed_deploy_is_retried_on_next_run(tmp_path):
+    b = _make_bin(tmp_path)
+    same_sha = "abc123"
+    # Simulate: git pull already ran in a previous failed attempt — HEAD == origin/main
+    _git_stub(b, local_sha=same_sha, remote_sha=same_sha)
+    npm_log = _stub(b, "npm")
+    pip_log = _stub(b, "pip")
+    systemctl_log = _stub(b, "systemctl")
+    _stub(b, "pkill")
+    _stub(b, "setsid")
+    _stub(b, "sleep")
+    # No deployed_sha → no marker file → must retry despite HEAD == origin/main
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
+    assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
+    assert any("restart" in c and "family-dashboard" in c for c in _calls(systemctl_log)), _calls(systemctl_log)
