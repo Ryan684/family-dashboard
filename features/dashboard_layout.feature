@@ -18,3 +18,8 @@ Feature: Dashboard layout — travel section visibility
     Given the API returns an empty commuters list with is_stale false
     When the dashboard renders
     Then the travel section is not present in the layout
+
+  Scenario: Masthead heading is not rendered
+    Given the dashboard renders
+    Then no "Family Dashboard" heading text is shown
+    And no "<Weekday> Edition" heading text is shown

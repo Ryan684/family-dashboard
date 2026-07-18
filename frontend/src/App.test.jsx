@@ -101,6 +101,18 @@ describe('App — travel section grid reflow', () => {
   })
 })
 
+describe('App — masthead', () => {
+  it('does not render the "Family Dashboard" / weekday-Edition heading row', async () => {
+    mockTravelFetch(makeTravelResponse([]))
+    render(<App />)
+    await waitFor(() =>
+      expect(screen.queryByTestId('travel-section')).not.toBeInTheDocument()
+    )
+    expect(screen.queryByText(/Family Dashboard/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Edition/i)).not.toBeInTheDocument()
+  })
+})
+
 describe('App — stale indicator', () => {
   it('does not show stale warning when is_stale is false', async () => {
     mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: false })

@@ -94,37 +94,6 @@ function App() {
           gap: 28,
         }}
       >
-        {/* masthead */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div
-            style={{
-              fontFamily: 'var(--f-mono)',
-              fontSize: 18,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-dim)',
-              fontWeight: 500,
-            }}
-          >
-            Family Dashboard
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--f-mono)',
-              fontSize: 18,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
-              fontWeight: 500,
-            }}
-          >
-            {new Date().toLocaleDateString('en-GB', { weekday: 'long' })} Edition
-          </div>
-        </div>
-
-        {/* hairline rule */}
-        <div style={{ height: 1, background: 'var(--rule)' }} aria-hidden="true" />
-
         {/* hero clock */}
         <ClockCard />
 
