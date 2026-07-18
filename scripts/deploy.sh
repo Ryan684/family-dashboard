@@ -46,7 +46,18 @@ cd "$REPO_DIR"
 sudo systemctl restart family-dashboard
 
 pkill -f chromium || true
-sleep 5
+
+# pkill only sends SIGTERM; wait for the process to actually exit before
+# relaunching. A relaunch that races a still-dying process gets silently
+# absorbed into it via Chromium's single-instance IPC (the new URL opens
+# as an ordinary window in the old process instead of a fresh --kiosk one),
+# leaving the dashboard windowed instead of fullscreen.
+for _ in $(seq 1 10); do
+    pgrep -f chromium >/dev/null 2>&1 || break
+    sleep 1
+done
+pkill -9 -f chromium >/dev/null 2>&1 || true
+
 setsid bash -c 'XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic http://localhost:8000 >/dev/null 2>&1' &
 
 echo "$REMOTE_SHA" > "$MARKER"

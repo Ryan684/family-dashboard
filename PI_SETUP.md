@@ -474,3 +474,4 @@ All output (stdout + stderr) goes to:
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
 | Auto-deploy never runs | Check `systemctl list-timers family-dashboard-deploy.timer` and re-run step 18.2 |
 | Auto-deploy ran but service is old | Check `/var/log/family-dashboard-deploy.log` for build or pull errors |
+| Chromium shows a normal windowed browser (tabs, address bar) instead of fullscreen kiosk after a nightly deploy | The relaunch raced the old Chromium process's shutdown and got silently forwarded to it as an ordinary window, dropping `--kiosk`. `scripts/deploy.sh` now waits for the old process to fully exit (and force-kills it after a bounded wait) before relaunching — update to the latest `deploy.sh` and let the next deploy cycle (or a manual run, step 18.3) relaunch Chromium cleanly. |

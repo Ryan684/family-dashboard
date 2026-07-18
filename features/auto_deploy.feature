@@ -49,6 +49,25 @@ Feature: Nightly auto-deploy on Raspberry Pi
     When the deploy script runs
     Then pkill is not called
 
+  Scenario: Relaunch waits for the old Chromium process to fully exit
+    Given the local HEAD SHA differs from origin/main
+    And the previous Chromium process takes a few seconds to exit after pkill
+    When the deploy script runs
+    Then the script polls for the old Chromium process to exit
+    And Chromium is relaunched only after the old process is gone
+    # A fixed sleep races a slow shutdown: if the old process is still
+    # alive when the new one starts, Chromium's single-instance mechanism
+    # forwards the URL to the dying process as an ordinary new window,
+    # silently dropping --kiosk and leaving the dashboard windowed instead
+    # of fullscreen.
+
+  Scenario: Relaunch force-kills Chromium if it never exits cleanly
+    Given the local HEAD SHA differs from origin/main
+    And the previous Chromium process never exits after pkill
+    When the deploy script runs
+    Then the script force-kills the stuck Chromium process after a bounded wait
+    And Chromium is still relaunched afterwards
+
   Scenario: Backend pip install uses the virtual environment
     Given the local HEAD SHA differs from origin/main
     When the deploy script runs
