@@ -68,6 +68,19 @@ Feature: Nightly auto-deploy on Raspberry Pi
     Then the script force-kills the stuck Chromium process after a bounded wait
     And Chromium is still relaunched afterwards
 
+  Scenario: Relaunch wipes the Chromium profile before starting
+    Given the local HEAD SHA differs from origin/main
+    And a stale Chromium profile directory exists from a previous run
+    When the deploy script runs
+    Then the stale profile directory is removed before Chromium is relaunched
+    And Chromium is relaunched with a fresh --user-data-dir
+    # A force-killed Chromium (SIGKILL, after the bounded wait above) leaves
+    # an unclean shutdown. On next launch Chromium's session-restore silently
+    # reopens the previous session's windows in their *saved* windowed state
+    # — --disable-session-crashed-bubble only hides the restore prompt, it
+    # doesn't disable the restore. A disposable profile wiped before every
+    # launch means there is never anything to restore.
+
   Scenario: Backend pip install uses the virtual environment
     Given the local HEAD SHA differs from origin/main
     When the deploy script runs
