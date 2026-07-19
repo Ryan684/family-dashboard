@@ -316,7 +316,7 @@ Raspberry Pi OS Bookworm uses **labwc** (a Wayland compositor), not a GNOME-base
 
 ```bash
 mkdir -p ~/.config/labwc
-echo 'sleep 10 && XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic http://localhost:8000 &' > ~/.config/labwc/autostart
+echo 'sleep 10 && rm -rf ~/.cache/chromium-kiosk && XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir=$HOME/.cache/chromium-kiosk http://localhost:8000 &' > ~/.config/labwc/autostart
 ```
 
 Key flags explained:
@@ -324,6 +324,7 @@ Key flags explained:
 - `WAYLAND_DISPLAY=wayland-0` — the Wayland display socket name on Raspberry Pi OS Bookworm
 - `--ozone-platform=wayland` — tells Chromium to use Wayland rather than X11
 - `--password-store=basic` — prevents a keyring password popup on first launch. Without this, Chromium prompts you to set a keyring password on screen, which you cannot dismiss without a mouse. The popup only appears once per fresh Chromium profile, but the flag must stay in place permanently to suppress it reliably.
+- `--user-data-dir=$HOME/.cache/chromium-kiosk`, wiped with `rm -rf` right before launch — always starts from a disposable, empty profile. Without this, an unclean shutdown (e.g. a SIGKILL from `scripts/deploy.sh`'s stuck-process fallback) leaves Chromium's session-restore state intact; on the next launch it silently reopens the previous session's windows in their *saved* windowed state, ignoring `--kiosk` for those windows entirely.
 - `sleep 10` — gives the systemd backend time to start before Chromium loads
 
 ---
@@ -474,4 +475,4 @@ All output (stdout + stderr) goes to:
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
 | Auto-deploy never runs | Check `systemctl list-timers family-dashboard-deploy.timer` and re-run step 18.2 |
 | Auto-deploy ran but service is old | Check `/var/log/family-dashboard-deploy.log` for build or pull errors |
-| Chromium shows a normal windowed browser (tabs, address bar) instead of fullscreen kiosk after a nightly deploy | The relaunch raced the old Chromium process's shutdown and got silently forwarded to it as an ordinary window, dropping `--kiosk`. `scripts/deploy.sh` now waits for the old process to fully exit (and force-kills it after a bounded wait) before relaunching — update to the latest `deploy.sh` and let the next deploy cycle (or a manual run, step 18.3) relaunch Chromium cleanly. |
+| Chromium shows a normal windowed browser (tabs, address bar) instead of fullscreen kiosk, even though `pgrep -af chromium` shows `--kiosk` in the running process | An earlier unclean shutdown (SIGKILL) left Chromium session-restore state behind; on relaunch it silently reopened the previous session's window in its *saved* windowed state, ignoring `--kiosk`. `scripts/deploy.sh` and the `~/.config/labwc/autostart` command now launch against a disposable `--user-data-dir` wiped immediately before every launch, so there is never a previous session to restore. Update both to the latest version (re-run step 14 for the autostart file) and let the next deploy cycle (or a manual run, step 18.3) relaunch Chromium cleanly. |

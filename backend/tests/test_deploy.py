@@ -325,6 +325,45 @@ def test_relaunch_force_kills_chromium_after_bounded_wait(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Scenario: relaunch wipes the Chromium profile before starting
+#
+# A force-killed Chromium (SIGKILL, after the bounded wait above) leaves an
+# unclean shutdown. On next launch Chromium's session-restore silently
+# reopens the previous session's windows in their *saved* windowed state —
+# --disable-session-crashed-bubble only hides the restore prompt, it doesn't
+# disable the restore. A disposable profile wiped before every launch means
+# there is never anything to restore.
+# ---------------------------------------------------------------------------
+
+
+def test_relaunch_wipes_stale_chromium_profile(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+    _stub(b, "sleep")
+    _stub(b, "pkill")
+    _stub(b, "pgrep", exit_code=1)
+    setsid_log = _stub(b, "setsid")
+
+    profile_dir = tmp_path / ".cache" / "chromium-kiosk"
+    profile_dir.mkdir(parents=True)
+    stale_marker = profile_dir / "Default" / "Preferences"
+    stale_marker.parent.mkdir(parents=True)
+    stale_marker.write_text('{"session": {"restore_on_startup": 1}}')
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert not stale_marker.exists(), "stale profile must be wiped before relaunch"
+    setsid_calls = _calls(setsid_log)
+    assert any(
+        "--user-data-dir" in c and str(profile_dir) in c for c in setsid_calls
+    ), setsid_calls
+
+
+# ---------------------------------------------------------------------------
 # Scenario: Chromium not restarted when already successfully deployed
 # ---------------------------------------------------------------------------
 

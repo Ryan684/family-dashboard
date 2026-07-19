@@ -58,7 +58,16 @@ for _ in $(seq 1 10); do
 done
 pkill -9 -f chromium >/dev/null 2>&1 || true
 
-setsid bash -c 'XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic http://localhost:8000 >/dev/null 2>&1' &
+# Wipe the profile before every launch. If the process above needed the
+# SIGKILL fallback, Chromium saw that as a crash and will otherwise silently
+# restore the previous session's windows in their *saved* windowed state on
+# next launch — --disable-session-crashed-bubble only hides the restore
+# prompt, it doesn't disable the restore itself. A disposable profile means
+# there is never a previous session to restore.
+CHROME_PROFILE_DIR="${DEPLOY_CHROME_PROFILE_DIR:-$HOME/.cache/chromium-kiosk}"
+rm -rf "$CHROME_PROFILE_DIR"
+
+setsid bash -c "XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir='$CHROME_PROFILE_DIR' http://localhost:8000 >/dev/null 2>&1" &
 
 echo "$REMOTE_SHA" > "$MARKER"
 echo "Deploy complete."
