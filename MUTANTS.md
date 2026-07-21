@@ -230,13 +230,21 @@ Fixed a bug where the banner fell back to the generic "Heavy traffic — leave e
 |--------|----------|----------------|
 | `const redRoute = (c.routes || []).find(...)` | `[]` → `["Stryker was here"]` | `NoCoverage`: same defensive-fallback equivalence class as the pre-existing `c.routes || []` / `travelData.commuters || []` fallbacks elsewhere in this file — `routes` is always an array in every fixture, matching the backend's actual API contract. |
 
-### `App.jsx` (Session 12)
+### `App.jsx` (Session 12; recounted during the post-masthead dashboard-layout refit)
 
-17 surviving mutants across four accepted categories:
+54 surviving mutants across four accepted categories. Note: the `injectStyles()` pattern this section originally described no longer exists in `App.jsx` (removed in an earlier session without updating this doc) — the categories below reflect the file's current contents and a fresh Stryker run scoped to this file.
 
-**Style injection infrastructure (8 mutants)**
+**Layout refit — inline style ObjectLiteral / StringLiteral (24 mutants, lines 85–176)**
 
-Same `injectStyles()` pattern as all other components — JSDOM cannot observe CSS injection.
+Added to rebalance the grid column widths and contain per-column overflow after the masthead row was removed (see `frontend/src/App.jsx` — the `gridCols` ternary, the content grid's `display`/`gridTemplateRows`/`overflow`, and the new `DashColumn` wrapper + trailing fade-mask). Same equivalence class as Category 1 at the top of this file: every value here is an inline `style={{...}}` object or string (e.g. `'1.5fr 1px 0.9fr 1px 1.3fr'` vs `''`, `overflow: 'hidden'` vs `overflow: ''`, the fade gradient string vs `''`). JSDOM does not render CSS or compute layout, so no unit test can observe a mutated pixel/track/overflow value — the actual fit was verified with real-browser screenshots (Playwright + Chromium) against maximal fixture data (2 commuters × 2 routes + incidents, a packed 12-event calendar), not unit tests.
+
+**Dead `label()` helper (1 mutant, pre-existing, line 10)**
+
+`const label = (text, dim = false) => ({...})` is unused (no call sites) — Stryker's `ArrowFunction` mutant reducing it to `() => undefined` survives because nothing exercises it either way. Pre-existing, unrelated to the layout refit.
+
+**Viewport-scaling `fit()` and async cancellation/fallback (29 mutants, lines 30–79, pre-existing)**
+
+Unchanged by this session — see "Category 6 — viewport scaling fit()" and "Category 7 — React async cancellation / cleanup" near the top of this file, plus the two tables immediately below, which already document this exact set (the `fit()` arithmetic/guard, the travel-fetch cancellation flag and cleanup, and the `?? []` / `?? false` fallbacks).
 
 **React async cancellation / cleanup (5 mutants)**
 

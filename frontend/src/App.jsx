@@ -80,7 +80,9 @@ function App() {
   const commuterCount = commuters.length
   const showTravel = travelLoading || travelError || (!isStale && commuterCount > 0)
 
-  const gridCols = showTravel ? '1.6fr 1px 1fr 1px 1.1fr' : '1fr 1px 1fr'
+  // Calendar and weather run narrower than travel's twin commuter columns, so they
+  // get a larger share of the freed-up width; ratios still sum to the same total.
+  const gridCols = showTravel ? '1.5fr 1px 0.9fr 1px 1.3fr' : '0.85fr 1px 1.15fr'
 
   return (
     <div ref={stageRef} className="dash-stage">
@@ -88,10 +90,10 @@ function App() {
         ref={frameRef}
         className="dash-frame fd-reveal"
         style={{
-          padding: '72px 96px 80px',
+          padding: '88px 96px 80px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 28,
+          gap: 32,
         }}
       >
         {/* hero clock */}
@@ -107,28 +109,69 @@ function App() {
             minHeight: 0,
             display: 'grid',
             gridTemplateColumns: gridCols,
+            gridTemplateRows: 'minmax(0, 1fr)',
             gap: 48,
-            paddingTop: 12,
+            paddingTop: 16,
+            overflow: 'hidden',
           }}
         >
           {showTravel && (
             <>
-              <div data-testid="travel-section">
+              <DashColumn testId="travel-section">
                 <TravelCard
                   commuters={commuters}
                   isStale={isStale}
                   loading={travelLoading}
                   error={travelError}
                 />
-              </div>
+              </DashColumn>
               <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
             </>
           )}
-          <WeatherCard />
+          <DashColumn>
+            <WeatherCard />
+          </DashColumn>
           <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
-          <CalendarCard />
+          <DashColumn>
+            <CalendarCard />
+          </DashColumn>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* Fills its grid row and keeps its heading pinned to the same top edge as
+   its neighbours, so the Commute / Weather / Calendar labels always sit on
+   one scannable line. The trailing fade hides any excess below the fold on
+   an unusually busy day instead of letting it render past the kiosk frame,
+   invisible. */
+function DashColumn({ children, testId }) {
+  return (
+    <div
+      data-testid={testId}
+      style={{
+        position: 'relative',
+        height: '100%',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 64,
+          background: 'linear-gradient(to bottom, transparent, var(--bg) 85%)',
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   )
 }
