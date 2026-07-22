@@ -56,6 +56,11 @@ for _ in $(seq 1 10); do
     pgrep -f chromium >/dev/null 2>&1 || break
     sleep 1
 done
+
+# Recorded purely for the log line below — pkill -9 itself is unconditional
+# and harmless either way (a no-op against an already-exited process).
+CHROMIUM_FORCE_KILLED=0
+pgrep -f chromium >/dev/null 2>&1 && CHROMIUM_FORCE_KILLED=1
 pkill -9 -f chromium >/dev/null 2>&1 || true
 
 # Wipe the profile before every launch. If the process above needed the
@@ -68,6 +73,20 @@ CHROME_PROFILE_DIR="${DEPLOY_CHROME_PROFILE_DIR:-$HOME/.cache/chromium-kiosk}"
 rm -rf "$CHROME_PROFILE_DIR"
 
 setsid bash -c "XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir='$CHROME_PROFILE_DIR' http://localhost:8000 >/dev/null 2>&1" &
+
+# Chromium is known to sometimes fail to actually enter kiosk/fullscreen
+# presentation even when --kiosk is passed and accepted — an intermittent
+# race in its Wayland startup handshake, separate from the session-restore
+# bug the profile wipe above fixes (see hardware.md, "Known issue: Chromium
+# sometimes doesn't go fullscreen on launch"). There's no cheap, reliable
+# way to verify fullscreen state from this script yet, so every relaunch is
+# logged with a timestamp and whether a forced kill was needed, to build a
+# correlatable history instead of reconstructing it after the fact.
+if [ "$CHROMIUM_FORCE_KILLED" = "1" ]; then
+    echo "$(date -Iseconds) chromium-relaunch: previous process required a forced kill (SIGKILL) before relaunching."
+else
+    echo "$(date -Iseconds) chromium-relaunch: previous process exited cleanly."
+fi
 
 echo "$REMOTE_SHA" > "$MARKER"
 echo "Deploy complete."

@@ -1,12 +1,15 @@
 """Tests for scripts/deploy.sh — nightly auto-deploy."""
 
 import os
+import re
 import stat
 import subprocess
 import textwrap
 from pathlib import Path
 
 import pytest
+
+TIMESTAMP_RE = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
@@ -478,3 +481,53 @@ def test_failed_deploy_is_retried_on_next_run(tmp_path):
     assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
     assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
     assert any("restart" in c and "family-dashboard" in c for c in _calls(systemctl_log)), _calls(systemctl_log)
+
+
+# ---------------------------------------------------------------------------
+# Scenario: relaunch logs whether the old Chromium process exited cleanly
+#
+# Chromium is known to sometimes fail to actually enter kiosk/fullscreen
+# presentation on launch, even when --kiosk is passed and accepted — an
+# intermittent race in its Wayland startup handshake (see hardware.md).
+# There's no cheap, reliable way to verify fullscreen state from this
+# script yet, so every relaunch is logged with a timestamp and whether a
+# forced kill was needed, to build a correlatable history without having
+# to reconstruct it from process start times after the fact.
+# ---------------------------------------------------------------------------
+
+
+def test_relaunch_logs_clean_exit(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+    _stub(b, "pkill")
+    events_log = tmp_path / "events.log"
+    _events_stub(b, events_log, "sleep")
+    _pgrep_eventually_gone_stub(b, events_log, still_running_calls=3)
+    _events_stub(b, events_log, "setsid")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert re.search(rf"{TIMESTAMP_RE}.*exited cleanly", result.stdout), result.stdout
+    assert "forced kill" not in result.stdout.lower()
+
+
+def test_relaunch_logs_forced_kill(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+    _stub(b, "sleep")
+    _stub(b, "pkill")
+    _stub(b, "pgrep", exit_code=0)  # always reports chromium as still running
+    _stub(b, "setsid")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    assert re.search(rf"{TIMESTAMP_RE}.*forced kill", result.stdout, re.IGNORECASE), result.stdout
+    assert "exited cleanly" not in result.stdout.lower()

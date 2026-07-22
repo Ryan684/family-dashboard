@@ -114,3 +114,57 @@ The poll window (`POLL_WINDOW_START` / `POLL_WINDOW_END` in `.env`) should match
 vcgencmd display_power 0   # turn off
 vcgencmd display_power 1   # turn on
 ```
+
+---
+
+## Troubleshooting
+
+### Known issue: Chromium sometimes doesn't go fullscreen on launch
+
+**Symptom**: the dashboard shows an ordinary Chromium window — tab strip, address bar, bookmarks bar — instead of the fullscreen kiosk view, even though the running process was launched correctly.
+
+**How to tell this is what's happening** (over SSH):
+
+```bash
+ps aux | grep -i chromium | grep -v grep
+```
+
+If the process is there with `--kiosk --user-data-dir=/home/pi/.cache/chromium-kiosk ...` in its command line, the launch itself was correct — this is not a launched-without-kiosk-flags problem (that was a different, already-fixed bug — see `3cae647` and `9f42c96` in git history, which addressed Chromium's session-restore silently reopening a previous *windowed* session after an unclean shutdown).
+
+**What we've ruled out** (investigated on a live occurrence, July 2026):
+- A missing/incorrect `--kiosk` flag — confirmed present in the running process.
+- A stray boot-time autostart script outside `deploy.sh` — none exists (checked `crontab`, `~/.config/autostart`, `systemctl --user`).
+- A Pi reboot re-triggering an unhardened launch path — `uptime -s` showed no reboot; the compositor (`labwc`) and display manager (`lightdm`) had been running continuously for over a month.
+- An `apt` package upgrade (e.g. to Chromium or the compositor) landing overnight — `apt-daily-upgrade.service` ran but completed in ~1 second (a no-op), and `chromium` didn't appear in `/var/log/apt/history.log`.
+- A custom `labwc` window rule forcing decorations — no custom `~/.config/labwc/rc.xml` exists; it's stock behaviour.
+- The deploy script itself failing partway (e.g. a failed `npm run build` aborting before the Chromium restart) — the deploy log showed a clean `Deploy complete.`
+
+**Current best explanation**: an intermittent race in Chromium's own Wayland startup handshake — it requests fullscreen (`xdg_toplevel.set_fullscreen`) before the compositor's `configure` response and its own GPU/rendering setup (the Pi's V3D driver) are ready to honour it, and falls back to a normal window instead of retrying. This is a known class of issue for Chromium kiosk deployments on Wayland in general, not specific to this project's code. Manually killing and relaunching the exact same command fixes it immediately, which is why it looks like a launch-time coin flip rather than a persistent misconfiguration.
+
+**Current mitigation**: `deploy.sh` logs a timestamped line every time it relaunches Chromium, noting whether the previous process exited cleanly or needed a forced kill (`/var/log/family-dashboard-deploy.log`) — e.g.:
+
+```
+2026-07-22T02:00:14+01:00 chromium-relaunch: previous process exited cleanly.
+```
+
+There's no automatic recovery yet — this is intentionally observation-only for now, to build up a real incidence history (how often this actually happens) before adding retry logic. Note it only tells you a relaunch happened and whether a forced kill was needed, not whether kiosk mode was actually achieved visually — there's no cheap way to check that from a script yet (would need a screenshot tool like `grim` plus pixel sampling, neither currently installed).
+
+**Manual recovery** (SSH in):
+
+```bash
+pkill -f chromium || true
+for _ in $(seq 1 10); do
+    pgrep -f chromium >/dev/null 2>&1 || break
+    sleep 1
+done
+pkill -9 -f chromium >/dev/null 2>&1 || true
+
+rm -rf "$HOME/.cache/chromium-kiosk"
+
+setsid bash -c "XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir='$HOME/.cache/chromium-kiosk' http://localhost:8000 >/dev/null 2>&1" &
+disown
+```
+
+**Possible future improvements**, not yet implemented (revisit once the log above shows how often this actually recurs):
+- Verify fullscreen state after launch (e.g. a `grim` screenshot + pixel sample against the dashboard's background colour) and retry a bounded number of times if it didn't take.
+- A second scheduled relaunch shortly before the 06:30 display-on cron, independent of whether a deploy happened that night — currently Chromium is only ever relaunched when new commits are deployed, so a flake on a no-deploy night has no self-correction until the next code change.

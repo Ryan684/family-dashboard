@@ -101,3 +101,24 @@ Feature: Nightly auto-deploy on Raspberry Pi
     And pip install is called
     And systemctl restart family-dashboard is called
     And the script exits with code 0
+
+  Scenario: Relaunch logs whether the old Chromium process exited cleanly
+    Given the local HEAD SHA differs from origin/main
+    And the previous Chromium process takes a few seconds to exit after pkill
+    When the deploy script runs
+    Then the log records a timestamped line noting Chromium was relaunched after a clean exit
+    # Chromium is known to sometimes fail to actually enter kiosk/fullscreen
+    # presentation on launch even when --kiosk is passed and accepted (an
+    # intermittent race in its Wayland startup handshake — see hardware.md,
+    # "Known issue: Chromium sometimes doesn't go fullscreen on launch").
+    # There's no cheap, reliable way to verify fullscreen state from this
+    # script yet, so relaunches are logged with a timestamp and whether a
+    # forced kill was needed, to build a correlatable history of when
+    # restarts happened without reconstructing it from process start times
+    # after the fact.
+
+  Scenario: Relaunch logs when the old Chromium process had to be force-killed
+    Given the local HEAD SHA differs from origin/main
+    And the previous Chromium process never exits after pkill
+    When the deploy script runs
+    Then the log records a timestamped line noting Chromium required a forced kill before relaunching
