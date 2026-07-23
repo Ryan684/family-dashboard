@@ -1,15 +1,21 @@
-"""Tests for scripts/deploy.sh — nightly auto-deploy."""
+"""Tests for scripts/deploy.sh — nightly auto-deploy.
+
+Chromium restart behaviour lives in scripts/restart-kiosk.sh instead (see
+backend/tests/test_restart_kiosk.py) — this script deliberately never
+touches Chromium. See features/auto_deploy.feature and hardware.md, "Known
+issue: Chromium doesn't go fullscreen when launched while the display is
+off", for why: this runs at 02:00, inside the 22:00-06:30 display-off
+window, and launching Chromium while the Wayland output is off leaves it
+permanently windowed every time.
+"""
 
 import os
-import re
 import stat
 import subprocess
 import textwrap
 from pathlib import Path
 
 import pytest
-
-TIMESTAMP_RE = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
@@ -76,43 +82,6 @@ def _git_stub(bin_dir: Path, *, local_sha: str, remote_sha: str, pull_code: int 
     p.write_text(script)
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
     return {"log": log}
-
-
-def _events_stub(
-    bin_dir: Path, events_log: Path, name: str, *, body: str = "exit 0"
-) -> Path:
-    """Write a stub that appends its invocation to a shared, ordered events log.
-
-    Unlike `_stub`, which writes per-command call logs with no way to tell
-    interleaving between commands, this lets a test assert *ordering*
-    (e.g. "all pgrep checks happened before the relaunch").
-    """
-    script = textwrap.dedent(f"""\
-        #!/usr/bin/env bash
-        echo "{name} $@" >> {events_log}
-        {body}
-    """)
-    p = bin_dir / name
-    p.write_text(script)
-    p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    return p
-
-
-def _pgrep_eventually_gone_stub(
-    bin_dir: Path, events_log: Path, *, still_running_calls: int
-) -> Path:
-    """pgrep stub: reports the process as running for the first N calls, then gone."""
-    counter_file = bin_dir.parent / "pgrep.count"
-    body = textwrap.dedent(f"""\
-        count=$(( $(cat "{counter_file}" 2>/dev/null || echo 0) + 1 ))
-        echo "$count" > "{counter_file}"
-        if [ "$count" -le {still_running_calls} ]; then
-            exit 0
-        else
-            exit 1
-        fi
-    """)
-    return _events_stub(bin_dir, events_log, "pgrep", body=body)
 
 
 def _make_sudo_stub(bin_dir: Path) -> None:
@@ -192,10 +161,6 @@ def test_full_deploy_when_sha_differs(tmp_path):
     npm_log = _stub(b, "npm")
     pip_log = _stub(b, "pip")
     systemctl_log = _stub(b, "systemctl")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    _stub(b, "setsid")
-    _stub(b, "sleep")
 
     result = _run_deploy(tmp_path, b)
 
@@ -244,151 +209,6 @@ def test_abort_on_npm_build_failure(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Scenario: Chromium restarted after successful deploy
-# ---------------------------------------------------------------------------
-
-
-def test_chromium_restarted_after_deploy(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "sleep")
-    pkill_log = _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    setsid_log = _stub(b, "setsid")
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    assert any("chromium" in c for c in _calls(pkill_log)), _calls(pkill_log)
-    assert any("chromium" in c for c in _calls(setsid_log)), _calls(setsid_log)
-
-
-# ---------------------------------------------------------------------------
-# Scenario: relaunch waits for the old Chromium process to fully exit
-#
-# A fixed `sleep 5` races a slow shutdown: if the old process is still
-# alive when the new one starts, Chromium's single-instance mechanism
-# forwards the URL to the dying process as an ordinary new window,
-# silently dropping --kiosk — the exact bug reported on the Pi.
-# ---------------------------------------------------------------------------
-
-
-def test_relaunch_waits_for_old_chromium_to_exit(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "pkill")
-    events_log = tmp_path / "events.log"
-    _events_stub(b, events_log, "sleep")
-    _pgrep_eventually_gone_stub(b, events_log, still_running_calls=3)
-    _events_stub(b, events_log, "setsid")
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    events = events_log.read_text().splitlines() if events_log.exists() else []
-    pgrep_calls = [e for e in events if e.startswith("pgrep")]
-    setsid_calls = [e for e in events if e.startswith("setsid")]
-    assert len(pgrep_calls) >= 4, events  # 3 "still running" + at least 1 "gone" check
-    assert setsid_calls, (
-        "chromium should still be relaunched once the old process is gone"
-    )
-    # the relaunch must come after the process was confirmed gone, not before
-    assert events.index(setsid_calls[0]) > events.index(pgrep_calls[-1]), events
-
-
-# ---------------------------------------------------------------------------
-# Scenario: relaunch force-kills Chromium if it never exits cleanly
-# ---------------------------------------------------------------------------
-
-
-def test_relaunch_force_kills_chromium_after_bounded_wait(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "sleep")
-    pkill_log = _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=0)  # always reports chromium as still running
-    setsid_log = _stub(b, "setsid")
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    assert any("-9" in c for c in _calls(pkill_log)), _calls(pkill_log)
-    assert any("chromium" in c for c in _calls(setsid_log)), (
-        "chromium should still be relaunched even after a stuck old process"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Scenario: relaunch wipes the Chromium profile before starting
-#
-# A force-killed Chromium (SIGKILL, after the bounded wait above) leaves an
-# unclean shutdown. On next launch Chromium's session-restore silently
-# reopens the previous session's windows in their *saved* windowed state —
-# --disable-session-crashed-bubble only hides the restore prompt, it doesn't
-# disable the restore. A disposable profile wiped before every launch means
-# there is never anything to restore.
-# ---------------------------------------------------------------------------
-
-
-def test_relaunch_wipes_stale_chromium_profile(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "sleep")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    setsid_log = _stub(b, "setsid")
-
-    profile_dir = tmp_path / ".cache" / "chromium-kiosk"
-    profile_dir.mkdir(parents=True)
-    stale_marker = profile_dir / "Default" / "Preferences"
-    stale_marker.parent.mkdir(parents=True)
-    stale_marker.write_text('{"session": {"restore_on_startup": 1}}')
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    assert not stale_marker.exists(), "stale profile must be wiped before relaunch"
-    setsid_calls = _calls(setsid_log)
-    assert any(
-        "--user-data-dir" in c and str(profile_dir) in c for c in setsid_calls
-    ), setsid_calls
-
-
-# ---------------------------------------------------------------------------
-# Scenario: Chromium not restarted when already successfully deployed
-# ---------------------------------------------------------------------------
-
-
-def test_chromium_not_restarted_when_up_to_date(tmp_path):
-    b = _make_bin(tmp_path)
-    same = "abc123"
-    _git_stub(b, local_sha=same, remote_sha=same)
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "sleep")
-    pkill_log = _stub(b, "pkill")
-    _stub(b, "setsid")
-
-    result = _run_deploy(tmp_path, b, deployed_sha=same)
-
-    assert result.returncode == 0
-    assert _calls(pkill_log) == []
-
-
-# ---------------------------------------------------------------------------
 # Scenario: pip install uses the backend virtual environment
 # ---------------------------------------------------------------------------
 
@@ -400,10 +220,6 @@ def test_pip_install_uses_venv_not_system_pip3(tmp_path):
     pip_log = _stub(b, "pip")
     pip3_log = _stub(b, "pip3")
     _stub(b, "systemctl")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    _stub(b, "setsid")
-    _stub(b, "sleep")
 
     result = _run_deploy(tmp_path, b)
 
@@ -423,10 +239,6 @@ def test_successful_deploy_writes_marker(tmp_path):
     _stub(b, "npm")
     _stub(b, "pip")
     _stub(b, "systemctl")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    _stub(b, "setsid")
-    _stub(b, "sleep")
 
     result = _run_deploy(tmp_path, b)
 
@@ -469,10 +281,6 @@ def test_failed_deploy_is_retried_on_next_run(tmp_path):
     npm_log = _stub(b, "npm")
     pip_log = _stub(b, "pip")
     systemctl_log = _stub(b, "systemctl")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=1)
-    _stub(b, "setsid")
-    _stub(b, "sleep")
     # No deployed_sha → no marker file → must retry despite HEAD == origin/main
 
     result = _run_deploy(tmp_path, b)
@@ -481,53 +289,3 @@ def test_failed_deploy_is_retried_on_next_run(tmp_path):
     assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
     assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
     assert any("restart" in c and "family-dashboard" in c for c in _calls(systemctl_log)), _calls(systemctl_log)
-
-
-# ---------------------------------------------------------------------------
-# Scenario: relaunch logs whether the old Chromium process exited cleanly
-#
-# Chromium is known to sometimes fail to actually enter kiosk/fullscreen
-# presentation on launch, even when --kiosk is passed and accepted — an
-# intermittent race in its Wayland startup handshake (see hardware.md).
-# There's no cheap, reliable way to verify fullscreen state from this
-# script yet, so every relaunch is logged with a timestamp and whether a
-# forced kill was needed, to build a correlatable history without having
-# to reconstruct it from process start times after the fact.
-# ---------------------------------------------------------------------------
-
-
-def test_relaunch_logs_clean_exit(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "pkill")
-    events_log = tmp_path / "events.log"
-    _events_stub(b, events_log, "sleep")
-    _pgrep_eventually_gone_stub(b, events_log, still_running_calls=3)
-    _events_stub(b, events_log, "setsid")
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    assert re.search(rf"{TIMESTAMP_RE}.*exited cleanly", result.stdout), result.stdout
-    assert "forced kill" not in result.stdout.lower()
-
-
-def test_relaunch_logs_forced_kill(tmp_path):
-    b = _make_bin(tmp_path)
-    _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    _stub(b, "npm")
-    _stub(b, "pip")
-    _stub(b, "systemctl")
-    _stub(b, "sleep")
-    _stub(b, "pkill")
-    _stub(b, "pgrep", exit_code=0)  # always reports chromium as still running
-    _stub(b, "setsid")
-
-    result = _run_deploy(tmp_path, b)
-
-    assert result.returncode == 0
-    assert re.search(rf"{TIMESTAMP_RE}.*forced kill", result.stdout, re.IGNORECASE), result.stdout
-    assert "exited cleanly" not in result.stdout.lower()

@@ -90,13 +90,11 @@ With the freestanding arm, run both power cables (monitor + Pi) down the back of
 
 ### Kiosk boot command
 
-```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:8000
-```
+Chromium is not autostarted directly on boot — it's launched and relaunched by `scripts/restart-kiosk.sh`, chained onto the crontab line that powers the display on (see below). This matters: Chromium must never be launched while the display output is off (see "Known issue" under Troubleshooting).
 
 ### Display schedule (HDMI on/off via cron)
 
-The display is on only during the morning window. A cron job on the Pi controls HDMI power via `vcgencmd` — no smart plug required.
+The display is on only during the morning window. A cron job on the Pi controls the HDMI output via `wlopm` (a Wayland output-power tool, talking to the compositor directly — not `vcgencmd`, despite what earlier revisions of this doc said).
 
 ```bash
 crontab -e
@@ -104,67 +102,43 @@ crontab -e
 
 ```cron
 # Family dashboard display schedule
-30 6 * * * /usr/bin/vcgencmd display_power 1   # Screen on at 06:30
-0  9 * * * /usr/bin/vcgencmd display_power 0   # Screen off at 09:00
+30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /var/log/family-dashboard-deploy.log 2>&1
+0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
 ```
 
-The poll window (`POLL_WINDOW_START` / `POLL_WINDOW_END` in `.env`) should match these timings. To test manually:
+Chromium is deliberately restarted in the *same* cron line as `wlopm --on`, right after it — this guarantees Chromium only ever launches once the output is confirmed live. It is **not** restarted by the nightly deploy (`deploy.sh`, which runs at 02:00) — see "Known issue" below for why.
+
+The poll window (`POLL_WINDOW_START` / `POLL_WINDOW_END` in `.env`) should match these timings. To test the display power toggle manually:
 
 ```bash
-vcgencmd display_power 0   # turn off
-vcgencmd display_power 1   # turn on
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1   # turn off
+XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1    # turn on
 ```
 
 ---
 
 ## Troubleshooting
 
-### Known issue: Chromium sometimes doesn't go fullscreen on launch
+### Resolved: Chromium doesn't go fullscreen when launched while the display is off
 
-**Symptom**: the dashboard shows an ordinary Chromium window — tab strip, address bar, bookmarks bar — instead of the fullscreen kiosk view, even though the running process was launched correctly.
+**Symptom**: the dashboard shows an ordinary Chromium window — tab strip, address bar, bookmarks bar — instead of the fullscreen kiosk view, even though the running process was launched correctly and had `--kiosk` in its command line the whole time.
 
-**How to tell this is what's happening** (over SSH):
+**Root cause (confirmed, July 2026)**: Chromium was being killed and relaunched by `deploy.sh` at 02:00 — squarely inside the display-off window (was `22:00`-`06:30`, see the crontab above). Launching a brand-new Chromium window while the Wayland output is powered off (`wlopm --off`) means its fullscreen request has no live output to negotiate against, so it falls back to an ordinary window — **every single time**, not intermittently. It then just sits that way, unchanged, until the display powers back on and reveals the same already-broken window. This was confirmed directly: manually powering the display off, killing and relaunching Chromium with the display still off, then powering it back on reproduced the bug on demand; toggling the display off and on around an *already-fullscreen* Chromium left it untouched, ruling out the power toggle itself as the cause.
 
-```bash
-ps aux | grep -i chromium | grep -v grep
+Earlier hypotheses along the way, ruled out in order: a missing `--kiosk` flag (confirmed present throughout), a stray boot-time autostart script (none exists), a Pi reboot (`uptime -s` showed none — `labwc`/`lightdm` had been running for over a month), an `apt` package upgrade landing overnight (`apt-daily-upgrade.service` completed in ~1 second, a no-op), a custom `labwc` window rule (no custom `rc.xml` exists), the deploy script failing partway (logs showed a clean `Deploy complete.` every time), and — briefly — the display power toggle itself disrupting an already-good window (disproved by the test above). The actual cause was launch *timing* relative to the display's power state, not any of these.
+
+**Fix**: Chromium is no longer restarted by `deploy.sh`. It's now restarted by a separate script, `scripts/restart-kiosk.sh`, chained directly onto the crontab line that powers the display on:
+
+```cron
+30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /var/log/family-dashboard-deploy.log 2>&1
 ```
 
-If the process is there with `--kiosk --user-data-dir=/home/pi/.cache/chromium-kiosk ...` in its command line, the launch itself was correct — this is not a launched-without-kiosk-flags problem (that was a different, already-fixed bug — see `3cae647` and `9f42c96` in git history, which addressed Chromium's session-restore silently reopening a previous *windowed* session after an unclean shutdown).
+This guarantees Chromium only ever launches once the output is confirmed live, regardless of whether a deploy happened that night. `restart-kiosk.sh` carries no SHA/deploy-state gating — it restarts Chromium unconditionally every morning, which is cheap and invisible (the screen has just come on) and means a fresh, clean Chromium process every single day rather than one that potentially lives for days across deploys.
 
-**What we've ruled out** (investigated on a live occurrence, July 2026):
-- A missing/incorrect `--kiosk` flag — confirmed present in the running process.
-- A stray boot-time autostart script outside `deploy.sh` — none exists (checked `crontab`, `~/.config/autostart`, `systemctl --user`).
-- A Pi reboot re-triggering an unhardened launch path — `uptime -s` showed no reboot; the compositor (`labwc`) and display manager (`lightdm`) had been running continuously for over a month.
-- An `apt` package upgrade (e.g. to Chromium or the compositor) landing overnight — `apt-daily-upgrade.service` ran but completed in ~1 second (a no-op), and `chromium` didn't appear in `/var/log/apt/history.log`.
-- A custom `labwc` window rule forcing decorations — no custom `~/.config/labwc/rc.xml` exists; it's stock behaviour.
-- The deploy script itself failing partway (e.g. a failed `npm run build` aborting before the Chromium restart) — the deploy log showed a clean `Deploy complete.`
+**One-time manual step required**: this crontab change lives on the Pi, not in this repo — `crontab -e` and replace the old `wlopm --on HDMI-A-1` line with the version above (adjusting the repo path if it differs from `/home/pi/projects/family-dashboard`).
 
-**Current best explanation**: an intermittent race in Chromium's own Wayland startup handshake — it requests fullscreen (`xdg_toplevel.set_fullscreen`) before the compositor's `configure` response and its own GPU/rendering setup (the Pi's V3D driver) are ready to honour it, and falls back to a normal window instead of retrying. This is a known class of issue for Chromium kiosk deployments on Wayland in general, not specific to this project's code. Manually killing and relaunching the exact same command fixes it immediately, which is why it looks like a launch-time coin flip rather than a persistent misconfiguration.
-
-**Current mitigation**: `deploy.sh` logs a timestamped line every time it relaunches Chromium, noting whether the previous process exited cleanly or needed a forced kill (`/var/log/family-dashboard-deploy.log`) — e.g.:
+`restart-kiosk.sh` still logs a timestamped line noting whether the previous Chromium process exited cleanly or needed a forced kill (`/var/log/family-dashboard-deploy.log`) — kept from the original mitigation, useful for spotting a stuck/crash-looping Chromium independent of this bug:
 
 ```
-2026-07-22T02:00:14+01:00 chromium-relaunch: previous process exited cleanly.
+2026-07-22T06:30:02+01:00 chromium-relaunch: previous process exited cleanly.
 ```
-
-There's no automatic recovery yet — this is intentionally observation-only for now, to build up a real incidence history (how often this actually happens) before adding retry logic. Note it only tells you a relaunch happened and whether a forced kill was needed, not whether kiosk mode was actually achieved visually — there's no cheap way to check that from a script yet (would need a screenshot tool like `grim` plus pixel sampling, neither currently installed).
-
-**Manual recovery** (SSH in):
-
-```bash
-pkill -f chromium || true
-for _ in $(seq 1 10); do
-    pgrep -f chromium >/dev/null 2>&1 || break
-    sleep 1
-done
-pkill -9 -f chromium >/dev/null 2>&1 || true
-
-rm -rf "$HOME/.cache/chromium-kiosk"
-
-setsid bash -c "XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir='$HOME/.cache/chromium-kiosk' http://localhost:8000 >/dev/null 2>&1" &
-disown
-```
-
-**Possible future improvements**, not yet implemented (revisit once the log above shows how often this actually recurs):
-- Verify fullscreen state after launch (e.g. a `grim` screenshot + pixel sample against the dashboard's background colour) and retry a bounded number of times if it didn't take.
-- A second scheduled relaunch shortly before the 06:30 display-on cron, independent of whether a deploy happened that night — currently Chromium is only ever relaunched when new commits are deployed, so a flake on a no-deploy night has no self-correction until the next code change.
