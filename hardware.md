@@ -102,7 +102,7 @@ crontab -e
 
 ```cron
 # Family dashboard display schedule
-30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /var/log/family-dashboard-deploy.log 2>&1
+30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1
 0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
 ```
 
@@ -130,14 +130,16 @@ Earlier hypotheses along the way, ruled out in order: a missing `--kiosk` flag (
 **Fix**: Chromium is no longer restarted by `deploy.sh`. It's now restarted by a separate script, `scripts/restart-kiosk.sh`, chained directly onto the crontab line that powers the display on:
 
 ```cron
-30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /var/log/family-dashboard-deploy.log 2>&1
+30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1
 ```
 
 This guarantees Chromium only ever launches once the output is confirmed live, regardless of whether a deploy happened that night. `restart-kiosk.sh` carries no SHA/deploy-state gating — it restarts Chromium unconditionally every morning, which is cheap and invisible (the screen has just come on) and means a fresh, clean Chromium process every single day rather than one that potentially lives for days across deploys.
 
 **One-time manual step required**: this crontab change lives on the Pi, not in this repo — `crontab -e` and replace the old `wlopm --on HDMI-A-1` line with the version above (adjusting the repo path if it differs from `/home/pi/projects/family-dashboard`).
 
-`restart-kiosk.sh` still logs a timestamped line noting whether the previous Chromium process exited cleanly or needed a forced kill (`/var/log/family-dashboard-deploy.log`) — kept from the original mitigation, useful for spotting a stuck/crash-looping Chromium independent of this bug:
+**Log file note**: the cron line above logs to `kiosk-restart.log` *inside the repo*, not `/var/log/family-dashboard-deploy.log`. That's deliberate, not a typo — `deploy.sh` can append to the `/var/log` file because it runs as a systemd service (`family-dashboard-deploy.service`), and systemd itself opens that file (as root) before dropping to the `User=pi` process, so the child just inherits an already-open, writable descriptor. Cron has no such privilege step: it runs the command as plain user `pi`, and `pi` has no write permission on that root-owned, mode-644 file — the `>>` redirect fails with "Permission denied" *before `restart-kiosk.sh` even starts running*, with the error silently discarded (`cron: (CRON) info (No MTA installed, discarding output)`), which is exactly what happened the first time this crontab line was installed: zero log output, and Chromium's `STIME` showing it had never been touched by the new mechanism at all. `kiosk-restart.log`, by contrast, is created fresh by `pi`'s own cron job the first time it runs, so `pi` owns it outright.
+
+`restart-kiosk.sh` still logs a timestamped line noting whether the previous Chromium process exited cleanly or needed a forced kill — kept from the original mitigation, useful for spotting a stuck/crash-looping Chromium independent of this bug:
 
 ```
 2026-07-22T06:30:02+01:00 chromium-relaunch: previous process exited cleanly.
