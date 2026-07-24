@@ -92,11 +92,23 @@ def _pgrep_eventually_gone_stub(bin_dir: Path, events_log: Path, *, still_runnin
     return _events_stub(bin_dir, events_log, "pgrep", body=body)
 
 
-def _run_restart_kiosk(tmp: Path, bin_dir: Path) -> subprocess.CompletedProcess:
+def _run_restart_kiosk(
+    tmp: Path,
+    bin_dir: Path,
+    *,
+    now_hhmm: str = "0800",
+) -> subprocess.CompletedProcess:
+    """
+    now_hhmm: fixed "current time" (HHMM) so tests are deterministic
+    regardless of wall-clock time — defaults to 08:00, safely inside the
+    default 06:30-22:00 display-on window, so existing tests are
+    unaffected by the display-off guard unless they explicitly test it.
+    """
     env = os.environ.copy()
     env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
     env["HOME"] = str(tmp)
     env["KIOSK_CHROME_PROFILE_DIR"] = str(tmp / ".cache" / "chromium-kiosk")
+    env["KIOSK_NOW_HHMM"] = now_hhmm
     return subprocess.run(
         ["bash", str(RESTART_SCRIPT)],
         env=env,
@@ -229,3 +241,47 @@ def test_relaunch_logs_forced_kill(tmp_path):
     assert result.returncode == 0
     assert re.search(rf"{TIMESTAMP_RE}.*forced kill", result.stdout, re.IGNORECASE), result.stdout
     assert "exited cleanly" not in result.stdout.lower()
+
+
+# ---------------------------------------------------------------------------
+# Scenario: display-off-window guard
+#
+# This script is also invoked directly from ~/.config/labwc/autostart on
+# every boot (see PI_SETUP.md, Part 14) — a trigger cron has no control
+# over. A reboot can happen at any time, including inside the 22:00-06:30
+# display-off window, so the script itself refuses to launch Chromium
+# unless it's currently within the scheduled display-on window. The
+# cron-triggered call is always safely inside the window (it only ever
+# fires right after wlopm --on at 06:30), so this only matters for the
+# autostart trigger.
+# ---------------------------------------------------------------------------
+
+
+def test_chromium_restarted_inside_display_on_window(tmp_path):
+    b = _make_bin(tmp_path)
+    pkill_log = _stub(b, "pkill")
+    _stub(b, "pgrep", exit_code=1)
+    setsid_log = _stub(b, "setsid")
+    _stub(b, "sleep")
+
+    result = _run_restart_kiosk(tmp_path, b, now_hhmm="0800")
+
+    assert result.returncode == 0
+    assert any("chromium" in c for c in _calls(pkill_log)), _calls(pkill_log)
+    assert any("chromium" in c for c in _calls(setsid_log)), _calls(setsid_log)
+
+
+def test_chromium_left_untouched_outside_display_on_window(tmp_path):
+    b = _make_bin(tmp_path)
+    pkill_log = _stub(b, "pkill")
+    _stub(b, "pgrep", exit_code=1)
+    setsid_log = _stub(b, "setsid")
+    _stub(b, "sleep")
+
+    result = _run_restart_kiosk(tmp_path, b, now_hhmm="0300")
+
+    assert result.returncode == 0
+    assert _calls(pkill_log) == [], "chromium must not be touched outside the display-on window"
+    assert _calls(setsid_log) == [], "chromium must not be relaunched outside the display-on window"
+    assert "skip" in result.stdout.lower(), result.stdout
+    assert re.search(TIMESTAMP_RE, result.stdout), result.stdout

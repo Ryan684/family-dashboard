@@ -14,7 +14,34 @@
 #
 # Unlike deploy.sh, this script carries no SHA/marker-file gating — it
 # restarts Chromium unconditionally every time it's invoked.
+#
+# Also called directly from ~/.config/labwc/autostart on every boot (see
+# PI_SETUP.md, Part 14) — a trigger cron has no control over. A reboot can
+# happen at any time, including inside the display-off window, so this
+# script refuses to launch Chromium unless it's currently within the
+# scheduled display-on window (default 06:30-22:00, matching the crontab
+# entries in hardware.md) — otherwise it logs and exits, leaving Chromium
+# untouched until the next scheduled wlopm --on + restart-kiosk.sh cron
+# run. The cron-triggered call is always safely inside the window (it
+# only ever fires right after wlopm --on), so this only matters for the
+# autostart trigger.
 set -euo pipefail
+
+# KIOSK_NOW_HHMM overrides "now" for testing. All three are forced to
+# base-10 with the "10#" prefix so a leading zero (e.g. "0630") is never
+# misread as octal by shell arithmetic.
+NOW_HHMM="${KIOSK_NOW_HHMM:-$(date +%H%M)}"
+ON_HHMM="${KIOSK_ON_HHMM:-0630}"
+OFF_HHMM="${KIOSK_OFF_HHMM:-2200}"
+
+now_minutes=$(( 10#${NOW_HHMM:0:2} * 60 + 10#${NOW_HHMM:2:2} ))
+on_minutes=$(( 10#${ON_HHMM:0:2} * 60 + 10#${ON_HHMM:2:2} ))
+off_minutes=$(( 10#${OFF_HHMM:0:2} * 60 + 10#${OFF_HHMM:2:2} ))
+
+if [ "$now_minutes" -lt "$on_minutes" ] || [ "$now_minutes" -ge "$off_minutes" ]; then
+    echo "$(date -Iseconds) chromium-relaunch: skipped — display is scheduled off right now ($NOW_HHMM, on-window $ON_HHMM-$OFF_HHMM). The next scheduled wlopm --on + restart-kiosk.sh cron run will launch Chromium once the output is live."
+    exit 0
+fi
 
 pkill -f chromium || true
 

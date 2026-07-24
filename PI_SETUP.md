@@ -314,18 +314,20 @@ Common issues:
 
 Raspberry Pi OS Bookworm uses **labwc** (a Wayland compositor), not a GNOME-based session. The standard `~/.config/autostart/*.desktop` mechanism is not used — labwc has its own autostart file.
 
+This file used to duplicate Chromium's full launch command directly. It's now a thin wrapper that just calls `scripts/restart-kiosk.sh` (the same script the display-on cron uses — see Part 15) instead of repeating the launch logic:
+
 ```bash
 mkdir -p ~/.config/labwc
-echo 'sleep 10 && rm -rf ~/.cache/chromium-kiosk && XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 chromium --ozone-platform=wayland --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --password-store=basic --user-data-dir=$HOME/.cache/chromium-kiosk http://localhost:8000 &' > ~/.config/labwc/autostart
+cat > ~/.config/labwc/autostart <<'EOF'
+sleep 10
+/home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1 &
+EOF
 ```
 
-Key flags explained:
-- `XDG_RUNTIME_DIR=/run/user/1000` — points Chromium to the user's Wayland runtime socket directory
-- `WAYLAND_DISPLAY=wayland-0` — the Wayland display socket name on Raspberry Pi OS Bookworm
-- `--ozone-platform=wayland` — tells Chromium to use Wayland rather than X11
-- `--password-store=basic` — prevents a keyring password popup on first launch. Without this, Chromium prompts you to set a keyring password on screen, which you cannot dismiss without a mouse. The popup only appears once per fresh Chromium profile, but the flag must stay in place permanently to suppress it reliably.
-- `--user-data-dir=$HOME/.cache/chromium-kiosk`, wiped with `rm -rf` right before launch — always starts from a disposable, empty profile. Without this, an unclean shutdown (e.g. a SIGKILL from `scripts/deploy.sh`'s stuck-process fallback) leaves Chromium's session-restore state intact; on the next launch it silently reopens the previous session's windows in their *saved* windowed state, ignoring `--kiosk` for those windows entirely.
 - `sleep 10` — gives the systemd backend time to start before Chromium loads
+- `restart-kiosk.sh` does the actual work: kills any stray Chromium process, waits for it to exit (falling back to SIGKILL after a bounded wait), wipes the disposable `--user-data-dir` profile, and relaunches with `--kiosk`. See `scripts/restart-kiosk.sh` for the exact flags and why each one matters.
+
+**Why this matters**: unlike the cron-triggered restart (which only ever fires right after `wlopm --on`, so the display is always confirmed live), this autostart trigger fires on *every boot* — which could happen at any time, including inside the 22:00-06:30 display-off window (a reboot from a power blip, a kernel update, anything). Launching Chromium while the Wayland output is off leaves it permanently windowed instead of fullscreen (see "Chromium doesn't go fullscreen" in the troubleshooting table below) — so `restart-kiosk.sh` itself refuses to launch Chromium unless it's currently within the scheduled display-on window, logging and exiting instead. If a reboot happens overnight, Chromium is simply left unstarted until the next scheduled `06:30` cron run, rather than launched broken.
 
 ---
 
@@ -343,9 +345,13 @@ If prompted to choose an editor, select `nano`. Add these two lines at the botto
 
 ```cron
 # Family dashboard display schedule
-30 6  * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1
+30 6  * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1
 0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
 ```
+
+Chromium is restarted in the *same* line as `wlopm --on`, chained with `&&`, so it only ever launches once the output is confirmed live — see `scripts/restart-kiosk.sh` and Part 14 above. The nightly deploy (`deploy.sh`) does not restart Chromium at all.
+
+Note the log path is `kiosk-restart.log`, not `/var/log/family-dashboard-deploy.log` — that file is owned by `root:root` (systemd opens it as root for the deploy service), and cron runs this line as plain user `pi`, who has no write permission on it. The `>>` redirect would fail with "Permission denied" before the script even started, silently discarded since there's no mail transfer agent installed. `kiosk-restart.log` is created fresh by this cron job, so `pi` owns it outright.
 
 Save and exit. To test display control manually:
 
@@ -467,12 +473,12 @@ All output (stdout + stderr) goes to:
 | Dashboard shows no travel cards | Both commuters are WFH or off today — correct by design |
 | Backend won't start | `sudo journalctl -u family-dashboard -n 50` — usually a bad `.env` value |
 | Chromium shows "site can't be reached" | Service hasn't started yet — wait a few more seconds or check `systemctl status` |
-| Chromium shows a "Choose password for new keyring" popup on screen | Missing `--password-store=basic` flag in `~/.config/labwc/autostart` — add it and reboot |
-| Chromium doesn't launch on boot | Check `~/.config/labwc/autostart` exists and has the correct command. The XDG `.desktop` approach does not work on labwc. |
+| Chromium shows a "Choose password for new keyring" popup on screen | Missing `--password-store=basic` flag — this now lives inside `scripts/restart-kiosk.sh`, not the autostart file. Check the script has it and re-run it (or reboot). |
+| Chromium doesn't launch on boot | Check `~/.config/labwc/autostart` exists and calls `scripts/restart-kiosk.sh` (Part 14). Also check `kiosk-restart.log` for a "skipped" line — if the reboot happened outside the 06:30-22:00 display-on window, this is expected: Chromium is deliberately left unstarted until the next scheduled cron run, not launched against a powered-off display. |
 | `wlopm` command not found | Run `sudo apt install -y wlopm` |
 | `wlopm --off HDMI-A-1` gives an error | Run `wlopm` with no arguments to list output names, then substitute the correct name |
 | Display stays on all day | Cron not installed — re-run step 15 and verify with `crontab -l` |
 | SSH hangs after reboot | Pi takes ~30s to get network — just retry |
 | Auto-deploy never runs | Check `systemctl list-timers family-dashboard-deploy.timer` and re-run step 18.2 |
 | Auto-deploy ran but service is old | Check `/var/log/family-dashboard-deploy.log` for build or pull errors |
-| Chromium shows a normal windowed browser (tabs, address bar) instead of fullscreen kiosk, even though `pgrep -af chromium` shows `--kiosk` in the running process | An earlier unclean shutdown (SIGKILL) left Chromium session-restore state behind; on relaunch it silently reopened the previous session's window in its *saved* windowed state, ignoring `--kiosk`. `scripts/deploy.sh` and the `~/.config/labwc/autostart` command now launch against a disposable `--user-data-dir` wiped immediately before every launch, so there is never a previous session to restore. Update both to the latest version (re-run step 14 for the autostart file) and let the next deploy cycle (or a manual run, step 18.3) relaunch Chromium cleanly. |
+| Chromium shows a normal windowed browser (tabs, address bar) instead of fullscreen kiosk, even though `pgrep -af chromium` shows `--kiosk` in the running process | Two possible causes, in order of likelihood. (1) Chromium was launched while the Wayland output was powered off (`wlopm --off`) — its fullscreen request had nothing to negotiate against and fell back to a window, permanently, until relaunched with the display on. This is why Chromium is no longer restarted by the nightly deploy (which ran at 02:00, inside the display-off window) — it's now only restarted by `scripts/restart-kiosk.sh`, chained to `wlopm --on` (Part 15) and called from the boot autostart (Part 14), both of which guarantee — or, for the autostart case, actively check — that the display is live first. (2) An earlier unclean shutdown (SIGKILL) left Chromium session-restore state behind; `restart-kiosk.sh` wipes the disposable `--user-data-dir` profile before every launch specifically to prevent this. If you still see this after confirming both scripts are up to date, check `kiosk-restart.log` for what actually happened at the last restart attempt. |

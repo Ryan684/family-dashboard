@@ -15,6 +15,16 @@ Feature: Kiosk Chromium restart, chained to the display-on cron
   ever starts once the output is confirmed live. The nightly deploy
   (features/auto_deploy.feature) no longer touches Chromium at all.
 
+  This script is also called directly from `~/.config/labwc/autostart` on
+  every boot (see PI_SETUP.md, Part 14) — a second, independent trigger
+  that cron has no control over. A reboot can happen at any time, including
+  inside the 22:00-06:30 display-off window, so the script itself refuses
+  to launch Chromium unless it's currently within the scheduled display-on
+  window — otherwise it logs and exits, leaving Chromium untouched until
+  the next scheduled `wlopm --on` + restart-kiosk.sh cron run. This keeps
+  the safety check in one tested, version-controlled place rather than
+  duplicated in the untracked autostart file.
+
   Scenario: Chromium is restarted every time the script runs
     When the kiosk restart script runs
     Then pkill is called to stop Chromium
@@ -61,3 +71,21 @@ Feature: Kiosk Chromium restart, chained to the display-on cron
     Given the previous Chromium process never exits after pkill
     When the kiosk restart script runs
     Then the log records a timestamped line noting Chromium required a forced kill before relaunching
+
+  Scenario: Chromium is restarted when invoked inside the display-on window
+    Given the current time is within the scheduled display-on window
+    When the kiosk restart script runs
+    Then Chromium is killed and relaunched as normal
+
+  Scenario: Chromium is left untouched when invoked outside the display-on window
+    Given the current time is outside the scheduled display-on window
+    When the kiosk restart script runs
+    Then pkill is not called
+    And Chromium is not relaunched
+    And the log records that the restart was skipped because the display is scheduled off
+    # Protects the boot-autostart trigger specifically: a reboot during the
+    # 22:00-06:30 window must not launch Chromium against a powered-off
+    # Wayland output (see hardware.md, "Resolved: Chromium doesn't go
+    # fullscreen..."). The cron-triggered call is always safely inside the
+    # window (it only ever fires right after wlopm --on), so this scenario
+    # only matters for the autostart trigger.
