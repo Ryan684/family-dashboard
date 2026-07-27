@@ -3,8 +3,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import App from './App'
 
 // Mock non-travel child components so they don't make their own fetch calls
-vi.mock('./components/ClockCard', () => ({ default: () => <div data-testid="clock-card" /> }))
-vi.mock('./components/WeatherCard', () => ({ default: () => <div data-testid="weather-card" /> }))
+vi.mock('./components/ClockCard', () => ({
+  default: () => <div data-testid="clock-card" />,
+}))
+vi.mock('./components/WeatherCard', () => ({
+  default: () => <div data-testid="weather-card" />,
+}))
 vi.mock('./components/CalendarCard', () => ({
   default: () => <div data-testid="calendar-card" />,
 }))
@@ -40,15 +44,21 @@ afterEach(() => {
 
 describe('App — travel section grid reflow', () => {
   it('renders 2 travel cards when both commuters are active', async () => {
-    mockTravelFetch(makeTravelResponse([makeCommuter('Ryan'), makeCommuter('Emily')]))
+    mockTravelFetch(
+      makeTravelResponse([makeCommuter('Ryan'), makeCommuter('Emily')])
+    )
     render(<App />)
-    await waitFor(() => expect(screen.getAllByTestId('travel-card')).toHaveLength(2))
+    await waitFor(() =>
+      expect(screen.getAllByTestId('travel-card')).toHaveLength(2)
+    )
   })
 
   it('renders 1 travel card when only one commuter is active', async () => {
     mockTravelFetch(makeTravelResponse([makeCommuter('Ryan')]))
     render(<App />)
-    await waitFor(() => expect(screen.getAllByTestId('travel-card')).toHaveLength(1))
+    await waitFor(() =>
+      expect(screen.getAllByTestId('travel-card')).toHaveLength(1)
+    )
   })
 
   it('hides the travel section when commuters array is empty', async () => {
@@ -76,7 +86,10 @@ describe('App — travel section grid reflow', () => {
   })
 
   it('shows the travel section while loading (before fetch resolves)', () => {
-    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {}))) // never resolves
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {}))
+    ) // never resolves
     render(<App />)
     // Initially travelLoading=true, so travel section is shown in loading state
     expect(screen.getByTestId('travel-section')).toBeInTheDocument()
@@ -85,7 +98,9 @@ describe('App — travel section grid reflow', () => {
   it('shows travel error state when fetch returns a non-ok HTTP status', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => Promise.resolve({ ok: false, status: 500, json: async () => ({}) }))
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status: 500, json: async () => ({}) })
+      )
     )
     render(<App />)
     // Wait for error state specifically — not just loading
@@ -94,7 +109,10 @@ describe('App — travel section grid reflow', () => {
   })
 
   it('shows travel error state when fetch rejects', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Network error'))))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('Network error')))
+    )
     render(<App />)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.getByTestId('travel-section')).toBeInTheDocument()
@@ -117,7 +135,9 @@ describe('App — stale indicator', () => {
   it('does not show stale warning when is_stale is false', async () => {
     mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: false })
     render(<App />)
-    await waitFor(() => expect(screen.getAllByTestId('travel-card')).toHaveLength(1))
+    await waitFor(() =>
+      expect(screen.getAllByTestId('travel-card')).toHaveLength(1)
+    )
     expect(screen.queryByTestId('stale-warning')).not.toBeInTheDocument()
   })
 })

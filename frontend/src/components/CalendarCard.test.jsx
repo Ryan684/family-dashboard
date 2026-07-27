@@ -56,7 +56,11 @@ describe('CalendarCard — loading and error states', () => {
   })
 
   it('shows an error alert when the API returns a non-ok HTTP status', async () => {
-    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+    fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
@@ -75,7 +79,7 @@ describe('CalendarCard — Today section', () => {
     await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument())
   })
 
-  it('shows today\'s event summary under the Today heading', async () => {
+  it("shows today's event summary under the Today heading", async () => {
     mockCalendar({ today: [makeEvent({ summary: 'Morning standup' })] })
     render(<CalendarCard />)
     await waitFor(() =>
@@ -84,7 +88,11 @@ describe('CalendarCard — Today section', () => {
   })
 
   it('shows "No events today" when there are no today events', async () => {
-    mockCalendar({ tomorrow: [makeEvent({ start: `${TOMORROW}T10:00:00`, summary: 'Tomorrow thing' })] })
+    mockCalendar({
+      tomorrow: [
+        makeEvent({ start: `${TOMORROW}T10:00:00`, summary: 'Tomorrow thing' }),
+      ],
+    })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('No events today')).toBeInTheDocument()
@@ -96,11 +104,17 @@ describe('CalendarCard — Tomorrow section', () => {
   it('renders a "Tomorrow" heading', async () => {
     mockCalendar()
     render(<CalendarCard />)
-    await waitFor(() => expect(screen.getByText('Tomorrow')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Tomorrow')).toBeInTheDocument()
+    )
   })
 
-  it('shows tomorrow\'s event summary under the Tomorrow heading', async () => {
-    mockCalendar({ tomorrow: [makeEvent({ start: `${TOMORROW}T14:00:00`, summary: 'School pickup' })] })
+  it("shows tomorrow's event summary under the Tomorrow heading", async () => {
+    mockCalendar({
+      tomorrow: [
+        makeEvent({ start: `${TOMORROW}T14:00:00`, summary: 'School pickup' }),
+      ],
+    })
     render(<CalendarCard />)
     await waitFor(() =>
       expect(screen.getByText('School pickup')).toBeInTheDocument()
@@ -118,7 +132,9 @@ describe('CalendarCard — Tomorrow section', () => {
 
 describe('CalendarCard — event display', () => {
   it('shows the formatted time for a timed event', async () => {
-    mockCalendar({ today: [makeEvent({ start: `${TODAY}T09:30:00`, all_day: false })] })
+    mockCalendar({
+      today: [makeEvent({ start: `${TODAY}T09:30:00`, all_day: false })],
+    })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText('09:30')).toBeInTheDocument())
   })
@@ -143,7 +159,11 @@ describe('CalendarCard — event display', () => {
 describe('CalendarCard — event travel ETA', () => {
   it('shows formatted travel duration when event has travel', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 1200, description: 'via A3' } })],
+      today: [
+        makeEvent({
+          travel: { travel_time_seconds: 1200, description: 'via A3' },
+        }),
+      ],
     })
     render(<CalendarCard />)
     await waitFor(() => expect(screen.getByText(/20 min/)).toBeInTheDocument())
@@ -151,21 +171,31 @@ describe('CalendarCard — event travel ETA', () => {
 
   it('shows route description when event has travel', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 900, description: 'via M25 and A3' } })],
+      today: [
+        makeEvent({
+          travel: { travel_time_seconds: 900, description: 'via M25 and A3' },
+        }),
+      ],
     })
     render(<CalendarCard />)
-    await waitFor(() => expect(screen.getByText(/via M25 and A3/)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText(/via M25 and A3/)).toBeInTheDocument()
+    )
   })
 
   it('does not render travel element when travel is null', async () => {
     mockCalendar({ today: [makeEvent({ travel: null })] })
     render(<CalendarCard />)
-    await waitFor(() => expect(screen.queryByTestId('event-travel')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByTestId('event-travel')).not.toBeInTheDocument()
+    )
   })
 
   it('shows only duration when description is empty', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 600, description: '' } })],
+      today: [
+        makeEvent({ travel: { travel_time_seconds: 600, description: '' } }),
+      ],
     })
     render(<CalendarCard />)
     await waitFor(() => {
@@ -175,38 +205,58 @@ describe('CalendarCard — event travel ETA', () => {
 
   it('duration and description are separated by a middle dot', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 720, description: 'via A3' } })],
+      today: [
+        makeEvent({
+          travel: { travel_time_seconds: 720, description: 'via A3' },
+        }),
+      ],
     })
     render(<CalendarCard />)
     await waitFor(() =>
-      expect(screen.getByTestId('event-travel').textContent).toBe('12 min · via A3')
+      expect(screen.getByTestId('event-travel').textContent).toBe(
+        '12 min · via A3'
+      )
     )
   })
 
   it('shows hours and minutes when travel time is 60 minutes or more', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 4500, description: '' } })],
+      today: [
+        makeEvent({ travel: { travel_time_seconds: 4500, description: '' } }),
+      ],
     })
     render(<CalendarCard />)
-    await waitFor(() => expect(screen.getByText('1 hr 15 min')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('1 hr 15 min')).toBeInTheDocument()
+    )
   })
 
   it('shows plural hrs when travel time is 2 or more hours', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 7800, description: 'via M25' } })],
+      today: [
+        makeEvent({
+          travel: { travel_time_seconds: 7800, description: 'via M25' },
+        }),
+      ],
     })
     render(<CalendarCard />)
     await waitFor(() =>
-      expect(screen.getByTestId('event-travel').textContent).toBe('2 hrs 10 min · via M25')
+      expect(screen.getByTestId('event-travel').textContent).toBe(
+        '2 hrs 10 min · via M25'
+      )
     )
   })
 
   it('shows whole hours with 0 min when travel time is an exact multiple of 60 minutes', async () => {
     mockCalendar({
-      today: [makeEvent({ travel: { travel_time_seconds: 3600, description: '' } })],
+      today: [
+        makeEvent({ travel: { travel_time_seconds: 3600, description: '' } }),
+      ],
     })
     render(<CalendarCard />)
-    await waitFor(() => expect(screen.getByText('1 hr 0 min')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('1 hr 0 min')).toBeInTheDocument()
+    )
   })
 })
 
@@ -216,7 +266,10 @@ describe('CalendarCard — error recovery', () => {
   beforeEach(() => {
     capturedCallback = undefined
     vi.stubGlobal('fetch', vi.fn())
-    vi.stubGlobal('setInterval', (fn) => { capturedCallback = fn; return 1 })
+    vi.stubGlobal('setInterval', (fn) => {
+      capturedCallback = fn
+      return 1
+    })
     vi.stubGlobal('clearInterval', () => {})
   })
 
@@ -230,10 +283,14 @@ describe('CalendarCard — error recovery', () => {
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce({ ok: true, json: async () => calendarData })
 
-    await act(async () => { render(<CalendarCard />) })
+    await act(async () => {
+      render(<CalendarCard />)
+    })
     expect(screen.getByRole('alert')).toBeInTheDocument()
 
-    await act(async () => { capturedCallback() })
+    await act(async () => {
+      capturedCallback()
+    })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByText('Test Event')).toBeInTheDocument()
   })

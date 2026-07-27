@@ -43,7 +43,14 @@ function EventRow({ event }) {
         }}
         data-testid="event-colour"
       />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          minWidth: 0,
+        }}
+      >
         <div
           style={{
             fontFamily: 'var(--f-display)',
@@ -216,8 +223,16 @@ function CalendarCard() {
       >
         Calendar
       </div>
-      <EventGroup heading="Today" events={data.today} emptyMessage="No events today" />
-      <EventGroup heading="Tomorrow" events={data.tomorrow} emptyMessage="No events tomorrow" />
+      <EventGroup
+        heading="Today"
+        events={data.today}
+        emptyMessage="No events today"
+      />
+      <EventGroup
+        heading="Tomorrow"
+        events={data.tomorrow}
+        emptyMessage="No events tomorrow"
+      />
     </section>
   )
 }

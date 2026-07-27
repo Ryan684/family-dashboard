@@ -26,8 +26,10 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
         <div
           style={{
             position: 'absolute',
-            left: s * 0.06, top: s * 0.22,
-            width: s * 0.82, height: s * 0.32,
+            left: s * 0.06,
+            top: s * 0.22,
+            width: s * 0.82,
+            height: s * 0.32,
             borderRadius: 999,
             background: 'var(--ink-dim)',
             opacity: 0.55,
@@ -36,8 +38,10 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
         <div
           style={{
             position: 'absolute',
-            left: s * 0.22, top: s * 0.10,
-            width: s * 0.42, height: s * 0.36,
+            left: s * 0.22,
+            top: s * 0.1,
+            width: s * 0.42,
+            height: s * 0.36,
             borderRadius: '50%',
             background: 'var(--ink-dim)',
             opacity: 0.55,
@@ -68,8 +72,10 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
       <div
         style={{
           position: 'absolute',
-          left: s * 0.06, top: s * 0.32,
-          width: s * 0.82, height: s * 0.36,
+          left: s * 0.06,
+          top: s * 0.32,
+          width: s * 0.82,
+          height: s * 0.36,
           borderRadius: 999,
           background: 'var(--ink-dim)',
           opacity: 0.55,
@@ -78,8 +84,10 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
       <div
         style={{
           position: 'absolute',
-          left: s * 0.22, top: s * 0.18,
-          width: s * 0.42, height: s * 0.42,
+          left: s * 0.22,
+          top: s * 0.18,
+          width: s * 0.42,
+          height: s * 0.42,
           borderRadius: '50%',
           background: 'var(--ink-dim)',
           opacity: 0.55,
@@ -140,13 +148,23 @@ function formatWindow({ start_hour, end_hour }) {
 
 function formatRainWindows(windows) {
   if (!windows || windows.length === 0) return null
-  const totalHours = windows.reduce((sum, w) => sum + (w.end_hour - w.start_hour), 0)
+  const totalHours = windows.reduce(
+    (sum, w) => sum + (w.end_hour - w.start_hour),
+    0
+  )
   if (totalHours >= 18) return 'all day'
   return windows.map(formatWindow).join(', ')
 }
 
 function LocationBlock({ location }) {
-  const { name, current, daily_high_celsius, daily_rainfall, rain_windows, icon } = location
+  const {
+    name,
+    current,
+    daily_high_celsius,
+    daily_rainfall,
+    rain_windows,
+    icon,
+  } = location
   const windowsText = formatRainWindows(rain_windows)
 
   return (
@@ -155,7 +173,15 @@ function LocationBlock({ location }) {
       data-testid="weather-location-block"
     >
       <WeatherGlyph kind={icon ?? 'cloud'} size={56} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
         <div
           style={{
             fontFamily: 'var(--f-mono)',
@@ -169,7 +195,14 @@ function LocationBlock({ location }) {
           {name}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
           <div
             style={{
               fontFamily: 'var(--f-display)',
@@ -209,7 +242,8 @@ function LocationBlock({ location }) {
           <span>High: {daily_high_celsius}°C</span>
           {daily_rainfall && daily_rainfall.total_mm > 0 && (
             <span>
-              Rain: {daily_rainfall.total_mm} mm · {daily_rainfall.probability_percent}% chance
+              Rain: {daily_rainfall.total_mm} mm ·{' '}
+              {daily_rainfall.probability_percent}% chance
             </span>
           )}
         </div>
@@ -336,7 +370,13 @@ function WeatherCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <div
           style={{
             fontFamily: 'var(--f-mono)',
@@ -356,7 +396,11 @@ function WeatherCard() {
           <div key={loc.name ?? i}>
             {i > 0 && (
               <div
-                style={{ height: 1, background: 'var(--rule)', marginBottom: 28 }}
+                style={{
+                  height: 1,
+                  background: 'var(--rule)',
+                  marginBottom: 28,
+                }}
                 aria-hidden="true"
               />
             )}
