@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import App from './App'
 
 // Mock non-travel child components so they don't make their own fetch calls

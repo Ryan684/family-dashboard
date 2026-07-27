@@ -7,18 +7,6 @@ import AlertBanner from './components/AlertBanner'
 
 const POLL_INTERVAL_MS = 60_000
 
-const label = (text, dim = false) => ({
-  fontFamily: 'var(--f-mono)',
-  fontSize: 18,
-  letterSpacing: '0.22em',
-  textTransform: 'uppercase',
-  color: dim ? 'var(--ink-faint)' : 'var(--ink-dim)',
-  fontWeight: 500,
-  whiteSpace: 'nowrap',
-  display: 'inline',
-  children: text,
-})
-
 function App() {
   const [travelData, setTravelData] = useState(null)
   const [travelLoading, setTravelLoading] = useState(true)

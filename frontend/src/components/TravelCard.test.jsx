@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import TravelCard from './TravelCard'
 
 // Note: data-commuter="Ryan" attribute used for per-card selection in multi-commuter scenarios
