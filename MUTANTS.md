@@ -232,15 +232,21 @@ Fixed a bug where the banner fell back to the generic "Heavy traffic — leave e
 
 ### `App.jsx` (Session 12; recounted during the post-masthead dashboard-layout refit)
 
-54 surviving mutants across four accepted categories. Note: the `injectStyles()` pattern this section originally described no longer exists in `App.jsx` (removed in an earlier session without updating this doc) — the categories below reflect the file's current contents and a fresh Stryker run scoped to this file.
+53 surviving mutants across three accepted categories. Note: the `injectStyles()` pattern this section originally described no longer exists in `App.jsx` (removed in an earlier session without updating this doc) — the categories below reflect the file's current contents and a fresh Stryker run scoped to this file.
 
 **Layout refit — inline style ObjectLiteral / StringLiteral (24 mutants, lines 85–176)**
 
 Added to rebalance the grid column widths and contain per-column overflow after the masthead row was removed (see `frontend/src/App.jsx` — the `gridCols` ternary, the content grid's `display`/`gridTemplateRows`/`overflow`, and the new `DashColumn` wrapper + trailing fade-mask). Same equivalence class as Category 1 at the top of this file: every value here is an inline `style={{...}}` object or string (e.g. `'1.5fr 1px 0.9fr 1px 1.3fr'` vs `''`, `overflow: 'hidden'` vs `overflow: ''`, the fade gradient string vs `''`). JSDOM does not render CSS or compute layout, so no unit test can observe a mutated pixel/track/overflow value — the actual fit was verified with real-browser screenshots (Playwright + Chromium) against maximal fixture data (2 commuters × 2 routes + incidents, a packed 12-event calendar), not unit tests.
 
-**Dead `label()` helper (1 mutant, pre-existing, line 10)**
+**Dead `label()` helper — RESOLVED (2026-07-27, dependency upgrade)**
 
-`const label = (text, dim = false) => ({...})` is unused (no call sites) — Stryker's `ArrowFunction` mutant reducing it to `() => undefined` survives because nothing exercises it either way. Pre-existing, unrelated to the layout refit.
+Was 1 accepted survivor: `const label = (text, dim = false) => ({...})` had no
+call sites, so Stryker's `ArrowFunction` mutant reducing it to `() => undefined`
+survived because nothing exercised it either way. The helper has now been
+deleted, which removes the mutant rather than accepting it. It surfaced as a
+`no-unused-vars` error once eslint was migrated to flat config — the previous
+`.eslintrc.js` had never loaded at all (CommonJS under `"type": "module"`), so
+`npm run lint` had never actually run.
 
 **Viewport-scaling `fit()` and async cancellation/fallback (29 mutants, lines 30–79, pre-existing)**
 
