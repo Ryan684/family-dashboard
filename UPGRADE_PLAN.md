@@ -1,5 +1,21 @@
 # Dependency Upgrade Plan
 
+> **Status: Phases 0–3 executed on 2026-07-27.** Phase 4 (React 19) is
+> deliberately **not** done — see the recommendation in that section. Kept as
+> the record of what was decided and why. Deviations from the plan as written:
+>
+> - The eslint flat-config migration surfaced that **lint had never run at all**
+>   on `main` (CommonJS `.eslintrc.js` under `"type": "module"`), so it came
+>   with three dead-code removals rather than being config-only.
+> - `react/prop-types` was turned off, as satisfying it means ~64 declarations
+>   that React 19 ignores.
+> - Prettier has never run either, for the same reason. **Not** applied here —
+>   it would reformat all 10 source files. Left as a follow-up.
+> - Two residual advisories (`qs`/`typed-rest-client`) turned out to have no fix
+>   at all, not merely a blocked one.
+>
+> Outcomes are recorded in `SECURITY-EXCEPTIONS.md`.
+
 Derived from the dependency audit of 2026-07-27. Every claim marked **[verified]**
 was tested by building the proposed dependency set in a scratchpad copy of
 `frontend/` and running the real test suite, build, and mutation runner against
