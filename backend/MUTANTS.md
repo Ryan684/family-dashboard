@@ -246,8 +246,8 @@ mutant with the current commuter count.
 
 ### `x_run_scheduler__mutmut_*` (no tests)
 
-**Why acceptable:** `run_scheduler` is the top-level event loop that drives the
-APScheduler. It is an infrastructure entry point with no return value — testing it
+**Why acceptable:** `run_scheduler` is the top-level `asyncio` polling loop.
+It is an infrastructure entry point with no return value — testing it
 would require running the scheduler in a thread with timing assertions. Covered by the
 `poll_if_in_window` and `poll_once` tests which exercise the core scheduling logic.
 

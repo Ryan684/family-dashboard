@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,16 +13,27 @@ from scheduler import run_scheduler
 
 DIST_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
-app = FastAPI(title="Family Dashboard API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start the background polling loop, and cancel it on shutdown.
+
+    Replaces the deprecated `@app.on_event("startup")` hook: Starlette has
+    removed on_event entirely, and FastAPI only still accepts it via a
+    compatibility shim of its own.
+    """
+    task = asyncio.create_task(run_scheduler())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(title="Family Dashboard API", lifespan=lifespan)
 
 app.include_router(travel_router)
 app.include_router(weather_router)
 app.include_router(calendar_router)
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    asyncio.create_task(run_scheduler())
 
 
 @app.get("/health")

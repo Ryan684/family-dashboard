@@ -1,7 +1,9 @@
 function hasRedRoute(travelData) {
   if (!travelData || travelData.is_stale) return false
   const commuters = travelData.commuters || []
-  return commuters.some((c) => (c.routes || []).some((r) => r.delay_colour === 'red'))
+  return commuters.some((c) =>
+    (c.routes || []).some((r) => r.delay_colour === 'red')
+  )
 }
 
 function buildAlertMessage(travelData) {
@@ -53,7 +55,10 @@ function AlertBanner({ travelData }) {
       >
         Morning alert
       </div>
-      <div style={{ width: 1, height: 28, background: 'var(--rule)' }} aria-hidden="true" />
+      <div
+        style={{ width: 1, height: 28, background: 'var(--rule)' }}
+        aria-hidden="true"
+      />
       <div
         style={{
           fontFamily: 'var(--f-display)',

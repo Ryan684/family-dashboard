@@ -1,7 +1,7 @@
 const DELAY_META = {
-  green: { color: 'var(--ok)',    label: 'On time' },
-  amber: { color: 'var(--warn)',  label: 'Slow' },
-  red:   { color: 'var(--alert)', label: 'Delayed' },
+  green: { color: 'var(--ok)', label: 'On time' },
+  amber: { color: 'var(--warn)', label: 'Slow' },
+  red: { color: 'var(--alert)', label: 'Delayed' },
 }
 
 /* sr-only: text node discoverable by getByText but visually hidden */
@@ -37,7 +37,10 @@ function formatTimeDisplay(seconds) {
   const h = Math.floor(m / 60)
   const r = m % 60
   if (r === 0) return { bigNum: String(h), unit: h === 1 ? 'hr' : 'hrs' }
-  return { bigNum: `${h}:${String(r).padStart(2, '0')}`, unit: h === 1 ? 'hr' : 'hrs' }
+  return {
+    bigNum: `${h}:${String(r).padStart(2, '0')}`,
+    unit: h === 1 ? 'hr' : 'hrs',
+  }
 }
 
 function RouteRow({ route, primary = false }) {
@@ -49,7 +52,10 @@ function RouteRow({ route, primary = false }) {
   const isRed = route.delay_colour === 'red'
 
   return (
-    <div style={{ display: 'flex', gap: 22, alignItems: 'stretch' }} data-testid="route-card">
+    <div
+      style={{ display: 'flex', gap: 22, alignItems: 'stretch' }}
+      data-testid="route-card"
+    >
       {/* vertical delay bar — hairline, coloured, pulses when red */}
       <div
         data-colour={route.delay_colour}
@@ -60,12 +66,23 @@ function RouteRow({ route, primary = false }) {
           alignSelf: 'stretch',
           flexShrink: 0,
           ...(isRed
-            ? { boxShadow: `0 0 14px ${meta.color}`, animation: 'fd-pulse 2.4s ease-in-out infinite' }
+            ? {
+                boxShadow: `0 0 14px ${meta.color}`,
+                animation: 'fd-pulse 2.4s ease-in-out infinite',
+              }
             : null),
         }}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          minWidth: 0,
+        }}
+      >
         {/* sr-only span carries the combined time string for getByText */}
         <span style={srOnly}>{timeStr}</span>
 
@@ -125,7 +142,9 @@ function RouteRow({ route, primary = false }) {
             }}
           >
             {route.description}
-            {route.distance_meters != null ? ` · ${formatMiles(route.distance_meters)}` : null}
+            {route.distance_meters != null
+              ? ` · ${formatMiles(route.distance_meters)}`
+              : null}
           </div>
         ) : null}
       </div>
@@ -161,7 +180,10 @@ function IncidentList({ incidents }) {
         Incidents
       </div>
       {incidents.map((inc, i) => (
-        <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+        <div
+          key={i}
+          style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}
+        >
           {inc.road && (
             <span
               style={{
@@ -176,7 +198,13 @@ function IncidentList({ incidents }) {
               {inc.road}
             </span>
           )}
-          <span style={{ fontFamily: 'var(--f-display)', fontSize: 22, color: 'var(--ink)' }}>
+          <span
+            style={{
+              fontFamily: 'var(--f-display)',
+              fontSize: 22,
+              color: 'var(--ink)',
+            }}
+          >
             {inc.description}
           </span>
         </div>
@@ -267,7 +295,10 @@ function CommuterColumn({ commuter }) {
         </div>
       )}
 
-      <div style={{ height: 1, background: 'var(--rule)', margin: '4px 0' }} aria-hidden="true" />
+      <div
+        style={{ height: 1, background: 'var(--rule)', margin: '4px 0' }}
+        aria-hidden="true"
+      />
 
       <RouteRow route={primary} primary />
       {alt && (
@@ -317,7 +348,12 @@ function StaleTag() {
   )
 }
 
-function TravelCard({ commuters = [], isStale = false, loading = false, error = null }) {
+function TravelCard({
+  commuters = [],
+  isStale = false,
+  loading = false,
+  error = null,
+}) {
   if (loading) {
     return (
       <div
@@ -363,7 +399,13 @@ function TravelCard({ commuters = [], isStale = false, loading = false, error = 
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <div
           style={{
             fontFamily: 'var(--f-mono)',

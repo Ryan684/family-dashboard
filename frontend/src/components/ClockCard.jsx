@@ -57,9 +57,7 @@ function ClockCard() {
       {/* date row */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 28 }}>
         {/* sr-only span with combined text — enables getByText('Thursday 3 April') */}
-        <span style={srOnly}>
-          {`${weekday} ${day} ${month}`}
-        </span>
+        <span style={srOnly}>{`${weekday} ${day} ${month}`}</span>
 
         {/* visual: italic weekday + dimmed date */}
         <div
@@ -70,9 +68,12 @@ function ClockCard() {
           }}
           aria-hidden="true"
         >
-          <span style={{ fontStyle: 'italic', color: 'var(--ink)' }}>{weekday}</span>
-          {' '}
-          <span style={{ color: 'var(--ink-dim)' }}>{day} {month}</span>
+          <span style={{ fontStyle: 'italic', color: 'var(--ink)' }}>
+            {weekday}
+          </span>{' '}
+          <span style={{ color: 'var(--ink-dim)' }}>
+            {day} {month}
+          </span>
         </div>
 
         <div

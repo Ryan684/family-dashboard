@@ -7,18 +7,6 @@ import AlertBanner from './components/AlertBanner'
 
 const POLL_INTERVAL_MS = 60_000
 
-const label = (text, dim = false) => ({
-  fontFamily: 'var(--f-mono)',
-  fontSize: 18,
-  letterSpacing: '0.22em',
-  textTransform: 'uppercase',
-  color: dim ? 'var(--ink-faint)' : 'var(--ink-dim)',
-  fontWeight: 500,
-  whiteSpace: 'nowrap',
-  display: 'inline',
-  children: text,
-})
-
 function App() {
   const [travelData, setTravelData] = useState(null)
   const [travelLoading, setTravelLoading] = useState(true)
@@ -78,11 +66,14 @@ function App() {
   const commuters = travelData?.commuters ?? []
   const isStale = travelData?.is_stale ?? false
   const commuterCount = commuters.length
-  const showTravel = travelLoading || travelError || (!isStale && commuterCount > 0)
+  const showTravel =
+    travelLoading || travelError || (!isStale && commuterCount > 0)
 
   // Calendar and weather run narrower than travel's twin commuter columns, so they
   // get a larger share of the freed-up width; ratios still sum to the same total.
-  const gridCols = showTravel ? '1.5fr 1px 0.9fr 1px 1.3fr' : '0.85fr 1px 1.15fr'
+  const gridCols = showTravel
+    ? '1.5fr 1px 0.9fr 1px 1.3fr'
+    : '0.85fr 1px 1.15fr'
 
   return (
     <div ref={stageRef} className="dash-stage">
@@ -125,13 +116,19 @@ function App() {
                   error={travelError}
                 />
               </DashColumn>
-              <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
+              <div
+                style={{ width: 1, background: 'var(--rule)' }}
+                aria-hidden="true"
+              />
             </>
           )}
           <DashColumn>
             <WeatherCard />
           </DashColumn>
-          <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
+          <div
+            style={{ width: 1, background: 'var(--rule)' }}
+            aria-hidden="true"
+          />
           <DashColumn>
             <CalendarCard />
           </DashColumn>

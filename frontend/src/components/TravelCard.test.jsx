@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import TravelCard from './TravelCard'
 
 // Note: data-commuter="Ryan" attribute used for per-card selection in multi-commuter scenarios
@@ -25,14 +25,23 @@ const makeCommuter = (overrides = {}) => ({
 
 describe('TravelCard — loading state', () => {
   it('shows a loading indicator when loading is true', () => {
-    render(<TravelCard loading={true} commuters={[]} isStale={false} error={null} />)
+    render(
+      <TravelCard loading={true} commuters={[]} isStale={false} error={null} />
+    )
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 })
 
 describe('TravelCard — error state', () => {
   it('shows an error message when error is set', () => {
-    render(<TravelCard loading={false} commuters={[]} isStale={false} error="Network error" />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[]}
+        isStale={false}
+        error="Network error"
+      />
+    )
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 })
@@ -45,7 +54,14 @@ describe('TravelCard — card presence', () => {
       makeCommuter({ name: 'Ryan' }),
       makeCommuter({ name: 'Emily' }),
     ]
-    render(<TravelCard loading={false} commuters={commuters} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={commuters}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getAllByTestId('travel-card')).toHaveLength(2)
   })
 
@@ -90,7 +106,14 @@ describe('TravelCard — card content', () => {
       makeCommuter({ name: 'Ryan' }),
       makeCommuter({ name: 'Emily' }),
     ]
-    render(<TravelCard loading={false} commuters={commuters} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={commuters}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText('Ryan')).toBeInTheDocument()
     expect(screen.getByText('Emily')).toBeInTheDocument()
   })
@@ -112,7 +135,12 @@ describe('TravelCard — card content', () => {
       routes: [makeRoute({ description: 'via A3 and M25' })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('via A3 and M25')).toBeInTheDocument()
   })
@@ -122,7 +150,12 @@ describe('TravelCard — card content', () => {
       routes: [makeRoute({ travel_time_seconds: 2700 })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('45 min')).toBeInTheDocument()
   })
@@ -132,7 +165,12 @@ describe('TravelCard — card content', () => {
       routes: [makeRoute({ travel_time_seconds: 7500 })], // 125 min = 2 hrs 5 min
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('2 hrs 5 min')).toBeInTheDocument()
   })
@@ -142,7 +180,12 @@ describe('TravelCard — card content', () => {
       routes: [makeRoute({ travel_time_seconds: 3600 })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('1 hr 0 min')).toBeInTheDocument()
   })
@@ -152,7 +195,12 @@ describe('TravelCard — card content', () => {
       routes: [makeRoute({ travel_time_seconds: 7200 })], // exactly 2 hours
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('2 hrs 0 min')).toBeInTheDocument()
   })
@@ -166,7 +214,12 @@ describe('TravelCard — colour states', () => {
       routes: [makeRoute({ delay_colour: 'green' })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(document.querySelector('[data-colour="green"]')).toBeInTheDocument()
   })
@@ -176,7 +229,12 @@ describe('TravelCard — colour states', () => {
       routes: [makeRoute({ delay_colour: 'amber' })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(document.querySelector('[data-colour="amber"]')).toBeInTheDocument()
   })
@@ -186,7 +244,12 @@ describe('TravelCard — colour states', () => {
       routes: [makeRoute({ delay_colour: 'red' })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(document.querySelector('[data-colour="red"]')).toBeInTheDocument()
   })
@@ -200,7 +263,12 @@ describe('TravelCard — delay minutes', () => {
       routes: [makeRoute({ delay_colour: 'amber', delay_seconds: 480 })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('+8 min · Slow')).toBeInTheDocument()
   })
@@ -210,7 +278,12 @@ describe('TravelCard — delay minutes', () => {
       routes: [makeRoute({ delay_colour: 'green', delay_seconds: 0 })],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('On time')).toBeInTheDocument()
   })
@@ -221,10 +294,17 @@ describe('TravelCard — delay minutes', () => {
 describe('TravelCard — incidents', () => {
   it('shows incident description when incidents are present', () => {
     const commuter = makeCommuter({
-      incidents: [{ type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' }],
+      incidents: [
+        { type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' },
+      ],
     })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('Roadworks on A3')).toBeInTheDocument()
   })
@@ -245,15 +325,28 @@ describe('TravelCard — incidents', () => {
     const commuters = [
       makeCommuter({
         name: 'Ryan',
-        incidents: [{ type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' }],
+        incidents: [
+          { type: 'ROAD_WORKS', description: 'Roadworks on A3', road: 'A3' },
+        ],
       }),
       makeCommuter({ name: 'Emily', incidents: [] }),
     ]
-    render(<TravelCard loading={false} commuters={commuters} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={commuters}
+        isStale={false}
+        error={null}
+      />
+    )
     const ryanCard = document.querySelector('[data-commuter="Ryan"]')
     const emilyCard = document.querySelector('[data-commuter="Emily"]')
-    expect(ryanCard.querySelector('[data-testid="incident-list"]')).toBeInTheDocument()
-    expect(emilyCard.querySelector('[data-testid="incident-list"]')).not.toBeInTheDocument()
+    expect(
+      ryanCard.querySelector('[data-testid="incident-list"]')
+    ).toBeInTheDocument()
+    expect(
+      emilyCard.querySelector('[data-testid="incident-list"]')
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -292,7 +385,14 @@ describe('TravelCard — distance display', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ description: 'via A3', distance_meters: 25000 })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText(/15\.5 mi/)).toBeInTheDocument()
   })
 
@@ -300,7 +400,14 @@ describe('TravelCard — distance display', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ description: 'via A3', distance_meters: 25000 })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText('via A3 · 15.5 mi')).toBeInTheDocument()
   })
 
@@ -308,7 +415,14 @@ describe('TravelCard — distance display', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ description: 'via A3', distance_meters: null })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.queryByText(/\bmi\b/)).not.toBeInTheDocument()
   })
 
@@ -316,7 +430,14 @@ describe('TravelCard — distance display', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ description: 'via A3' })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.queryByText(/\bmi\b/)).not.toBeInTheDocument()
   })
 
@@ -325,7 +446,14 @@ describe('TravelCard — distance display', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ description: 'via A3', distance_meters: 16093 })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText(/10\.0 mi/)).toBeInTheDocument()
   })
 })
@@ -337,7 +465,14 @@ describe('TravelCard — route map', () => {
     const commuter = makeCommuter({
       routes: [makeRoute({ encoded_polyline: '??' })],
     })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.queryByTestId('route-map')).not.toBeInTheDocument()
   })
 })
@@ -375,25 +510,53 @@ describe('TravelCard — stale indicator', () => {
 describe('TravelCard — departure time display', () => {
   it('shows departure time when departure_time is provided', () => {
     const commuter = makeCommuter({ departure_time: '07:30', eta: '08:15' })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText('Dep 07:30')).toBeInTheDocument()
   })
 
   it('shows ETA alongside departure time', () => {
     const commuter = makeCommuter({ departure_time: '07:30', eta: '08:15' })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText('ETA 08:15')).toBeInTheDocument()
   })
 
   it('does not render a departure time element when departure_time is absent', () => {
     const commuter = makeCommuter()
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.queryByTestId('commuter-departure')).not.toBeInTheDocument()
   })
 
   it('does not render a departure time element when departure_time is null', () => {
     const commuter = makeCommuter({ departure_time: null })
-    render(<TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.queryByTestId('commuter-departure')).not.toBeInTheDocument()
   })
 })
@@ -404,7 +567,12 @@ describe('TravelCard — ETA display', () => {
   it('shows ETA when commuter.eta is provided', () => {
     const commuter = makeCommuter({ eta: '08:15' })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.getByText('ETA 08:15')).toBeInTheDocument()
   })
@@ -412,15 +580,25 @@ describe('TravelCard — ETA display', () => {
   it('does not render an ETA element when eta is null', () => {
     const commuter = makeCommuter({ eta: null })
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.queryByTestId('commuter-eta')).not.toBeInTheDocument()
   })
 
   it('does not render an ETA element when eta field is absent', () => {
-    const commuter = makeCommuter()  // no eta field
+    const commuter = makeCommuter() // no eta field
     render(
-      <TravelCard loading={false} commuters={[commuter]} isStale={false} error={null} />
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
     )
     expect(screen.queryByTestId('commuter-eta')).not.toBeInTheDocument()
   })
@@ -430,7 +608,14 @@ describe('TravelCard — ETA display', () => {
       makeCommuter({ name: 'Ryan', eta: '08:00' }),
       makeCommuter({ name: 'Emily', eta: '09:30' }),
     ]
-    render(<TravelCard loading={false} commuters={commuters} isStale={false} error={null} />)
+    render(
+      <TravelCard
+        loading={false}
+        commuters={commuters}
+        isStale={false}
+        error={null}
+      />
+    )
     expect(screen.getByText('ETA 08:00')).toBeInTheDocument()
     expect(screen.getByText('ETA 09:30')).toBeInTheDocument()
   })

@@ -37,14 +37,35 @@ def _make_bin(tmp: Path) -> Path:
     return d
 
 
-def _stub(bin_dir: Path, name: str, *, exit_code: int = 0, record: bool = True) -> Path:
-    """Write an executable stub that records invocations and returns exit_code."""
+def _stub(
+    bin_dir: Path,
+    name: str,
+    *,
+    exit_code: int = 0,
+    record: bool = True,
+    fail_on: str | None = None,
+) -> Path:
+    """Write an executable stub that records invocations and returns exit_code.
+
+    fail_on: a bash case-glob matched against the joined arguments. When given,
+             the stub exits 1 for matching invocations and 0 for all others.
+             Use this when a command is invoked more than once per deploy and
+             only one of those invocations should fail.
+    """
     log = bin_dir.parent / f"{name}.calls"
+    if fail_on is not None:
+        body = textwrap.dedent(f"""\
+            case "$*" in
+              {fail_on}) exit 1 ;;
+            esac
+            exit 0
+        """)
+    else:
+        body = f"exit {exit_code}\n"
     script = textwrap.dedent(f"""\
         #!/usr/bin/env bash
         echo "$@" >> {log}
-        exit {exit_code}
-    """)
+    """) + body
     p = bin_dir / name
     p.write_text(script)
     p.chmod(p.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
@@ -197,7 +218,8 @@ def test_abort_on_git_pull_failure(tmp_path):
 def test_abort_on_npm_build_failure(tmp_path):
     b = _make_bin(tmp_path)
     _git_stub(b, local_sha="aaa", remote_sha="bbb")
-    npm_log = _stub(b, "npm", exit_code=1)
+    # Fail only the build, so `npm ci` still succeeds and the build is reached.
+    npm_log = _stub(b, "npm", fail_on='"run build"')
     systemctl_log = _stub(b, "systemctl")
     _stub(b, "pip")
 
@@ -205,6 +227,47 @@ def test_abort_on_npm_build_failure(tmp_path):
 
     assert result.returncode != 0
     assert any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
+    assert _calls(systemctl_log) == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario: frontend dependencies are installed before the build
+# ---------------------------------------------------------------------------
+
+
+def test_npm_ci_runs_before_build(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    npm_log = _stub(b, "npm")
+    _stub(b, "pip")
+    _stub(b, "systemctl")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    calls = _calls(npm_log)
+    assert "ci" in calls, calls
+    assert calls.index("ci") < next(
+        i for i, c in enumerate(calls) if "run" in c and "build" in c
+    ), calls
+
+
+# ---------------------------------------------------------------------------
+# Scenario: script aborts if npm ci fails — never reaches build or restart
+# ---------------------------------------------------------------------------
+
+
+def test_abort_on_npm_ci_failure(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    npm_log = _stub(b, "npm", fail_on='"ci"')
+    systemctl_log = _stub(b, "systemctl")
+    _stub(b, "pip")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode != 0
+    assert not any("run" in c and "build" in c for c in _calls(npm_log)), _calls(npm_log)
     assert _calls(systemctl_log) == []
 
 
@@ -226,6 +289,49 @@ def test_pip_install_uses_venv_not_system_pip3(tmp_path):
     assert result.returncode == 0
     assert any("install" in c for c in _calls(pip_log)), _calls(pip_log)
     assert _calls(pip3_log) == [], f"pip3 should not be called; got: {_calls(pip3_log)}"
+
+
+# ---------------------------------------------------------------------------
+# Scenario: backend dependencies come from the committed lockfile
+# ---------------------------------------------------------------------------
+
+
+def test_pip_installs_from_lockfile_then_package_without_deps(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    pip_log = _stub(b, "pip")
+    _stub(b, "systemctl")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode == 0
+    calls = _calls(pip_log)
+    lock = next((c for c in calls if "requirements.lock" in c), None)
+    assert lock is not None, calls
+    assert "-r" in lock, lock
+    editable = next((c for c in calls if "-e" in c), None)
+    assert editable is not None, calls
+    assert "--no-deps" in editable, editable
+    assert calls.index(lock) < calls.index(editable), calls
+
+
+# ---------------------------------------------------------------------------
+# Scenario: script aborts if the locked dependency install fails
+# ---------------------------------------------------------------------------
+
+
+def test_abort_on_lockfile_install_failure(tmp_path):
+    b = _make_bin(tmp_path)
+    _git_stub(b, local_sha="aaa", remote_sha="bbb")
+    _stub(b, "npm")
+    _stub(b, "pip", fail_on='*requirements.lock*')
+    systemctl_log = _stub(b, "systemctl")
+
+    result = _run_deploy(tmp_path, b)
+
+    assert result.returncode != 0
+    assert _calls(systemctl_log) == []
 
 
 # ---------------------------------------------------------------------------

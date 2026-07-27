@@ -38,10 +38,19 @@ echo "New commits detected ($LOCAL_SHA → $REMOTE_SHA). Deploying…"
 git pull origin main
 
 cd "$REPO_DIR/frontend"
+# `npm ci` before building: the build alone would happily link against a stale
+# node_modules from a previous deploy, so any lockfile change pulled by the git
+# pull above would either fail confusingly or silently build the old toolchain.
+npm ci
 npm run build
 
 cd "$REPO_DIR"
-"$VENV_PIP" install -e backend/
+# Dependencies come from the committed lockfile so a deploy installs the exact
+# versions that were tested, rather than whatever PyPI resolves to that night.
+# The package itself is then installed --no-deps, since the lockfile has already
+# provided everything it needs.
+"$VENV_PIP" install -r backend/requirements.lock
+"$VENV_PIP" install -e backend/ --no-deps
 
 sudo systemctl restart family-dashboard
 
