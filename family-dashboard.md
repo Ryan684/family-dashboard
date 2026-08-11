@@ -89,10 +89,10 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
       "name": "Ryan",
       "drop_order": ["dog", "nursery"],
       "schedule": {
-        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
-        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00" },
+        "monday":    { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30", "arrive_by": "09:00" },
+        "tuesday":   { "mode": "office", "nursery_drop": false, "dog_drop": false, "departure_time": "08:00", "arrive_by": "09:00" },
         "wednesday": { "mode": "off",    "nursery_drop": false, "dog_drop": true },
-        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30" },
+        "thursday":  { "mode": "office", "nursery_drop": true,  "dog_drop": false, "departure_time": "07:30", "arrive_by": "09:00" },
         "friday":    { "mode": "wfh",    "nursery_drop": false, "dog_drop": false }
       }
     },
@@ -118,6 +118,8 @@ Routing is driven by `commute-schedule.json` (committed to the repo) combined wi
 - Dog drop only occurs if today is in `dog_daycare.days` AND the commuter has `dog_drop: true` in their schedule
 
 **`departure_time`** (optional, `"HH:MM"`) — the time the commuter aims to leave. When set, the card shows an ETA computed as `departure_time + travel_time`; if the current time has already passed the departure time, the ETA is computed from now instead. Omit on days where the commuter is not active or no ETA is needed.
+
+**`arrive_by`** (optional, `"HH:MM"`) — the time the commuter needs to be at their destination. When set, the card shows a latest departure computed as `arrive_by − travel_time`, using the live travel time of the primary route from the most recent poll. The result is floored to the whole minute so that leaving at the stated time never arrives late, and wraps backwards across midnight. It is independent of `departure_time` — either field can be set without the other. Omit on days where the commuter has no fixed start time.
 
 #### Route data (Google Maps Routes API)
 
@@ -168,7 +170,8 @@ The guidance instructions in the routing response include named road segments. T
       "routes": [ ...2 alternatives... ],
       "incidents": [ ... ],
       "departure_time": "07:30",
-      "eta": "08:15"
+      "eta": "08:15",
+      "latest_departure": "08:45"
     }
   ],
   "is_stale": false

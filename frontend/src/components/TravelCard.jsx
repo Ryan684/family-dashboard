@@ -214,7 +214,16 @@ function IncidentList({ incidents }) {
 }
 
 function CommuterColumn({ commuter }) {
-  const { name, mode, drops, routes, incidents, eta, departure_time } = commuter
+  const {
+    name,
+    mode,
+    drops,
+    routes,
+    incidents,
+    eta,
+    departure_time,
+    latest_departure,
+  } = commuter
   const destination = mode === 'office' ? 'Work' : 'Home'
   const [primary, alt] = routes
 
@@ -277,6 +286,22 @@ function CommuterColumn({ commuter }) {
           }}
         >
           Dep {departure_time}
+        </div>
+      )}
+
+      {latest_departure && (
+        <div
+          data-testid="commuter-latest-departure"
+          style={{
+            fontFamily: 'var(--f-mono)',
+            fontSize: 20,
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '0.06em',
+            color: 'var(--ink-dim)',
+            fontWeight: 500,
+          }}
+        >
+          Leave by {latest_departure}
         </div>
       )}
 
