@@ -3,18 +3,20 @@
 import json
 import re
 
-_DEPARTURE_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
+_TIME_FIELDS = ("departure_time", "arrive_by")
 
 
 def _validate_schedule(schedule: dict) -> None:
     for commuter in schedule.get("commuters", []):
         name = commuter.get("name", "unknown")
         for day, config in commuter.get("schedule", {}).items():
-            dt = config.get("departure_time")
-            if dt is not None and not _DEPARTURE_TIME_RE.match(dt):
-                raise ValueError(
-                    f"Invalid departure_time {dt!r} for commuter {name!r} on {day} — expected HH:MM"
-                )
+            for field in _TIME_FIELDS:
+                value = config.get(field)
+                if value is not None and not _TIME_RE.match(value):
+                    raise ValueError(
+                        f"Invalid {field} {value!r} for commuter {name!r} on {day} — expected HH:MM"
+                    )
 
 
 def load_schedule(path: str) -> dict:
@@ -36,7 +38,7 @@ def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
 
     Drop order follows commuter's drop_order config.
 
-    Returns dict with keys: mode, drops, departure_time.
+    Returns dict with keys: mode, drops, departure_time, arrive_by.
     """
     day_config = commuter["schedule"].get(weekday, {"mode": "off", "nursery_drop": False})
     mode = day_config["mode"]
@@ -56,8 +58,14 @@ def resolve_commuter_day(commuter: dict, weekday: str, schedule: dict) -> dict:
     drops = [d for d in commuter.get("drop_order", []) if d in active_drops]
 
     departure_time = day_config.get("departure_time")
+    arrive_by = day_config.get("arrive_by")
 
-    return {"mode": mode, "drops": drops, "departure_time": departure_time}
+    return {
+        "mode": mode,
+        "drops": drops,
+        "departure_time": departure_time,
+        "arrive_by": arrive_by,
+    }
 
 
 def build_waypoints(

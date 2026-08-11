@@ -103,6 +103,22 @@ def compute_eta(departure_time_str: str | None, travel_time_seconds: int, now: d
     return arrival.strftime("%H:%M")
 
 
+def compute_latest_departure(
+    arrive_by_str: str | None, travel_time_seconds: int
+) -> str | None:
+    """Return the latest departure as HH:MM, or None if no arrive_by configured.
+
+    arrive_by minus the current travel time, floored to the whole minute so
+    that leaving at the stated time never arrives late. Wraps backwards across
+    midnight when the travel time is longer than the elapsed day.
+    """
+    if not arrive_by_str:
+        return None
+    hour, minute = int(arrive_by_str[:2]), int(arrive_by_str[3:])
+    minutes = ((hour * 3600 + minute * 60 - travel_time_seconds) // 60) % 1440
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
 def is_within_poll_window(now: datetime, start, end) -> bool:
     """Return True if now.time() falls within [start, end] inclusive."""
     current = now.time()
@@ -413,6 +429,9 @@ async def fetch_travel_data() -> dict:
             routes = [_build_route_option(r) for r in routes_raw.get("routes", [])]
             primary_travel_time = routes[0]["travel_time_seconds"] if routes else 0
             eta = compute_eta(day.get("departure_time"), primary_travel_time, _get_now())
+            latest_departure = compute_latest_departure(
+                day.get("arrive_by"), primary_travel_time
+            )
 
             commuter_results.append(
                 {
@@ -423,6 +442,7 @@ async def fetch_travel_data() -> dict:
                     "incidents": incidents,
                     "departure_time": day.get("departure_time"),
                     "eta": eta,
+                    "latest_departure": latest_departure,
                 }
             )
 
