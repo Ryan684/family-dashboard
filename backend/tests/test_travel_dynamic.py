@@ -618,3 +618,102 @@ async def test_fetch_travel_data_eta_uses_now_when_departure_elapsed():
     commuter = result["commuters"][0]
     # departure 07:30 already elapsed at 07:45 → use now (07:45) + 1800s = 08:15
     assert commuter["eta"] == "08:15"
+
+
+# ---------------------------------------------------------------------------
+# latest_departure in fetch_travel_data
+# ---------------------------------------------------------------------------
+
+_SCHEDULE_WITH_ARRIVE_BY = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {
+                "monday": {
+                    "mode": "office",
+                    "nursery_drop": False,
+                    "departure_time": "07:30",
+                    "arrive_by": "08:00",
+                }
+            },
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": []},
+}
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_includes_latest_departure_when_arrive_by_configured():
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITH_ARRIVE_BY),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 0, 0)),
+        patch(
+            "routers.travel.fetch_routes",
+            new_callable=AsyncMock,
+            return_value=_ROUTES_RESPONSE,
+        ),
+        patch(
+            "routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]
+        ),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    assert "latest_departure" in commuter
+    # arrive_by 08:00 minus the primary route's 1800s (30 min) = 07:30
+    assert commuter["latest_departure"] == "07:30"
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_latest_departure_none_when_no_arrive_by():
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITH_DEPARTURE),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 0, 0)),
+        patch(
+            "routers.travel.fetch_routes",
+            new_callable=AsyncMock,
+            return_value=_ROUTES_RESPONSE,
+        ),
+        patch(
+            "routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]
+        ),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    assert "latest_departure" in commuter
+    assert commuter["latest_departure"] is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_travel_data_latest_departure_uses_primary_route_travel_time():
+    """The primary (first) route drives latest_departure, not the alternative."""
+    slower_primary = {"routes": [_ROUTE_DATA_ALT, _ROUTE_DATA]}
+    with (
+        patch("routers.travel.load_schedule", return_value=_SCHEDULE_WITH_ARRIVE_BY),
+        patch("routers.travel.get_coords", return_value=_COORDS),
+        patch("routers.travel._get_weekday", return_value="monday"),
+        patch("routers.travel._get_now", return_value=datetime(2026, 5, 4, 7, 0, 0)),
+        patch(
+            "routers.travel.fetch_routes",
+            new_callable=AsyncMock,
+            return_value=slower_primary,
+        ),
+        patch(
+            "routers.travel.fetch_incidents", new_callable=AsyncMock, return_value=[]
+        ),
+    ):
+        from routers.travel import fetch_travel_data
+        result = await fetch_travel_data()
+
+    commuter = result["commuters"][0]
+    # alternative route is 1950s (32.5 min) → 08:00 minus that, floored, = 07:27
+    assert commuter["latest_departure"] == "07:27"

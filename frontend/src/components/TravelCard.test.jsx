@@ -620,3 +620,107 @@ describe('TravelCard — ETA display', () => {
     expect(screen.getByText('ETA 09:30')).toBeInTheDocument()
   })
 })
+
+// ── Latest departure display ────────────────────────────────────────────────
+
+describe('TravelCard — latest departure display', () => {
+  it('shows the latest departure when latest_departure is provided', () => {
+    const commuter = makeCommuter({
+      departure_time: '07:10',
+      latest_departure: '07:03',
+    })
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(screen.getByText('Leave by 07:03')).toBeInTheDocument()
+  })
+
+  it('renders the latest departure below the intended departure time', () => {
+    const commuter = makeCommuter({
+      departure_time: '07:10',
+      latest_departure: '07:03',
+    })
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
+    const departure = screen.getByTestId('commuter-departure')
+    const latest = screen.getByTestId('commuter-latest-departure')
+    expect(
+      departure.compareDocumentPosition(latest) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('does not render a latest departure element when latest_departure is null', () => {
+    const commuter = makeCommuter({
+      departure_time: '07:10',
+      latest_departure: null,
+    })
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(
+      screen.queryByTestId('commuter-latest-departure')
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render a latest departure element when the field is absent', () => {
+    const commuter = makeCommuter({ departure_time: '07:10' })
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(
+      screen.queryByTestId('commuter-latest-departure')
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the latest departure when no departure time is configured', () => {
+    const commuter = makeCommuter({ latest_departure: '07:03' })
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[commuter]}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(screen.getByText('Leave by 07:03')).toBeInTheDocument()
+  })
+
+  it('shows each commuter their own latest departure', () => {
+    const commuters = [
+      makeCommuter({ name: 'Ryan', latest_departure: '07:03' }),
+      makeCommuter({ name: 'Emily', latest_departure: '08:14' }),
+    ]
+    render(
+      <TravelCard
+        loading={false}
+        commuters={commuters}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(screen.getByText('Leave by 07:03')).toBeInTheDocument()
+    expect(screen.getByText('Leave by 08:14')).toBeInTheDocument()
+  })
+})

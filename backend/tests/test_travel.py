@@ -19,6 +19,7 @@ from routers.travel import (
     calculate_bounding_box,
     classify_delay,
     compute_eta,
+    compute_latest_departure,
     expand_bounding_box,
     extract_road_names,
     fetch_incidents,
@@ -1176,3 +1177,57 @@ def test_compute_eta_uses_now_seconds_when_elapsed():
     result = compute_eta("07:00", 600, now)
     # now + 600s = 07:55:30 → rounds to 07:55 on strftime
     assert result == "07:55"
+
+
+# ---------------------------------------------------------------------------
+# compute_latest_departure
+# ---------------------------------------------------------------------------
+
+
+def test_compute_latest_departure_subtracts_travel_time():
+    assert compute_latest_departure("08:00", 1800) == "07:30"
+
+
+def test_compute_latest_departure_floors_part_minute():
+    # 08:00 minus 56m30s = 07:03:30 → floored to 07:03
+    assert compute_latest_departure("08:00", 3390) == "07:03"
+
+
+def test_compute_latest_departure_zero_travel_time_is_arrive_by():
+    assert compute_latest_departure("08:00", 0) == "08:00"
+
+
+def test_compute_latest_departure_no_arrive_by_returns_none():
+    assert compute_latest_departure(None, 1800) is None
+
+
+def test_compute_latest_departure_empty_arrive_by_returns_none():
+    assert compute_latest_departure("", 1800) is None
+
+
+def test_compute_latest_departure_wraps_across_midnight():
+    assert compute_latest_departure("00:20", 1800) == "23:50"
+
+
+def test_compute_latest_departure_longer_than_a_day_wraps():
+    # 08:00 minus 25 hours = 07:00 the previous day
+    assert compute_latest_departure("08:00", 90000) == "07:00"
+
+
+def test_compute_latest_departure_may_precede_intended_departure():
+    assert compute_latest_departure("08:00", 4200) == "06:50"
+
+
+def test_compute_latest_departure_exact_minute_is_not_floored_further():
+    # 08:00 minus exactly 57 min = 07:03, no extra minute lost
+    assert compute_latest_departure("08:00", 3420) == "07:03"
+
+
+def test_compute_latest_departure_floors_a_large_seconds_remainder():
+    # 08:00 minus 55m05s = 07:04:55 → floored to 07:04, not rounded up to 07:05
+    assert compute_latest_departure("08:00", 3305) == "07:04"
+
+
+def test_compute_latest_departure_non_zero_arrive_by_minutes():
+    # 08:30 minus 55m05s = 07:34:55 → floored to 07:34
+    assert compute_latest_departure("08:30", 3305) == "07:34"

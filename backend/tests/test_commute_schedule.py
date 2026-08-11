@@ -463,3 +463,121 @@ def test_load_schedule_error_message_contains_context(tmp_path):
     message = str(exc_info.value)
     assert "friday" in message
     assert "7:25" in message
+
+
+# ---------------------------------------------------------------------------
+# arrive_by in resolve_commuter_day
+# ---------------------------------------------------------------------------
+
+_SCHEDULE_WITH_ARRIVE_BY = {
+    "commuters": [
+        {
+            "name": "Ryan",
+            "drop_order": [],
+            "schedule": {
+                "monday": {
+                    "mode": "office",
+                    "nursery_drop": False,
+                    "departure_time": "07:10",
+                    "arrive_by": "08:00",
+                },
+                "tuesday": {"mode": "office", "nursery_drop": False},
+            },
+        }
+    ],
+    "nursery": {"days": []},
+    "dog_daycare": {"days": []},
+}
+
+
+def test_resolve_commuter_day_returns_arrive_by_when_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_ARRIVE_BY["commuters"][0], "monday", _SCHEDULE_WITH_ARRIVE_BY
+    )
+    assert result["arrive_by"] == "08:00"
+
+
+def test_resolve_commuter_day_returns_none_arrive_by_when_not_set():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_ARRIVE_BY["commuters"][0], "tuesday", _SCHEDULE_WITH_ARRIVE_BY
+    )
+    assert result["arrive_by"] is None
+
+
+def test_resolve_commuter_day_returns_none_arrive_by_for_unknown_day():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_ARRIVE_BY["commuters"][0], "sunday", _SCHEDULE_WITH_ARRIVE_BY
+    )
+    assert result["arrive_by"] is None
+
+
+def test_resolve_commuter_day_arrive_by_independent_of_departure_time():
+    result = resolve_commuter_day(
+        _SCHEDULE_WITH_ARRIVE_BY["commuters"][0], "monday", _SCHEDULE_WITH_ARRIVE_BY
+    )
+    assert result["departure_time"] == "07:10"
+    assert result["arrive_by"] == "08:00"
+
+
+# ---------------------------------------------------------------------------
+# load_schedule — arrive_by validation
+# ---------------------------------------------------------------------------
+
+
+def _schedule_with_arrive_by(value):
+    return {
+        "commuters": [
+            {
+                "name": "Ryan",
+                "drop_order": [],
+                "schedule": {
+                    "friday": {
+                        "mode": "office",
+                        "nursery_drop": False,
+                        "arrive_by": value,
+                    },
+                },
+            }
+        ],
+        "nursery": {"days": []},
+        "dog_daycare": {"days": []},
+    }
+
+
+def test_load_schedule_accepts_valid_hhmm_arrive_by(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_arrive_by("08:00")))
+    result = load_schedule(str(config_file))
+    assert result["commuters"][0]["schedule"]["friday"]["arrive_by"] == "08:00"
+
+
+def test_load_schedule_rejects_single_digit_hour_arrive_by(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_arrive_by("8:00")))
+    with pytest.raises(ValueError):
+        load_schedule(str(config_file))
+
+
+def test_load_schedule_rejects_non_numeric_arrive_by(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_arrive_by("morning")))
+    with pytest.raises(ValueError):
+        load_schedule(str(config_file))
+
+
+def test_load_schedule_accepts_absent_arrive_by(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_without_departure_time()))
+    result = load_schedule(str(config_file))
+    assert "arrive_by" not in result["commuters"][0]["schedule"]["friday"]
+
+
+def test_load_schedule_arrive_by_error_message_contains_context(tmp_path):
+    config_file = tmp_path / "commute-schedule.json"
+    config_file.write_text(json.dumps(_schedule_with_arrive_by("8:00")))
+    with pytest.raises(ValueError, match="Ryan") as exc_info:
+        load_schedule(str(config_file))
+    message = str(exc_info.value)
+    assert "arrive_by" in message
+    assert "friday" in message
+    assert "8:00" in message
