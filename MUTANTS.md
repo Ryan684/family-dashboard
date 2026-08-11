@@ -91,6 +91,17 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 |--------|----------|---------------|
 | `x_fetch_calendar_data__mutmut_1–4` | Mutations inside the `fetch_calendar_data` async wrapper | Two-line async wrapper over `asyncio.get_running_loop().run_in_executor(None, _fetch_sync)`. No domain logic — all calendar business logic is in `_fetch_sync` (fully tested). Mutating executor glue would test asyncio infrastructure, not application behaviour. |
 
+### `services/commute_schedule.py` (session commute-latest-departure)
+
+`compute_latest_departure` in `routers/travel.py` is fully killed (22/22 mutants) and the new `arrive_by` paths through `_validate_schedule` and `resolve_commuter_day` are killed too. 10 mutants survive on lines this session did not touch — all the `.get()` default / dict-key-literal equivalence class documented in Notes.
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x__validate_schedule__mutmut_2` / `_4` | `schedule.get("commuters", [])` → `default None` / no default | Default only reached when the key is absent, which no fixture exercises — and `for x in None` would raise, so the mutant is only unkillable because the branch is unreachable through `load_schedule`, which always receives a well-formed config. Same class as the other `.get()` survivors. |
+| `x__validate_schedule__mutmut_9` / `_11` / `_14` / `_15` | `commuter.get("name", "unknown")` → `None` / no default / `"XXunknownXX"` / `"UNKNOWN"` | Fallback name used only in the error message when a commuter has no `name` key. Every fixture names its commuters, so the fallback string is never interpolated. Cosmetic value in an unreachable error path. |
+| `x__validate_schedule__mutmut_17` / `_19` | `commuter.get("schedule", {})` → `default None` / no default | Default only reached for a commuter with no `schedule` key — not a shape the loader accepts or any fixture produces. |
+| `x_resolve_commuter_day__mutmut_12` / `_13` | `{"mode": "off", "nursery_drop": False}` → key `"XXnursery_dropXX"` / `"NURSERY_DROP"` | Unknown-weekday fallback dict. The `nursery_drop` key in it is read via `day_config.get("nursery_drop")`, which returns `None` for both the real key (value `False`) and a renamed key — falsy either way, so the resolved drops are identical. Behaviourally equivalent. Covered by `test_resolve_unknown_weekday_default_nursery_drop_is_false`, which asserts the resulting drops are empty. |
+
 ### `scheduler.py`
 
 | Mutant | Mutation | Justification |
@@ -202,6 +213,10 @@ Added to surface the `is_stale` flag (previously ignored by this component). All
 | `typeof document === 'undefined'` | `→ true / false / ""` / `!==` (4 variants) | SSR guard. JSDOM always defines `document`, so this branch cannot be taken in tests. |
 | `document.getElementById(STYLES_ID)` | `→ true / false` | Deduplication guard. JSDOM does not apply styles, so double-injection has no observable effect. |
 | `style.textContent = \`...\`` | `→ ""` | CSS string content. JSDOM ignores stylesheet text, so empty vs. real CSS is indistinguishable. |
+
+**"Leave by" latest departure line (session commute-latest-departure) — 5 mutants, all inline styles**
+
+Added below the `Dep` line to show `latest_departure`. A scoped Stryker run over `TravelCard.jsx` puts the file at 182 survivors, 5 of them in this block — all `ObjectLiteral`/`StringLiteral` mutations of the line's inline `style={{...}}` object (lines 295–301: `fontFamily`, `fontVariantNumeric`, `letterSpacing`, `color`, and the whole object → `{}`). Category 1 again: JSDOM does not apply CSS, so no test can observe a mutated style value. The logic on this line — the `{latest_departure && ...}` conditional, the `data-testid`, and the `Leave by ` text — is fully killed by the new `TravelCard — latest departure display` tests.
 
 ### `components/RouteMap.jsx` (session add-route-maps)
 
