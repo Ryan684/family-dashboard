@@ -11,3 +11,13 @@ ExecStart=/home/pi/projects/family-dashboard/scripts/deploy.sh
 StandardOutput=append:/var/log/family-dashboard-deploy.log
 StandardError=append:/var/log/family-dashboard-deploy.log
 KillMode=process
+
+# Memory ceiling for the nightly build on a 4GB Pi 5 shared with the budget
+# planner. MemoryHigh throttles this cgroup into reclaim when it crosses the soft
+# limit, which is the point: without it, an overshooting `npm ci`/`vite build`
+# hands the decision to the kernel OOM killer, which picks its victim by badness
+# score — most likely Chromium or one of the two app backends, i.e. it kills the
+# thing this deploy exists to keep running. MemoryMax is the hard backstop; only
+# this build dies if it is ever reached.
+MemoryHigh=1.5G
+MemoryMax=2G

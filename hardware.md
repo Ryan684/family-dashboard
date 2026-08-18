@@ -21,8 +21,20 @@ Viewing distance is ~1m rather than 1.5–2m; place on a counter or cabinet at a
 | Pi VESA mount bracket | Amazon / The Pi Hut / 3D print | £10–15 |
 | Freestanding VESA monitor arm | Amazon | £30–50 |
 | MicroSD card (32GB+) | Any | £8 |
+| USB 3.0 SSD (250GB+) | Amazon / The Pi Hut | £30–45 |
 | Official Pi 5 power supply | The Pi Hut | £12 |
-| **Total** | | **~£211–236** |
+| **Total** | | **~£241–281** |
+
+**On the USB SSD**: not needed by the dashboard, which is stateless. It is required by
+the **budget planner**, which shares this Pi — its SQLite database must never live on
+the SD card, because SD wear-out is the most likely way to lose that data. It mounts at
+`/mnt/usbssd` and also holds the budget planner's local backup-repo clone. Any bus-powered
+USB 3.0 SSD is fine: the official 27W supply gives the Pi's USB ports a 1.6A budget and a
+bus-powered SSD draws well under half of that, and the SC0940 takes no power from the Pi.
+
+**On the 4GB model**: bought and fixed. It is enough for both apps, but it is the
+binding constraint on this Pi — see "Sharing the Pi with the budget planner" below for
+the memory budget and the measures that keep it workable.
 
 **Monitor spec:**
 
@@ -82,10 +94,14 @@ With the freestanding arm, run both power cables (monitor + Pi) down the back of
 ## Raspberry Pi Setup
 
 - OS: **Raspberry Pi OS Bookworm** (64-bit, desktop)
-- Python 3.14 via deadsnakes PPA (consistent with existing home automation project setup)
+- Python 3.14 via **uv** (`PI_SETUP.md`, Part 6) — one interpreter, shared with the
+  budget planner. Earlier revisions of this doc said "via deadsnakes PPA", which was
+  never possible: deadsnakes is an Ubuntu PPA with no Debian or Raspberry Pi OS
+  packages. `PI_SETUP.md` previously documented pyenv, which worked but compiles from
+  source for 10–20 minutes on the Pi; uv downloads a prebuilt aarch64 build instead.
 - Project lives in `~/projects/family-dashboard/`
 - Virtual environment at `.venv`
-- Systemd service to start the FastAPI backend on boot
+- Systemd service to start the FastAPI backend on boot, bound to `127.0.0.1:8000`
 - Chromium kiosk autostart after backend service is healthy
 
 ### Kiosk boot command
@@ -103,10 +119,17 @@ crontab -e
 ```cron
 # Family dashboard display schedule
 30 6 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/restart-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1
-0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1
+0  22 * * * XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1 && /home/pi/projects/family-dashboard/scripts/stop-kiosk.sh >> /home/pi/projects/family-dashboard/kiosk-restart.log 2>&1
 ```
 
 Chromium is deliberately restarted in the *same* cron line as `wlopm --on`, right after it — this guarantees Chromium only ever launches once the output is confirmed live. It is **not** restarted by the nightly deploy (`deploy.sh`, which runs at 02:00) — see "Known issue" below for why.
+
+The 22:00 line is the mirror image: `stop-kiosk.sh` kills Chromium once the output is
+dark, freeing roughly half a gigabyte for the whole 22:00–06:30 window. That window is
+where both apps' nightly jobs run, and on a 4GB Pi it is the difference between a build
+spike having room and the kernel OOM-killing a live service. Nothing relaunches Chromium
+until the 06:30 line, which is exactly right — launching it against a powered-off output
+is the bug described below. See "Sharing the Pi with the budget planner".
 
 The poll window (`POLL_WINDOW_START` / `POLL_WINDOW_END` in `.env`) should match these timings. To test the display power toggle manually:
 
@@ -114,6 +137,88 @@ The poll window (`POLL_WINDOW_START` / `POLL_WINDOW_END` in `.env`) should match
 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --off HDMI-A-1   # turn off
 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1    # turn on
 ```
+
+---
+
+## Sharing the Pi with the budget planner
+
+This Pi also hosts the **budget planner** (`ryan684/budget-planner`), a FastAPI + React
+app the household reaches from phones. The two are independent deployments that share
+one box, one Python interpreter, one Node install and one USB SSD. Reconciled 2026-08-17.
+
+### Allocation
+
+| | family-dashboard | budget-planner |
+|---|---|---|
+| Backend port | 8000, bound `127.0.0.1` | 8001, bound `0.0.0.0` |
+| Frontend | `dist/` served by its own FastAPI | `dist/` served by its own FastAPI |
+| Systemd units | `family-dashboard`, `family-dashboard-deploy.{service,timer}` | `budget-backend`, `budget-backup.{service,timer}` |
+| Persistent data | none (stateless) | `/mnt/usbssd/budget.db` |
+| Nightly job | deploy, 02:00 | backup, 03:30 |
+| Repo | `~/projects/family-dashboard` | `~/projects/budget-planner` |
+
+Both backends previously bound `0.0.0.0:8000`. Whichever started second would have died
+with "address already in use", and with `Restart=on-failure` it would have crash-looped
+indefinitely. The budget planner moved to 8001 because this app was already deployed.
+
+**Why the dashboard is now on `127.0.0.1`**: it is consumed only by Chromium on this
+same machine — the frontend fetches a relative `/api` from the FastAPI process that
+served it. It has no authentication of any kind, and the budget planner brings Tailscale
+to this Pi, which would otherwise put the dashboard's calendar, commute and home-location
+data on the tailnet for anything that joins it. Binding to loopback costs nothing here.
+The trade-off is that the dashboard is no longer viewable from a phone on the LAN; if you
+want that back, bind `0.0.0.0` again and accept the exposure, or port the budget planner's
+`APP_PIN` gate across.
+
+### Shared runtimes
+
+Both repos target the same versions, deliberately — install each once, not per project:
+
+| | Version | Installed by |
+|---|---|---|
+| Python | 3.14 | uv (`PI_SETUP.md`, Part 6) |
+| Node | 22.x | NodeSource (`PI_SETUP.md`, Part 7) |
+
+Each app keeps its own `backend/.venv` built from that one interpreter, and its own
+`frontend/node_modules`. Their Python and npm dependency *sets* differ and are pinned
+independently — family-dashboard is on React 18 and ESLint 9, budget-planner on React 19
+and ESLint 10. That divergence is fine and should not be chased: only the `node` and
+`python` binaries are actually shared.
+
+### Memory budget (4GB)
+
+Steady state is comfortable; the transients are what matter. Estimates, not measurements:
+
+| | Daytime (kiosk live) | Overnight (after `stop-kiosk.sh`) |
+|---|---|---|
+| OS + labwc session | ~500 MB | ~500 MB |
+| Chromium (kiosk, Leaflet) | ~400–700 MB | 0 |
+| 2 × uvicorn | ~200–250 MB | ~200–250 MB |
+| **Free of 4GB** | **~2.5–2.9 GB** | **~3.2–3.3 GB** |
+
+The risk was never the steady state — it was `npm ci` + `vite build` at 02:00 landing on
+top of a resident Chromium. Four measures address it, in order of leverage:
+
+1. **`stop-kiosk.sh` at 22:00** removes Chromium from the overnight window entirely.
+2. **`MemoryHigh=1.5G` / `MemoryMax=2G`** on `family-dashboard-deploy.service` throttles
+   an overshooting build into reclaim instead of letting the OOM killer choose a victim.
+3. **`NODE_OPTIONS=--max-old-space-size=1024`** in `deploy.sh` stops V8 sizing its heap
+   from total RAM (~2GB on this box) when the build needs a fraction of that.
+4. **Timers spaced** — deploy 02:00, budget backup 03:30. A 30-minute gap was too tight:
+   `npm ci` + `vite build` can run 15–30 minutes here.
+
+**Never run mutation testing on the Pi.** mutmut re-runs the whole suite per mutant and
+Stryker spawns parallel Vitest workers; either will exhaust 4GB with the kiosk live. Both
+repos' `CLAUDE.md` carve this out, and `scripts/assert-not-pi.sh` refuses to run there —
+which matters because Claude Code is installed on this Pi and reads `CLAUDE.md`, whose
+build order otherwise says mutation tests are mandatory.
+
+### Still recommended, not done
+
+**Move the frontend builds off the Pi.** Building `dist/` in CI and having `deploy.sh`
+fetch the artifact would remove `npm ci` — the largest transient memory consumer and the
+heaviest SD-card writer — along with both `node_modules` trees. Deferred to its own task:
+the measures above already remove the memory collision, so this is now an optimisation.
 
 ---
 
