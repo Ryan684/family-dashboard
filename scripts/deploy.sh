@@ -42,7 +42,14 @@ cd "$REPO_DIR/frontend"
 # node_modules from a previous deploy, so any lockfile change pulled by the git
 # pull above would either fail confusingly or silently build the old toolchain.
 npm ci
-npm run build
+# Cap the V8 heap. Node sizes its default old-space from total system memory,
+# which on this 4GB Pi 5 lands near 2GB — more than the box can spare now that it
+# also runs the budget planner's backend. This build is 13 source files and will
+# never approach 1GB, so the cap costs nothing and stops a runaway build from
+# reaching the point where the kernel OOM-kills a live service instead. The
+# 22:00 stop-kiosk.sh run has already freed Chromium's memory by the time this
+# runs at 02:00 — see MemoryHigh in family-dashboard-deploy.service.
+NODE_OPTIONS="--max-old-space-size=1024" npm run build
 
 cd "$REPO_DIR"
 # Dependencies come from the committed lockfile so a deploy installs the exact

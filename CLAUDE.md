@@ -1,6 +1,6 @@
 # Family Dashboard
 
-Full spec: `family-dashboard.md`.
+Full spec: `family-dashboard.md`. Hardware and deployment: `hardware.md`, `PI_SETUP.md`.
 
 ## Commands
 - Backend: `cd backend && uvicorn main:app --reload`
@@ -8,6 +8,19 @@ Full spec: `family-dashboard.md`.
 - Backend tests: `cd backend && python -m pytest --tb=short`
 - Frontend tests: `cd frontend && npx vitest run`
 - Lint check: `cd backend && ruff check . && cd ../frontend && npx eslint src/`
+- Mutation tests (**dev machine only** — see below): `cd frontend && npm run test:mutation`
+
+## Shared Raspberry Pi
+This app shares a 4GB Pi 5 with the **budget planner** (`ryan684/budget-planner`).
+Full detail in `hardware.md`, "Sharing the Pi with the budget planner". What matters here:
+
+- **Port 8000 belongs to this app**, bound to `127.0.0.1` in production (the only consumer
+  is the local Chromium kiosk, and this app has no auth). The budget planner owns 8001.
+- **Python 3.14 and Node 22 are shared installs** — one interpreter, one Node, a separate
+  `backend/.venv` and `frontend/node_modules` per app. Don't align the two apps' npm
+  dependency sets; only the binaries are shared.
+- **Memory is the binding constraint.** Don't add anything long-running to the Pi, and
+  don't move the nightly deploy timer (02:00) closer to the budget planner's backup (03:30).
 
 ## MUST follow — build order
 1. MUST write Gherkin feature file first, before any code
@@ -16,6 +29,17 @@ Full spec: `family-dashboard.md`.
 4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification
 5. MUST confirm all tests pass before committing
 6. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
+
+## MUST NOT run mutation tests on the Raspberry Pi
+Step 4 above is a **development-machine** step. This Pi is a 4GB Pi 5 shared with the
+budget planner, running two backends and a Chromium kiosk; mutmut re-runs the whole
+suite per mutant and Stryker spawns parallel Vitest workers, and either will exhaust
+memory and take the OOM killer to a live service.
+
+If you are running on the Pi (Claude Code is installed there — `PI_SETUP.md`, Part 17):
+do steps 1–3, 5 and 6, commit, and run mutation tests later on a laptop. Do not treat
+step 4 as blocking. `scripts/assert-not-pi.sh` guards `npm run test:mutation` and should
+prefix any `mutmut run`; do not work around it.
 
 ## Session startup
 - Fetch deferred tools before starting any task:
