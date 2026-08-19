@@ -21,16 +21,23 @@ Viewing distance is ~1m rather than 1.5–2m; place on a counter or cabinet at a
 | Pi VESA mount bracket | Amazon / The Pi Hut / 3D print | £10–15 |
 | Freestanding VESA monitor arm | Amazon | £30–50 |
 | MicroSD card (32GB+) | Any | £8 |
-| USB 3.0 SSD (250GB+) | Amazon / The Pi Hut | £30–45 |
 | Official Pi 5 power supply | The Pi Hut | £12 |
-| **Total** | | **~£241–281** |
+| **Total** | | **~£211–236** |
 
-**On the USB SSD**: not needed by the dashboard, which is stateless. It is required by
-the **budget planner**, which shares this Pi — its SQLite database must never live on
-the SD card, because SD wear-out is the most likely way to lose that data. It mounts at
-`/mnt/usbssd` and also holds the budget planner's local backup-repo clone. Any bus-powered
-USB 3.0 SSD is fine: the official 27W supply gives the Pi's USB ports a 1.6A budget and a
-bus-powered SSD draws well under half of that, and the SC0940 takes no power from the Pi.
+**No separate storage.** A USB SSD was briefly on this list for the budget planner, whose
+database was to live on it. That was dropped on 2026-08-19: the stated justification was
+SD wear-out, which does not survive scrutiny at that app's write volume — single-digit MB
+a month against SD endurance measured in terabytes. The real risks are power-loss
+corruption and outright card death, and both take the whole system rather than just one
+file. What bounds the damage there is the budget planner's offsite backup, not the storage
+medium. Its database now lives at `/home/pi/budget-data/` on the SD card; the reasoning is
+in that repo's README under "Create the data directory".
+
+If you later want to reduce the probability as well as bound the impact, an old SSD in a
+USB caddy drops straight in — the budget planner only needs its `DATABASE_URL` and
+`BACKUP_REPO_DIR` repointed. A small UPS would address the power-loss failure mode more
+directly. Note the SC0940 takes no power from the Pi, so the official 27W supply's 1.6A
+USB budget is entirely available for a bus-powered drive.
 
 **On the 4GB model**: bought and fixed. It is enough for both apps, but it is the
 binding constraint on this Pi — see "Sharing the Pi with the budget planner" below for
@@ -125,9 +132,10 @@ crontab -e
 Chromium is deliberately restarted in the *same* cron line as `wlopm --on`, right after it — this guarantees Chromium only ever launches once the output is confirmed live. It is **not** restarted by the nightly deploy (`deploy.sh`, which runs at 02:00) — see "Known issue" below for why.
 
 The 22:00 line is the mirror image: `stop-kiosk.sh` kills Chromium once the output is
-dark, freeing roughly half a gigabyte for the whole 22:00–06:30 window. That window is
-where both apps' nightly jobs run, and on a 4GB Pi it is the difference between a build
-spike having room and the kernel OOM-killing a live service. Nothing relaunches Chromium
+dark, freeing roughly half a gigabyte for the whole 22:00–06:30 window. That window holds
+the dashboard's deploy (02:00) and two of the budget planner's backup runs (21:30 and
+03:30), and on a 4GB Pi it is the difference between a build spike having room and the
+kernel OOM-killing a live service. Nothing relaunches Chromium
 until the 06:30 line, which is exactly right — launching it against a powered-off output
 is the bug described below. See "Sharing the Pi with the budget planner".
 
@@ -144,7 +152,7 @@ XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0 wlopm --on HDMI-A-1    
 
 This Pi also hosts the **budget planner** (`ryan684/budget-planner`), a FastAPI + React
 app the household reaches from phones. The two are independent deployments that share
-one box, one Python interpreter, one Node install and one USB SSD. Reconciled 2026-08-17.
+one box, one Python interpreter and one Node install. Reconciled 2026-08-17.
 
 ### Allocation
 
@@ -153,8 +161,8 @@ one box, one Python interpreter, one Node install and one USB SSD. Reconciled 20
 | Backend port | 8000, bound `127.0.0.1` | 8001, bound `0.0.0.0` |
 | Frontend | `dist/` served by its own FastAPI | `dist/` served by its own FastAPI |
 | Systemd units | `family-dashboard`, `family-dashboard-deploy.{service,timer}` | `budget-backend`, `budget-backup.{service,timer}` |
-| Persistent data | none (stateless) | `/mnt/usbssd/budget.db` |
-| Nightly job | deploy, 02:00 | backup, 03:30 |
+| Persistent data | none (stateless) | `/home/pi/budget-data/` (SD card) |
+| Scheduled job | deploy, 02:00 | backup, 03:30 / 09:30 / 15:30 / 21:30 |
 | Repo | `~/projects/family-dashboard` | `~/projects/budget-planner` |
 
 Both backends previously bound `0.0.0.0:8000`. Whichever started second would have died
@@ -204,8 +212,8 @@ top of a resident Chromium. Four measures address it, in order of leverage:
    an overshooting build into reclaim instead of letting the OOM killer choose a victim.
 3. **`NODE_OPTIONS=--max-old-space-size=1024`** in `deploy.sh` stops V8 sizing its heap
    from total RAM (~2GB on this box) when the build needs a fraction of that.
-4. **Timers spaced** — deploy 02:00, budget backup 03:30. A 30-minute gap was too tight:
-   `npm ci` + `vite build` can run 15–30 minutes here.
+4. **Timers spaced** — deploy 02:00; the budget backup runs 6-hourly from 03:30, chosen so
+   no run lands in 02:00–03:00. `npm ci` + `vite build` can run 15–30 minutes here.
 
 **Never run mutation testing on the Pi.** mutmut re-runs the whole suite per mutant and
 Stryker spawns parallel Vitest workers; either will exhaust 4GB with the kiosk live. Both

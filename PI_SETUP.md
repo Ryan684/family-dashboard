@@ -1,8 +1,9 @@
 # Pi Setup Guide — Family Dashboard
 
 Complete walkthrough from unboxing to a running kiosk dashboard.
-Hardware assumed: **Raspberry Pi 5 (4GB) + Official Raspberry Pi Monitor SC0940 (15.6")**,
-plus a **USB 3.0 SSD** for the budget planner that shares this Pi.
+Hardware assumed: **Raspberry Pi 5 (4GB) + Official Raspberry Pi Monitor SC0940 (15.6")**.
+No separate storage — the budget planner sharing this Pi keeps its database on the SD
+card (see `hardware.md`).
 
 > **Already have this Pi running?** Don't re-run this guide. Parts 5, 6, 10, 13 and 15
 > changed on 2026-08-17 when the budget planner was reconciled onto the same box — the
@@ -573,8 +574,9 @@ rm -rf ~/.pyenv
 
 **19.6 — Then set up the budget planner**
 
-Mount the USB SSD and follow `budget-planner/README.md` from its "Fresh-Pi setup"
-section. It expects Python 3.14 and Node 22 to already exist — they now do.
+Follow `budget-planner/README.md` from its "Fresh-Pi setup" section, starting at step 2.
+It expects Python 3.14 and Node 22 to already exist — they now do, and it needs no
+storage hardware beyond this Pi's SD card.
 
 ---
 
@@ -606,7 +608,9 @@ echo 'vm.swappiness=150' | sudo tee /etc/sysctl.d/99-zram.conf
 sudo sysctl --system
 ```
 
-If you want a real backstop beyond zram, put a swap file on the USB SSD — never the SD card.
+Do not add an SD-card swap file as a backstop — that is the write pattern that genuinely
+wears a card, and it is what zram is here to avoid. If you ever add a USB drive, a swap
+file on that is fine.
 
 **20.2 — Turn off what this Pi doesn't use**
 
