@@ -166,11 +166,10 @@ function Rule() {
   )
 }
 
-/* Fills its grid row and keeps its heading pinned to the same top edge as
-   its neighbours, so the Commute / Weather / Calendar labels always sit on
-   one scannable line. The trailing fade hides any excess below the fold on
-   an unusually busy day instead of letting it render past the kiosk frame,
-   invisible. */
+/* Fills its grid row and keeps each card's content pinned to the same top
+   edge as its neighbours, so the columns line up on one scannable row. The
+   trailing fade hides any excess below the fold on an unusually busy day
+   instead of letting it render past the kiosk frame, invisible. */
 function DashColumn({ children, testId }) {
   return (
     <div

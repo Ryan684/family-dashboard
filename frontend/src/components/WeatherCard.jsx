@@ -120,7 +120,7 @@ function LocationBlock({ location }) {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
+          gap: 8,
           flex: 1,
           minWidth: 0,
         }}
@@ -324,7 +324,7 @@ function WeatherCard() {
           traffic and weather alert straps are both up (weather's own window
           contains travel's, so this row is never occupied during that case). */}
       {data.is_stale && <StaleTag />}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {locations.map((loc, i) => (
           <div key={loc.name ?? i}>
             {i > 0 && (
@@ -332,7 +332,7 @@ function WeatherCard() {
                 style={{
                   height: 1,
                   background: 'var(--rule)',
-                  marginBottom: 28,
+                  marginBottom: 20,
                 }}
                 aria-hidden="true"
               />
