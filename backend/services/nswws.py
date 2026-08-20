@@ -19,11 +19,30 @@ warningId, warningLevel, warningStatus, warningHeadline, issuedDate,
 validFromDate, validToDate, warningImpact, warningLikelihood, geometry as
 MultiPolygon with [lon, lat] coordinate order. There is no "weatherType" or
 similar hazard-category field — the hazard only appears as free text inside the
-headline. NOT yet confirmed: the exact literal values warningStatus takes for a
-cancelled or expired warning (no example in the captured sample, which held only
-"ISSUED"), and the numeric direction of warningImpact/warningLikelihood (higher
-assumed more severe, following the usual convention for this kind of rating —
-not something the sample alone can prove either way).
+headline.
+
+warningImpact/warningLikelihood direction: an official metoffice.gov.uk page
+(also found via search, describing impact as very low/low/medium/high)
+corroborates higher = more severe, independently of the field names above —
+sort_warnings assumes that direction.
+
+Still open, and now the bigger unknown of the two: the exact request shape.
+This module calls a single GET returning one GeoJSON FeatureCollection of every
+live warning, filtering out dead ones by warningStatus. But repatterning/warning
+— the same real client the field names above came from — never reads
+warningStatus at all: it parses NSWWS's Atom feed, and only follows the <link>
+entries whose href contains "issued", to discover per-warning GeoJSON URLs one
+at a time. That implies live/cancelled/expired may be encoded by which Atom
+link exists, not by inspecting a status property on a combined endpoint — which
+would mean fetch_warnings's shape needs rework once this is confirmed, not just
+its field parsing. Kept as the simpler single-endpoint design for now (matching
+the "GeoJSON ... properties" description search also surfaced, which may
+describe a genuinely different, simpler endpoint this client just doesn't use)
+rather than rewritten speculatively on one third-party client's implementation
+choice. The exact warningStatus literal values (cancelled/expired) are
+consequently still unconfirmed by any source found so far — the parser's
+comparison is case-insensitive but still exact-match, so casing alone ("CANCELLED"
+vs "cancelled") doesn't matter, but a different word entirely would.
 """
 
 import httpx
