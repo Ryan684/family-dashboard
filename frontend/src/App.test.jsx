@@ -135,6 +135,19 @@ describe('App — travel section grid reflow', () => {
     expect(screen.queryByTestId('tomorrow-section')).not.toBeInTheDocument()
   })
 
+  it('mounts both alert straps at once when a red route makes AlertBanner visible', async () => {
+    // WarningBanner is stubbed above; this proves App mounts it unconditionally
+    // alongside AlertBanner rather than one suppressing the other. The visual
+    // consequence of both being live at once — the weather column's second
+    // location losing detail under the bottom fade — is confirmed by rendering
+    // the real app; see the comment above <WarningBanner /> in App.jsx and
+    // weather_warning_banner.feature's "both straps active" scenario.
+    mockTravelFetch(makeTravelResponse([makeCommuter('Ryan', 'red')]))
+    render(<App />)
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.getByTestId('warning-banner')).toBeInTheDocument()
+  })
+
   it('shows travel error state when fetch returns a non-ok HTTP status', async () => {
     vi.stubGlobal(
       'fetch',

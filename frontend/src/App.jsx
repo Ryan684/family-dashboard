@@ -94,7 +94,16 @@ function App() {
         <ClockCard />
 
         {/* alert straps — weather above traffic: a red weather warning outranks
-            a delay, and the weather is usually what caused the traffic */}
+            a delay, and the weather is usually what caused the traffic.
+
+            Both can be mounted at once (needs a red route AND an amber+ weather
+            warning live simultaneously — only possible 06:30-09:30, since a red
+            route requires travel to be shown). Confirmed by rendering it: the
+            weather column's second location loses its description, high and
+            rain windows under DashColumn's bottom fade — no overflow or visual
+            break, just less detail visible on an already rare morning. Accepted
+            rather than adding untested conditional padding; see
+            weather_warning_banner.feature's "both straps active" scenario. */}
         <WarningBanner />
         <AlertBanner travelData={travelData} />
 
