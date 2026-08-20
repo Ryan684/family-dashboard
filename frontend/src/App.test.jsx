@@ -15,6 +15,9 @@ vi.mock('./components/CalendarCard', () => ({
 vi.mock('./components/TomorrowCard', () => ({
   default: () => <div data-testid="tomorrow-card" />,
 }))
+vi.mock('./components/WarningBanner', () => ({
+  default: () => <div data-testid="warning-banner" />,
+}))
 
 const makeRoute = (colour = 'green') => ({
   travel_time_seconds: 1800,
