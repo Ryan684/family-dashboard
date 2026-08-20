@@ -1,8 +1,29 @@
 import { useState, useEffect } from 'react'
-import StaleTag from './StaleTag'
 import { formatRainWindows } from '../weatherFormat'
 
-function WeatherGlyph({ kind = 'cloud', size = 56 }) {
+/* Purpose: a next-day planning glance — coat, wet school run — read from ~1m on
+   a wall display, in the column freed when the travel section is hidden.
+
+   Direction: "the almanac column". Today's card is a weather report: a big live
+   number, present tense. Tomorrow is a printed forecast entry — quieter and more
+   typographic, set like a line in an almanac rather than a second dashboard
+   readout. It reuses today's exact type system one step down the hierarchy: the
+   headline figure is 48px against today's 88px, and hierarchy is carried by size
+   rather than colour, because dimming would cost legibility at viewing distance.
+
+   The 28px rhythm and the hairline between blocks are load-bearing: today's
+   "Home" row and tomorrow's "Home" row land on a shared baseline, which is what
+   makes the pair read as a comparison rather than two unrelated lists.
+
+   No column label, here or on any card — the content shape (a 48px high next
+   to a description, versus today's 88px current reading) already tells the
+   two apart at a glance, so a text label was pure redundancy. Dropping it
+   also reclaims the row's height, which matters more here than it looks:
+   removing it consistently, on every card, is what keeps the weather
+   column's second location fully visible on the rare morning both alert
+   straps are up. */
+
+function TomorrowGlyph({ kind = 'cloud', size = 40 }) {
   const s = size
   const base = { position: 'relative', width: s, height: s, flexShrink: 0 }
 
@@ -15,7 +36,7 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
             inset: s * 0.18,
             borderRadius: '50%',
             background: 'var(--warn)',
-            opacity: 0.95,
+            opacity: 0.8,
           }}
         />
       </div>
@@ -34,7 +55,7 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
             height: s * 0.32,
             borderRadius: 999,
             background: 'var(--ink-dim)',
-            opacity: 0.55,
+            opacity: 0.45,
           }}
         />
         <div
@@ -46,7 +67,7 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
             height: s * 0.36,
             borderRadius: '50%',
             background: 'var(--ink-dim)',
-            opacity: 0.55,
+            opacity: 0.45,
           }}
         />
         {[0, 1, 2].map((i) => (
@@ -59,7 +80,7 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
               width: 2,
               height: s * 0.22,
               background: 'var(--ok)',
-              opacity: 0.75,
+              opacity: 0.6,
               borderRadius: 2,
             }}
           />
@@ -68,7 +89,6 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
     )
   }
 
-  // default: cloud
   return (
     <div style={base}>
       <div
@@ -80,7 +100,7 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
           height: s * 0.36,
           borderRadius: 999,
           background: 'var(--ink-dim)',
-          opacity: 0.55,
+          opacity: 0.45,
         }}
       />
       <div
@@ -92,30 +112,30 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
           height: s * 0.42,
           borderRadius: '50%',
           background: 'var(--ink-dim)',
-          opacity: 0.55,
+          opacity: 0.45,
         }}
       />
     </div>
   )
 }
 
-function LocationBlock({ location }) {
+function TomorrowBlock({ location }) {
   const {
     name,
-    current,
+    icon,
+    weather_description,
     daily_high_celsius,
     daily_rainfall,
     rain_windows,
-    icon,
   } = location
   const windowsText = formatRainWindows(rain_windows)
 
   return (
     <div
-      style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}
-      data-testid="weather-location-block"
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}
+      data-testid="tomorrow-location-block"
     >
-      <WeatherGlyph kind={icon ?? 'cloud'} size={56} />
+      <TomorrowGlyph kind={icon ?? 'cloud'} size={40} />
       <div
         style={{
           display: 'flex',
@@ -150,48 +170,47 @@ function LocationBlock({ location }) {
             style={{
               fontFamily: 'var(--f-display)',
               fontWeight: 400,
-              fontSize: 88,
-              lineHeight: 0.9,
+              fontSize: 48,
+              lineHeight: 0.95,
               color: 'var(--ink)',
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.02em',
               fontFeatureSettings: '"lnum","tnum"',
             }}
           >
-            {current.temperature_celsius}°C
+            {daily_high_celsius}°C
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--f-display)',
-              fontStyle: 'italic',
-              fontSize: 28,
-              color: 'var(--ink-dim)',
-              lineHeight: 1.1,
-            }}
-          >
-            {current.weather_description}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 36,
-            flexWrap: 'wrap',
-            alignItems: 'baseline',
-            fontFamily: 'var(--f-display)',
-            fontSize: 24,
-            color: 'var(--ink-dim)',
-            fontFeatureSettings: '"lnum","tnum"',
-          }}
-        >
-          <span>High: {daily_high_celsius}°C</span>
-          {daily_rainfall && daily_rainfall.total_mm > 0 && (
-            <span>
-              Rain: {daily_rainfall.total_mm} mm ·{' '}
-              {daily_rainfall.probability_percent}% chance
-            </span>
+          {weather_description && (
+            <div
+              style={{
+                fontFamily: 'var(--f-display)',
+                fontStyle: 'italic',
+                fontSize: 26,
+                color: 'var(--ink-dim)',
+                lineHeight: 1.1,
+              }}
+            >
+              {weather_description}
+            </div>
           )}
         </div>
+
+        {/* Rainfall and rain windows share one mono caption register — tomorrow's
+            precision does not warrant a second type size the way today's does. */}
+        {daily_rainfall && daily_rainfall.total_mm > 0 && (
+          <div
+            style={{
+              fontFamily: 'var(--f-mono)',
+              fontSize: 15,
+              letterSpacing: '0.12em',
+              color: 'var(--ink-faint)',
+              fontWeight: 500,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            Rain: {daily_rainfall.total_mm} mm ·{' '}
+            {daily_rainfall.probability_percent}% chance
+          </div>
+        )}
 
         {windowsText && (
           <div
@@ -202,10 +221,9 @@ function LocationBlock({ location }) {
               textTransform: 'uppercase',
               color: 'var(--ink-faint)',
               fontWeight: 500,
-              marginTop: 2,
               fontVariantNumeric: 'tabular-nums',
             }}
-            data-testid="rain-windows"
+            data-testid="tomorrow-rain-windows"
           >
             {windowsText}
           </div>
@@ -217,7 +235,7 @@ function LocationBlock({ location }) {
 
 const POLL_INTERVAL_MS = 60_000
 
-function WeatherCard() {
+function TomorrowCard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -269,7 +287,7 @@ function WeatherCard() {
         }}
         role="status"
       >
-        Loading weather…
+        Loading tomorrow…
       </div>
     )
   }
@@ -289,42 +307,39 @@ function WeatherCard() {
         }}
         role="alert"
       >
-        Unable to load weather data
+        Unable to load tomorrow&apos;s forecast
       </div>
     )
   }
 
-  const locations = data?.locations ?? []
+  const tomorrow = data?.tomorrow
+  const locations = tomorrow?.locations ?? []
 
+  // A cache written before this feature shipped has no tomorrow key at all, so
+  // the placeholder keeps the column from rendering empty between two rules.
   if (locations.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          minHeight: 160,
-          fontFamily: 'var(--f-mono)',
-          fontSize: 18,
-          color: 'var(--ink-faint)',
-        }}
-        role="status"
-      >
-        Weather unavailable
-      </div>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            minHeight: 120,
+            fontFamily: 'var(--f-mono)',
+            fontSize: 18,
+            color: 'var(--ink-faint)',
+          }}
+          role="status"
+        >
+          Tomorrow unavailable
+        </div>
+      </section>
     )
   }
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      {/* No "Weather" label: the column's content — temperatures, rain figures —
-          already identifies it at a glance, and the label was pure redundancy
-          on every render. The row still appears when stale, because that IS
-          new information, not decoration — and reclaiming it in the common
-          case is what keeps the second location's detail on screen when the
-          traffic and weather alert straps are both up (weather's own window
-          contains travel's, so this row is never occupied during that case). */}
-      {data.is_stale && <StaleTag />}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {locations.map((loc, i) => (
           <div key={loc.name ?? i}>
             {i > 0 && (
@@ -332,12 +347,12 @@ function WeatherCard() {
                 style={{
                   height: 1,
                   background: 'var(--rule)',
-                  marginBottom: 20,
+                  marginBottom: 28,
                 }}
                 aria-hidden="true"
               />
             )}
-            <LocationBlock location={loc} />
+            <TomorrowBlock location={loc} />
           </div>
         ))}
       </div>
@@ -345,4 +360,4 @@ function WeatherCard() {
   )
 }
 
-export default WeatherCard
+export default TomorrowCard

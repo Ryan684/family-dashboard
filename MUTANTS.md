@@ -31,6 +31,25 @@ Mutants listed here have been reviewed and are acceptable to leave unaddressed. 
 | `x_fetch_weather__mutmut_1–29` (29 mutants) | Various mutations inside `fetch_weather()` | HTTP client function making live Open-Meteo API calls. Untestable in isolation without a live network — mocking at this level would test the mock, not the logic. Integration tested end-to-end in Step 6. |
 | `x_fetch_weather_data__mutmut_1–50` (50 mutants) | Various mutations inside `fetch_weather_data()` | Scheduler fetch function that calls `fetch_weather()`. No tests because it requires live HTTP calls; scheduler integration is tested via `test_scheduler.py` using mock fetch functions that stand in for this function. |
 
+### `routers/weather.py` — tomorrow's forecast (session weather-code-feature-review)
+
+The run covered every function added or changed by this feature. It began with 47
+survivors, then 26, then the 12 below; the 35 killed along the way were real gaps, most
+importantly a set that let today's card silently render **tomorrow's** rainfall and rain
+windows. Those are now pinned by asymmetric fixtures — the two days carry different values,
+so reading the wrong index fails.
+
+| Mutant | Mutation | Justification |
+|--------|----------|---------------|
+| `x__day_start_indices__mutmut_3`, `__mutmut_5` | `hourly_data.get("time", [])` → `None` / no default | Equivalent. The result is immediately tested with `if not times`, which treats `None` and `[]` identically. |
+| `x__day_start_indices__mutmut_10` | `starts = [0]` → `starts = [1]` | Equivalent through the public API. `resolve_day_offset` returns 0 for `day_index=0` before consulting the list, so element 0 is never read. |
+| `x__day_start_indices__mutmut_15` | `range(1, len(times))` → `range(2, …)` | Only differs if a local day boundary falls at index 1, i.e. a one-hour first day. Open-Meteo's hourly arrays always begin at 00:00 local, so the shortest possible first day is the 23 hours of a clocks-forward Sunday. Testing it would mean asserting on input the API cannot produce. |
+| `x_parse_rain_windows__mutmut_21` | `starts[day_index + 1]` → `starts[day_index - 1]` | Equivalent for any response this code sees. The branch is entered only when `len(starts) > day_index + 1`, which with a two-day request means `day_index` is 0 — and `starts[-1] == starts[1]` for a two-element list. |
+| `x_parse_rain_windows__mutmut_23`, `__mutmut_24` | `end_index = len(all_probs)` / `start_index + 24` → `None` | Equivalent. Both branches slice to the end of the array anyway, and `probs[start:None]` is the same slice. |
+| `x_parse_rain_windows__mutmut_26` | `start_index + 24` → `+ 25` | Reached only in the no-timestamps fallback, where the array is exactly 24 entries, so both bounds slice the same elements. |
+| `x__build_today_entry__mutmut_26` | `current_raw.get("weather_code", 0)` → `1` | Equivalent. `map_weather_icon` maps both 0 (clear sky) and 1 (mainly clear) to the sun glyph, so no output differs. |
+| `x__build_today_entry__mutmut_35`, `__mutmut_42`, `__mutmut_49` | Dropping the explicit `0` / `day_index=0` argument | Equivalent by definition — 0 is the parameter's default. The argument is passed explicitly for symmetry with `_build_tomorrow_entry`, which makes the today/tomorrow distinction legible at a glance; that readability is worth three equivalent mutants. |
+
 ### `routers/travel.py` — `_parse_duration` and `_normalize_google_response` (pre-existing, session add-route-maps)
 
 | Mutant | Mutation | Justification |
@@ -199,6 +218,38 @@ Same pattern as documented in WeatherCard and CalendarCard below: `if (!cancelle
 **`StaleTag` indicator (July 2026) — 10 mutants, all inline styles**
 
 Added to surface the `is_stale` flag (previously ignored by this component). All survivors are `ObjectLiteral`/`StringLiteral` mutations to the badge's inline `style={{...}}` objects (lines 95–114), identical to Category 1 documented at the top of this file: JSDOM doesn't render CSS, so no test can observe a mutated style value. The `{data.is_stale && <StaleTag />}` conditional itself (the actual logic) is fully killed — no surviving mutants on that line.
+
+### `components/TomorrowCard.jsx`, `components/WarningBanner.jsx`, `components/StaleTag.jsx` (session weather-code-feature-review)
+
+Stryker: 213 survivors across the three files, in two categories.
+
+**Style mutants — the accepted unkillable class.** 115 `StringLiteral`, 32 `ObjectLiteral`
+(whole `style={{…}}` objects replaced with `{}`) and 22 `ArithmeticOperator` (the glyph
+geometry, `s * 0.18` → `s / 0.18`). jsdom applies no CSS, so no test can observe any of
+them. This is the same class already documented for every other component here.
+`TomorrowCard.jsx` scores worst of the three purely because `TomorrowGlyph` is ~100 lines
+of absolutely-positioned divs — all geometry, no behaviour.
+
+**The poll effect.** `WarningBanner.jsx` lines 51–79 and the equivalent block in
+`TomorrowCard.jsx`: the `cancelled` flag guards, the `setInterval` teardown and the `[]`
+dependency array. Killing these needs a test that unmounts mid-flight and asserts no state
+update followed. Identical to the block already documented under `components/WeatherCard.jsx`
+and `components/CalendarCard.jsx` — same code, copied deliberately, same justification.
+
+**What was killed rather than documented.** `src/weatherFormat.js` now has a direct test
+file and **zero** survivors (97.92% → 100%), and `formatLocations` / `isBannerWorthy` in the
+banner are covered directly. Those are the only real logic in this diff; everything above is
+presentation.
+
+| Mutant class | Count | Justification |
+|--------|----------|---------------|
+| `StringLiteral` on CSS values | 115 | jsdom applies no CSS — unobservable |
+| `ObjectLiteral` → `{}` on style objects | 32 | Same |
+| `ArithmeticOperator` in `TomorrowGlyph` geometry | 22 | Same — pure layout maths for CSS-drawn glyphs |
+| `cancelled` guards / dependency array in the poll effect | 12 | Pre-existing accepted class, see `WeatherCard.jsx` |
+| `icon ?? 'cloud'` → `icon && 'cloud'` (`TomorrowCard.jsx:130`) | 1 | Selects a different glyph, which is a style-only difference in jsdom |
+| `i > 0` separator guard (`TomorrowCard.jsx:373`) | 4 | The separator is an unstyled `aria-hidden` div with no text content |
+| `data?.tomorrow` → `data.tomorrow` (`TomorrowCard.jsx:341`) | 1 | Unreachable — the loading branch returns before this line while `data` is null |
 
 ### `components/TravelCard.jsx` (Session 12)
 

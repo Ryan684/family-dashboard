@@ -88,3 +88,8 @@ Feature: Travel card frontend
     Given a route with delay_colour "green" and delay_seconds 0
     When the TravelCard renders
     Then only "On time" is visible, with no "+" prefix
+
+  Scenario: No "Commute" column label is shown
+    Given a commuter is active
+    When the TravelCard renders
+    Then no "Commute" section label is visible

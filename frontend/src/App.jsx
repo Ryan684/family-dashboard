@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import ClockCard from './components/ClockCard'
 import TravelCard from './components/TravelCard'
 import WeatherCard from './components/WeatherCard'
+import TomorrowCard from './components/TomorrowCard'
 import CalendarCard from './components/CalendarCard'
 import AlertBanner from './components/AlertBanner'
+import WarningBanner from './components/WarningBanner'
 
 const POLL_INTERVAL_MS = 60_000
 
@@ -69,11 +71,12 @@ function App() {
   const showTravel =
     travelLoading || travelError || (!isStale && commuterCount > 0)
 
-  // Calendar and weather run narrower than travel's twin commuter columns, so they
-  // get a larger share of the freed-up width; ratios still sum to the same total.
+  // Three content columns either way: when travel goes, tomorrow's forecast takes
+  // the freed track. Tomorrow runs slightly narrower than the other two — it has
+  // no 88px hero figure to fit on one baseline.
   const gridCols = showTravel
     ? '1.5fr 1px 0.9fr 1px 1.3fr'
-    : '0.85fr 1px 1.15fr'
+    : '1.15fr 1px 1fr 1px 1.15fr'
 
   return (
     <div ref={stageRef} className="dash-stage">
@@ -90,7 +93,21 @@ function App() {
         {/* hero clock */}
         <ClockCard />
 
-        {/* alert strap */}
+        {/* alert straps — weather above traffic: a red weather warning outranks
+            a delay, and the weather is usually what caused the traffic.
+
+            Both can be mounted at once (needs a red route AND an amber+ weather
+            warning live simultaneously — only possible 06:30-09:30, since a red
+            route requires travel to be shown). No card carries a column label
+            (see each card's own "no column label" scenario), which reclaims a
+            row's height per card and keeps the weather column's second
+            location's description visible even with both straps up — but its
+            high temperature and rain windows can still be lost under
+            DashColumn's bottom fade. No overflow or visual break either way,
+            just reduced detail on an already rare morning. Accepted rather
+            than adding untested conditional padding; see
+            weather_warning_banner.feature's "both straps active" scenario. */}
+        <WarningBanner />
         <AlertBanner travelData={travelData} />
 
         {/* content columns */}
@@ -116,19 +133,21 @@ function App() {
                   error={travelError}
                 />
               </DashColumn>
-              <div
-                style={{ width: 1, background: 'var(--rule)' }}
-                aria-hidden="true"
-              />
+              <Rule />
             </>
           )}
           <DashColumn>
             <WeatherCard />
           </DashColumn>
-          <div
-            style={{ width: 1, background: 'var(--rule)' }}
-            aria-hidden="true"
-          />
+          <Rule />
+          {!showTravel && (
+            <>
+              <DashColumn testId="tomorrow-section">
+                <TomorrowCard />
+              </DashColumn>
+              <Rule />
+            </>
+          )}
           <DashColumn>
             <CalendarCard />
           </DashColumn>
@@ -138,11 +157,19 @@ function App() {
   )
 }
 
-/* Fills its grid row and keeps its heading pinned to the same top edge as
-   its neighbours, so the Commute / Weather / Calendar labels always sit on
-   one scannable line. The trailing fade hides any excess below the fold on
-   an unusually busy day instead of letting it render past the kiosk frame,
-   invisible. */
+/* The 1px hairline that separates two content columns. It is a real grid track
+   (see gridTemplateColumns above), not a border, so the columns either side stay
+   flush against it whichever combination is on screen. */
+function Rule() {
+  return (
+    <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
+  )
+}
+
+/* Fills its grid row and keeps each card's content pinned to the same top
+   edge as its neighbours, so the columns line up on one scannable row. The
+   trailing fade hides any excess below the fold on an unusually busy day
+   instead of letting it render past the kiosk frame, invisible. */
 function DashColumn({ children, testId }) {
   return (
     <div

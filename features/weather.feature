@@ -1,4 +1,9 @@
 Feature: Weather card backend
+  The weather backend returns current conditions plus the day's aggregate figures —
+  high, rainfall total and probability, and the hours rain is likely. It deliberately
+  does NOT return a per-hour forecast list: hourly precipitation probability is fetched
+  only so it can be collapsed into rain windows. See weather_per_destination.feature.
+
   Background:
     Given the home location is configured with a latitude and longitude
 
@@ -6,12 +11,6 @@ Feature: Weather card backend
     Given Open-Meteo returns current weather data for home
     When the dashboard requests the weather endpoint
     Then the response contains temperature, apparent temperature, weather description, wind speed, and humidity
-
-  Scenario: Short forecast is returned for the next 6 hours
-    Given Open-Meteo returns hourly forecast data for home
-    When the dashboard requests the weather endpoint
-    Then the response contains a forecast list with 6 hourly entries
-    And each forecast entry contains a time, temperature, weather description, and precipitation probability
 
   Scenario: WMO weather code 0 maps to "Clear sky"
     Given a WMO weather code of 0
@@ -27,11 +26,6 @@ Feature: Weather card backend
     Given a WMO weather code not in the known set
     When the code is mapped to a description
     Then the description is "Unknown"
-
-  Scenario: Forecast starts from the current hour
-    Given the current time matches an entry in the hourly forecast
-    When the forecast is parsed
-    Then the first forecast entry matches the current hour
 
   Scenario: Daily rainfall total and probability are returned
     Given Open-Meteo returns daily precipitation_sum of 4.2 mm and precipitation_probability_max of 60%

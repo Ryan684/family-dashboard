@@ -10,8 +10,10 @@ A wall-mounted family dashboard designed to ease the morning routine. Displays l
 
 - **Clock & date** — large, always-visible time and date display; the most prominent element on the screen, legible from across the room at a glance
 - **Travel ETAs** — per-commuter, schedule-driven routing. Each active commuter gets a card showing 2 fastest route alternatives with travel time, a brief route description (e.g. "via M25 and A3"), and colour-coded delay status (green / amber / red). Routes are multi-waypoint where applicable (e.g. home → dog daycare → nursery → work). Commuters who are WFH or off with no drops are hidden; the grid reflows. Traffic incident warnings for any incidents on or near a commuter's route are shown beneath their card.
-- **Weather** — current conditions and short forecast for home and commute destination locations
+- **Weather** — current conditions and the day's high, rainfall and likely rain hours, for home and commute destination locations
 - **Calendar** — upcoming events from shared family Google Calendar (today + tomorrow)
+- **Tomorrow's forecast** — shown in the column the travel section vacates outside the commute window, resolved against tomorrow's commute schedule
+- **Severe weather warnings** — amber and red Met Office warnings covering any of our locations, as a banner above the morning alert
 - **Morning alert banner** — contextual message if a route has significant delay (e.g. "Leave 15 mins early")
 
 ---
@@ -53,7 +55,7 @@ Pass these notes to the frontend-design skill as context when building any UI co
 - **Pixel density vs. viewing distance** — at ~1m from a 15.6" 1080p display (141 PPI), fine detail is preserved but design should still favour boldness. The monitor sits on a counter or cabinet at arm's length, not across the room.
 - **Generous whitespace** — cards should breathe; a layout that looks fine on a laptop will feel cramped at a glance. Prefer fewer, larger elements over many small ones
 - **Minimum font sizes** — secondary text no smaller than 24px; primary information (ETA times, temperature, clock) should be 48px or larger. Labels smaller than ~20px will be unreadable from 1.5m+, so avoid placing critical information in very small type
-- **Card grid** — with 1920×1080 and 4–5 cards, a 2- or 3-column grid works well in landscape. ClockCard should span full width or sit prominently at the top; never squeezed into a corner
+- **Card grid** — with 1920×1080 and 4–5 cards, a 2- or 3-column grid works well in landscape. ClockCard should span full width or sit prominently at the top; never squeezed into a corner. The content row always holds exactly three columns: travel, weather and calendar during the commute window, and weather, tomorrow's forecast and calendar outside it. A column runs to roughly 600px before its content meets the bottom fade, which is why tomorrow's forecast takes the freed column rather than stacking beneath today's
 - **No touch** — the monitor is not a touchscreen; do not add touch-dependent interactions. Any interactive controls should be accessible over SSH or a wireless keyboard
 - **No hover-dependent UI** — nothing important should be hidden behind hover states or tooltips; this is a wall-mounted display
 - **Dark theme preferred** — high-contrast dark background outperforms light themes at distance and in variable kitchen lighting; target minimum 7:1 contrast ratio for primary text
@@ -64,7 +66,8 @@ Pass these notes to the frontend-design skill as context when building any UI co
 |---|---|---|
 | Travel — routes & ETAs | Google Maps Routes API (`computeRoutes`) | POST request with `computeAlternativeRoutes: true` returns 2 fastest routes. Each route includes travel time, static (no-traffic) duration, distance, and step-by-step navigation — road names extracted from step instructions to form a brief route description. Free tier: $200/month credit (well within personal dashboard usage). |
 | Travel — incident warnings | N/A | Google Maps Routes API does not provide a direct traffic incident endpoint. Incidents are always returned as an empty array. The frontend incident display remains in place for potential future provider additions. |
-| Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Hourly forecast + current conditions. |
+| Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Current conditions plus daily aggregates; hourly precipitation probability is fetched only to derive rain windows, never displayed per hour. |
+| Weather warnings | Met Office NSWWS | Open-Meteo has no alerts endpoint and its maintainer has said there are no near-term plans for one, so severe weather warnings come from the Met Office National Severe Weather Warning Service instead. Requires an API key obtained by application via a contact form, not self-serve — so the integration is optional throughout: with no key configured the fetch short-circuits and the banner never appears. The feed is national with no coordinate query, so warnings are matched to our locations in process (`services/geo.py`). |
 | Calendar | Apple iCloud CalDAV | CalDAV protocol via Python `caldav` library. App-specific password auth — no OAuth, no browser flow, no credentials file. Free. |
 
 ### Calendar
@@ -299,6 +302,11 @@ Never commit `.env`. Commit `.env.example` with placeholder values only.
 
 ```
 GOOGLE_MAPS_API_KEY=your_key_here
+
+# Met Office severe weather warnings — optional, blank means no warnings banner
+# Base URL is issued alongside the key at signup, not a fixed value
+MET_OFFICE_NSWWS_API_KEY=
+MET_OFFICE_NSWWS_BASE_URL=
 
 # Shared home location
 HOME_LAT=51.XXXX

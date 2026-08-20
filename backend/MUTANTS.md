@@ -339,6 +339,103 @@ sleep whose correctness is guaranteed by the config test that validates
 
 ---
 
+## `services/geo.py` — Met Office warning area matching
+
+**No surviving mutants.** All mutants of `point_in_ring`, `point_in_polygon` and
+`point_in_geometry` are killed.
+
+Two rounds were needed and the reason is worth recording, because it is a trap any future
+change to this file will fall into. The first test suite used only axis-aligned rectangles,
+which left six survivors in the edge-intersection arithmetic: on a vertical edge the
+`(lon2 - lon1)` term is zero, so the whole expression collapses and mutating the operators
+around it changes nothing. Adding a triangle with a genuine diagonal killed two more but not
+all, because that triangle had vertices at latitude 0, where `lat - lat1` and `lat + lat1`
+are also identical. `_OFFSET_TRIANGLE` in `tests/test_geo.py` — a diagonal clear of the
+equator — is what finally pins the arithmetic.
+
+**Keep both diagonal fixtures.** Real Met Office warning areas are all diagonals; a suite
+of rectangles cannot tell whether this function works.
+
+---
+
+## `services/nswws.py` — Met Office severe weather warnings
+
+### `x_parse_warnings__mutmut_18`, `__mutmut_20`, `__mutmut_24` (survived)
+
+**What was mutated:** The default for a missing `warningStatus` key, changed from `""` to
+`None`, to no default, or to `"XXXX"`.
+
+**Why acceptable:** Genuinely equivalent. The value is used only to test membership of
+`_DEAD_STATUSES` (`{"cancelled", "expired"}`), so the default's only requirement is that it
+is not one of those two. `""`, `"none"` and `"xxxx"` all satisfy it and all produce the same
+decision: a warning carrying no status is in force. Killing these would mean asserting on a
+sentinel that never reaches the caller.
+
+### `x__sort_key__mutmut_7`, `__mutmut_9`, `__mutmut_12` (survived)
+
+**What was mutated:** The default for a missing `level` key inside `_sort_key`, changed from
+`""` to `None`, to no default, or to `"XXXX"`.
+
+**Why acceptable:** Genuinely equivalent, for the same reason as the `warningStatus` case
+above. The value is immediately looked up in `_LEVEL_ORDER`, which contains only `RED`,
+`AMBER` and `YELLOW`; every possible default misses and falls back to `len(_LEVEL_ORDER)`,
+sorting the warning last. The behaviour under test — an unrecognised or absent level sorts
+after every known one — is covered by `test_sort_warnings_puts_an_unknown_level_last`.
+(Renamed from `x_sort_warnings__mutmut_*` when the sort key moved into its own `_sort_key`
+function.)
+
+### `x__sort_key__mutmut_19`, `__mutmut_26` (survived)
+
+**What was mutated:** The sentinel used when `impact` (mutmut_19) or `likelihood`
+(mutmut_26) is missing, changed from `-1` to `-2`.
+
+**Why acceptable:** Genuinely equivalent. Real NSWWS ratings, per a captured sample (see
+module docstring), start at 1, so any sentinel more negative than that — `-1`, `-2`, or
+anything else below the real minimum — produces identical ordering: it always sorts after
+every real rating and, since two `None` values are never compared against each other, its
+exact magnitude is unobservable. A weaker version of this class was killed:
+`test_sort_warnings_missing_impact_sorts_after_the_lowest_real_value` and its likelihood
+counterpart specifically pin "missing loses even to the real minimum (1)", which is the one
+observable fact about the sentinel; a `+1` mutant here was a real gap and is now killed by
+those two tests.
+
+### `x_parse_warnings__mutmut_58`, `__mutmut_60` (survived)
+
+**What was mutated:** The default for a missing `weatherType` key, changed from `[]` to
+`None`, or to no default (also `None`).
+
+**Why acceptable:** Genuinely equivalent by construction. The very next line is
+`weather_types if isinstance(weather_types, list) else []`, so any non-list default —
+`None` included — is normalised to `[]` regardless of what the `.get()` default was. The
+defensive `isinstance` check exists specifically so a malformed or absent field can never
+reach the caller as anything but a list, which makes the `.get()` default itself
+unobservable.
+
+### Everything else is killed
+
+The first mutmut run left 34 survivors across this module; 28 of them were real test gaps in
+the defensive parsing, not equivalents, and are now covered. They all had the same shape: the
+suite only ever parsed *well-formed* features, so every `.get(key, default)` fallback was
+unreachable. Since this module parses a feed shape that had not yet been seen against the
+live API, those fallbacks were the most likely code here to matter in practice. `_bare_feature`
+in `tests/test_nswws.py` covers them.
+
+**Field names were subsequently corrected against the real "Issued" and "Atom feed" endpoint
+docs**, pasted in directly after the API's own docs site proved unreachable from this
+environment's network policy (see the module docstring for exactly what is confirmed).
+`weatherType` does exist — as a list of strings (e.g. `["THUNDERSTORM"]`), not the bare
+string this module assumed on an earlier pass through a third-party client's sample data
+that simply hadn't captured the field; it is parsed defensively with an `isinstance` guard
+for that reason. `warningImpact` and `warningLikelihood` are real fields this module had
+been silently discarding, and are now captured and used as the documented tie-breakers
+after `level` in `sort_warnings`. `fetch_warnings` was also rewritten as a genuine two-step
+Atom-feed-then-GeoJSON fetch (`parse_feed_related_url` extracts the feed-level related
+link) once the real Atom feed docs showed the GeoJSON URL is not a fixed endpoint — that
+rewrite introduced no new survivors; every mutant of `parse_feed_related_url` and the
+rewritten `fetch_warnings` is killed.
+
+---
+
 ## `scripts/deploy.sh` — mutation testing not applicable
 
 **Tool:** mutmut operates on Python source files only. `scripts/deploy.sh` is a bash script
