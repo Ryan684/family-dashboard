@@ -1,3 +1,5 @@
+import StaleTag from './StaleTag'
+
 const DELAY_META = {
   green: { color: 'var(--ok)', label: 'On time' },
   amber: { color: 'var(--warn)', label: 'Slow' },
@@ -337,38 +339,6 @@ function CommuterColumn({ commuter }) {
       )}
 
       <IncidentList incidents={incidents} />
-    </div>
-  )
-}
-
-function StaleTag() {
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        fontFamily: 'var(--f-mono)',
-        fontSize: 14,
-        letterSpacing: '0.2em',
-        textTransform: 'uppercase',
-        color: 'var(--ink-faint)',
-        fontWeight: 500,
-      }}
-      data-testid="stale-warning"
-    >
-      <span
-        style={{
-          display: 'inline-block',
-          width: 8,
-          height: 8,
-          borderRadius: 999,
-          background: 'var(--ink-faint)',
-          flexShrink: 0,
-        }}
-        aria-hidden="true"
-      />
-      Cached · outside window
     </div>
   )
 }

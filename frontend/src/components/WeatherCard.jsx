@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import StaleTag from './StaleTag'
+import { formatRainWindows } from '../weatherFormat'
 
 function WeatherGlyph({ kind = 'cloud', size = 56 }) {
   const s = size
@@ -97,65 +99,6 @@ function WeatherGlyph({ kind = 'cloud', size = 56 }) {
   )
 }
 
-function StaleTag() {
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        fontFamily: 'var(--f-mono)',
-        fontSize: 14,
-        letterSpacing: '0.2em',
-        textTransform: 'uppercase',
-        color: 'var(--ink-faint)',
-        fontWeight: 500,
-      }}
-      data-testid="stale-warning"
-    >
-      <span
-        style={{
-          display: 'inline-block',
-          width: 8,
-          height: 8,
-          borderRadius: 999,
-          background: 'var(--ink-faint)',
-          flexShrink: 0,
-        }}
-        aria-hidden="true"
-      />
-      Cached · outside window
-    </div>
-  )
-}
-
-function hourNum(h) {
-  const mod = h % 12
-  return mod === 0 ? 12 : mod
-}
-
-function formatHour(h) {
-  return `${hourNum(h)}${h < 12 ? 'am' : 'pm'}`
-}
-
-function formatWindow({ start_hour, end_hour }) {
-  if (end_hour - start_hour === 1) return formatHour(start_hour)
-  if (start_hour >= 12 === end_hour >= 12) {
-    return `${hourNum(start_hour)}–${formatHour(end_hour)}`
-  }
-  return `${formatHour(start_hour)}–${formatHour(end_hour)}`
-}
-
-function formatRainWindows(windows) {
-  if (!windows || windows.length === 0) return null
-  const totalHours = windows.reduce(
-    (sum, w) => sum + (w.end_hour - w.start_hour),
-    0
-  )
-  if (totalHours >= 18) return 'all day'
-  return windows.map(formatWindow).join(', ')
-}
-
 function LocationBlock({ location }) {
   const {
     name,
@@ -211,6 +154,7 @@ function LocationBlock({ location }) {
               lineHeight: 0.9,
               color: 'var(--ink)',
               letterSpacing: '-0.03em',
+              fontFeatureSettings: '"lnum","tnum"',
             }}
           >
             {current.temperature_celsius}°C
@@ -237,6 +181,7 @@ function LocationBlock({ location }) {
             fontFamily: 'var(--f-display)',
             fontSize: 24,
             color: 'var(--ink-dim)',
+            fontFeatureSettings: '"lnum","tnum"',
           }}
         >
           <span>High: {daily_high_celsius}°C</span>
@@ -258,6 +203,7 @@ function LocationBlock({ location }) {
               color: 'var(--ink-faint)',
               fontWeight: 500,
               marginTop: 2,
+              fontVariantNumeric: 'tabular-nums',
             }}
             data-testid="rain-windows"
           >

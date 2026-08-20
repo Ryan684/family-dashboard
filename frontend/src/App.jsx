@@ -116,25 +116,28 @@ function App() {
                   error={travelError}
                 />
               </DashColumn>
-              <div
-                style={{ width: 1, background: 'var(--rule)' }}
-                aria-hidden="true"
-              />
+              <Rule />
             </>
           )}
           <DashColumn>
             <WeatherCard />
           </DashColumn>
-          <div
-            style={{ width: 1, background: 'var(--rule)' }}
-            aria-hidden="true"
-          />
+          <Rule />
           <DashColumn>
             <CalendarCard />
           </DashColumn>
         </div>
       </div>
     </div>
+  )
+}
+
+/* The 1px hairline that separates two content columns. It is a real grid track
+   (see gridTemplateColumns above), not a border, so the columns either side stay
+   flush against it whichever combination is on screen. */
+function Rule() {
+  return (
+    <div style={{ width: 1, background: 'var(--rule)' }} aria-hidden="true" />
   )
 }
 
