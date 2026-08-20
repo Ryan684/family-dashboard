@@ -12,6 +12,9 @@ vi.mock('./components/WeatherCard', () => ({
 vi.mock('./components/CalendarCard', () => ({
   default: () => <div data-testid="calendar-card" />,
 }))
+vi.mock('./components/TomorrowCard', () => ({
+  default: () => <div data-testid="tomorrow-card" />,
+}))
 
 const makeRoute = (colour = 'green') => ({
   travel_time_seconds: 1800,
@@ -93,6 +96,40 @@ describe('App — travel section grid reflow', () => {
     render(<App />)
     // Initially travelLoading=true, so travel section is shown in loading state
     expect(screen.getByTestId('travel-section')).toBeInTheDocument()
+  })
+
+  it('shows the tomorrow section when the travel section is hidden', async () => {
+    mockTravelFetch({ commuters: [makeCommuter('Ryan')], is_stale: true })
+    render(<App />)
+    await waitFor(() =>
+      expect(screen.getByTestId('tomorrow-section')).toBeInTheDocument()
+    )
+  })
+
+  it('hides the tomorrow section when the travel section is shown', async () => {
+    mockTravelFetch(makeTravelResponse([makeCommuter('Ryan')]))
+    render(<App />)
+    await waitFor(() =>
+      expect(screen.getByTestId('travel-section')).toBeInTheDocument()
+    )
+    expect(screen.queryByTestId('tomorrow-section')).not.toBeInTheDocument()
+  })
+
+  it('shows the tomorrow section when there are no commuters', async () => {
+    mockTravelFetch(makeTravelResponse([]))
+    render(<App />)
+    await waitFor(() =>
+      expect(screen.getByTestId('tomorrow-section')).toBeInTheDocument()
+    )
+  })
+
+  it('hides the tomorrow section while travel is still loading', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {}))
+    )
+    render(<App />)
+    expect(screen.queryByTestId('tomorrow-section')).not.toBeInTheDocument()
   })
 
   it('shows travel error state when fetch returns a non-ok HTTP status', async () => {
