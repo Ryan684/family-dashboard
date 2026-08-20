@@ -1424,3 +1424,64 @@ async def test_fetch_weather_data_missing_current_block_gives_a_sun_glyph():
 async def test_fetch_weather_data_missing_daily_block_gives_a_cloud_glyph():
     result = await _run_fetch(response={})
     assert result["tomorrow"]["locations"][0]["icon"] == "cloud"
+
+
+# ---------------------------------------------------------------------------
+# fetch_weather — the request contract with Open-Meteo
+# ---------------------------------------------------------------------------
+
+
+def _make_forecast_client():
+    from unittest.mock import AsyncMock, MagicMock
+
+    response = MagicMock()
+    response.json.return_value = _open_meteo_response()
+    response.raise_for_status = MagicMock()
+    client = MagicMock()
+    client.get = AsyncMock(return_value=response)
+    return client
+
+
+async def test_fetch_weather_requests_two_days():
+    # Tomorrow's forecast rides on the same request as today's; dropping to one
+    # day would silently empty the tomorrow column.
+    from routers.weather import fetch_weather
+
+    client = _make_forecast_client()
+    await fetch_weather(client, 51.5, -0.1)
+    assert client.get.call_args[1]["params"]["forecast_days"] == 2
+
+
+async def test_fetch_weather_requests_the_daily_weather_code():
+    # Tomorrow's description and glyph both come from the daily code.
+    from routers.weather import fetch_weather
+
+    client = _make_forecast_client()
+    await fetch_weather(client, 51.5, -0.1)
+    assert "weather_code" in client.get.call_args[1]["params"]["daily"]
+
+
+async def test_fetch_weather_requests_hourly_precipitation_probability():
+    from routers.weather import fetch_weather
+
+    client = _make_forecast_client()
+    await fetch_weather(client, 51.5, -0.1)
+    assert client.get.call_args[1]["params"]["hourly"] == "precipitation_probability"
+
+
+async def test_fetch_weather_pins_the_london_timezone():
+    # Local-day alignment is what makes the DST-aware day offsets work.
+    from routers.weather import fetch_weather
+
+    client = _make_forecast_client()
+    await fetch_weather(client, 51.5, -0.1)
+    assert client.get.call_args[1]["params"]["timezone"] == "Europe/London"
+
+
+async def test_fetch_weather_passes_the_coordinates():
+    from routers.weather import fetch_weather
+
+    client = _make_forecast_client()
+    await fetch_weather(client, 51.5, -0.1)
+    params = client.get.call_args[1]["params"]
+    assert (params["latitude"], params["longitude"]) == (51.5, -0.1)
