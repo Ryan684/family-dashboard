@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import ClockCard from './components/ClockCard'
 import TravelCard from './components/TravelCard'
 import WeatherCard from './components/WeatherCard'
+import TomorrowCard from './components/TomorrowCard'
 import CalendarCard from './components/CalendarCard'
 import AlertBanner from './components/AlertBanner'
 
@@ -69,11 +70,12 @@ function App() {
   const showTravel =
     travelLoading || travelError || (!isStale && commuterCount > 0)
 
-  // Calendar and weather run narrower than travel's twin commuter columns, so they
-  // get a larger share of the freed-up width; ratios still sum to the same total.
+  // Three content columns either way: when travel goes, tomorrow's forecast takes
+  // the freed track. Tomorrow runs slightly narrower than the other two — it has
+  // no 88px hero figure to fit on one baseline.
   const gridCols = showTravel
     ? '1.5fr 1px 0.9fr 1px 1.3fr'
-    : '0.85fr 1px 1.15fr'
+    : '1.15fr 1px 1fr 1px 1.15fr'
 
   return (
     <div ref={stageRef} className="dash-stage">
@@ -123,6 +125,14 @@ function App() {
             <WeatherCard />
           </DashColumn>
           <Rule />
+          {!showTravel && (
+            <>
+              <DashColumn testId="tomorrow-section">
+                <TomorrowCard />
+              </DashColumn>
+              <Rule />
+            </>
+          )}
           <DashColumn>
             <CalendarCard />
           </DashColumn>
