@@ -22,6 +22,10 @@ def _require_env(name: str) -> str:
 class Settings:
     google_maps_api_key: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     here_api_key: str = os.getenv("HERE_API_KEY", "")
+    # Optional, deliberately: _require_env raises at import time, and deploy.sh
+    # never touches .env, so a required key would take the backend down at the
+    # next nightly deploy. Absent key simply means no warnings banner.
+    met_office_nswws_api_key: str = os.getenv("MET_OFFICE_NSWWS_API_KEY", "")
 
     home_lat: float = float(os.getenv("HOME_LAT", "0"))
     home_lon: float = float(os.getenv("HOME_LON", "0"))

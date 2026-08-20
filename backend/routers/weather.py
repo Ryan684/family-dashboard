@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 from config import settings
 from services.commute_schedule import load_schedule
+from services.nswws import fetch_warnings, filter_warnings_for_points, sort_warnings
 
 router = APIRouter(prefix="/api/weather", tags=["weather"])
 
@@ -340,6 +341,20 @@ async def get_weather():
     return {**_cache, "is_stale": is_stale}
 
 
+@router.get("/warnings")
+async def get_weather_warnings():
+    """Serve severe weather warnings from the same cache the forecast uses.
+
+    No is_stale flag, deliberately: unlike a travel delay, a cached weather
+    warning is not misleading — Met Office warnings have multi-hour to multi-day
+    validity, so the banner shows them whether or not the poll window is open.
+    """
+    if _cache is None:
+        return {"warnings": []}
+    # .get keeps this safe against a cache written before the feature shipped.
+    return {"warnings": _cache.get("warnings", [])}
+
+
 def _build_today_entry(name: str, data: dict) -> dict:
     """Assemble today's card entry — live conditions plus the day's aggregates."""
     daily = data.get("daily", {})
@@ -412,10 +427,27 @@ async def fetch_weather_data() -> dict:
             for loc in tomorrow_locations
         ]
 
+        # Warnings ride the weather poll rather than a fourth scheduler source:
+        # the 120s cadence already matches the Met Office's own polling guidance.
+        # A failure here must not cost us the forecast, which is the card people
+        # actually rely on every morning.
+        try:
+            raw_warnings = await fetch_warnings(
+                http, settings.met_office_nswws_api_key
+            )
+            points = [
+                {"name": display_name(loc), "lat": loc["lat"], "lon": loc["lon"]}
+                for loc in [*today_locations, *tomorrow_locations]
+            ]
+            warnings = sort_warnings(filter_warnings_for_points(raw_warnings, points))
+        except Exception:
+            warnings = []
+
     return {
         "locations": result_locations,
         "tomorrow": {
             "weekday": tomorrow_weekday.capitalize(),
             "locations": tomorrow_entries,
         },
+        "warnings": warnings,
     }
