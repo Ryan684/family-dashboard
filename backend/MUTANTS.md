@@ -371,26 +371,49 @@ is not one of those two. `""`, `"none"` and `"xxxx"` all satisfy it and all prod
 decision: a warning carrying no status is in force. Killing these would mean asserting on a
 sentinel that never reaches the caller.
 
-### `x_sort_warnings__mutmut_11`, `__mutmut_13`, `__mutmut_16` (survived)
+### `x__sort_key__mutmut_7`, `__mutmut_9`, `__mutmut_12` (survived)
 
-**What was mutated:** The default for a missing `level` key inside the sort key lambda,
-changed from `""` to `None`, to no default, or to `"XXXX"`.
+**What was mutated:** The default for a missing `level` key inside `_sort_key`, changed from
+`""` to `None`, to no default, or to `"XXXX"`.
 
-**Why acceptable:** Genuinely equivalent, for the same reason. The value is immediately
-looked up in `_LEVEL_ORDER`, which contains only `RED`, `AMBER` and `YELLOW`; every possible
-default misses and falls back to `len(_LEVEL_ORDER)`, sorting the warning last. The
-behaviour under test — an unrecognised or absent level sorts after every known one — is
-covered by `test_sort_warnings_puts_an_unknown_level_last`.
+**Why acceptable:** Genuinely equivalent, for the same reason as the `warningStatus` case
+above. The value is immediately looked up in `_LEVEL_ORDER`, which contains only `RED`,
+`AMBER` and `YELLOW`; every possible default misses and falls back to `len(_LEVEL_ORDER)`,
+sorting the warning last. The behaviour under test — an unrecognised or absent level sorts
+after every known one — is covered by `test_sort_warnings_puts_an_unknown_level_last`.
+(Renamed from `x_sort_warnings__mutmut_*` when the sort key moved into its own `_sort_key`
+function.)
+
+### `x__sort_key__mutmut_19`, `__mutmut_26` (survived)
+
+**What was mutated:** The sentinel used when `impact` (mutmut_19) or `likelihood`
+(mutmut_26) is missing, changed from `-1` to `-2`.
+
+**Why acceptable:** Genuinely equivalent. Real NSWWS ratings, per a captured sample (see
+module docstring), start at 1, so any sentinel more negative than that — `-1`, `-2`, or
+anything else below the real minimum — produces identical ordering: it always sorts after
+every real rating and, since two `None` values are never compared against each other, its
+exact magnitude is unobservable. A weaker version of this class was killed:
+`test_sort_warnings_missing_impact_sorts_after_the_lowest_real_value` and its likelihood
+counterpart specifically pin "missing loses even to the real minimum (1)", which is the one
+observable fact about the sentinel; a `+1` mutant here was a real gap and is now killed by
+those two tests.
 
 ### Everything else is killed
 
 The first mutmut run left 34 survivors across this module; 28 of them were real test gaps in
 the defensive parsing, not equivalents, and are now covered. They all had the same shape: the
 suite only ever parsed *well-formed* features, so every `.get(key, default)` fallback was
-unreachable. Since this module parses a feed shape that has not yet been seen against the
-live API — the key is obtained by application and does not exist yet — those fallbacks are
-the most likely code here to matter in practice. `_bare_feature` in `tests/test_nswws.py`
-covers them.
+unreachable. Since this module parses a feed shape that had not yet been seen against the
+live API, those fallbacks were the most likely code here to matter in practice. `_bare_feature`
+in `tests/test_nswws.py` covers them.
+
+**Field names were subsequently corrected against a real captured response** (found via
+GitHub code search once the API's own docs site proved unreachable from this environment —
+see the module docstring for the source and what it does and doesn't confirm).
+`weatherType` never existed in the real payload and was removed; `warningImpact` and
+`warningLikelihood` were real fields this module had been silently discarding, and are now
+captured and used as the documented tie-breakers after `level` in `sort_warnings`.
 
 ---
 

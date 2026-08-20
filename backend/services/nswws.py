@@ -10,6 +10,20 @@ The API key is obtained by application rather than self-serve, so everything
 here degrades to an empty list when no key is configured. That keeps the feature
 mergeable and testable before the key exists, and means adding the key to .env
 is the only step needed to switch it on.
+
+Field names are confirmed against a real captured NSWWS response (found via
+GitHub code search — repatterning/warning's checked-in data/latest.geojson and
+its System NamedTuple, both dated November 2025 — since the API's own docs site
+is unreachable from this development environment's network policy). Confirmed:
+warningId, warningLevel, warningStatus, warningHeadline, issuedDate,
+validFromDate, validToDate, warningImpact, warningLikelihood, geometry as
+MultiPolygon with [lon, lat] coordinate order. There is no "weatherType" or
+similar hazard-category field — the hazard only appears as free text inside the
+headline. NOT yet confirmed: the exact literal values warningStatus takes for a
+cancelled or expired warning (no example in the captured sample, which held only
+"ISSUED"), and the numeric direction of warningImpact/warningLikelihood (higher
+assumed more severe, following the usual convention for this kind of rating —
+not something the sample alone can prove either way).
 """
 
 import httpx
@@ -18,11 +32,24 @@ from services.geo import point_in_geometry
 
 NSWWS_BASE = "https://api.metoffice.gov.uk/nswws"
 
-# Statuses that mean the warning is no longer in force.
+# Statuses that mean the warning is no longer in force. The exact literal
+# values NSWWS uses here are unconfirmed — see module docstring.
 _DEAD_STATUSES = frozenset({"cancelled", "expired"})
 
 # Most severe first. Anything unrecognised sorts last rather than being guessed at.
 _LEVEL_ORDER = {"RED": 0, "AMBER": 1, "YELLOW": 2}
+
+
+def _as_int(value) -> int | None:
+    """Best-effort int conversion for the impact/likelihood ratings.
+
+    None rather than a crash or a silently-wrong 0 when the value is absent or
+    not actually numeric — a bad tie-breaker should never take down parsing.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def parse_warnings(feed: dict) -> list[dict]:
@@ -31,9 +58,9 @@ def parse_warnings(feed: dict) -> list[dict]:
     Warnings that are no longer in force are dropped here rather than by the
     caller, so nothing downstream has to know about NSWWS status vocabulary.
 
-    Every field is read defensively: this parses a feed shape that has not been
-    observed against the live API yet, and a missing key must not take down the
-    poll loop.
+    Every field is still read defensively despite the confirmed shape (see
+    module docstring): a captured sample is not a schema guarantee, and a
+    missing key must not take down the poll loop.
     """
     warnings = []
 
@@ -47,7 +74,6 @@ def parse_warnings(feed: dict) -> list[dict]:
             continue
 
         level = str(properties.get("warningLevel", "")).upper()
-        weather_type = properties.get("weatherType", "")
         headline = properties.get("warningHeadline", "")
         issued = properties.get("issuedDate", "")
 
@@ -56,14 +82,14 @@ def parse_warnings(feed: dict) -> list[dict]:
                 # The feed's own id where it has one. The composite fallback can
                 # collide if a warning is reissued unchanged, which is harmless:
                 # the two would be identical anyway.
-                "id": properties.get("warningId")
-                or f"{level}|{weather_type}|{issued}|{headline}",
+                "id": properties.get("warningId") or f"{level}|{issued}|{headline}",
                 "level": level,
-                "weather_type": weather_type,
                 "headline": headline,
                 "issued": issued,
                 "valid_from": properties.get("validFromDate", ""),
                 "valid_to": properties.get("validToDate", ""),
+                "impact": _as_int(properties.get("warningImpact")),
+                "likelihood": _as_int(properties.get("warningLikelihood")),
                 "geometry": feature.get("geometry", {}),
             }
         )
@@ -105,11 +131,23 @@ def filter_warnings_for_points(warnings: list[dict], points: list[dict]) -> list
     return matched
 
 
-def sort_warnings(warnings: list[dict]) -> list[dict]:
-    """Most severe first, preserving feed order within a level."""
-    return sorted(
-        warnings, key=lambda w: _LEVEL_ORDER.get(w.get("level", ""), len(_LEVEL_ORDER))
+def _sort_key(indexed_warning: tuple[int, dict]) -> tuple:
+    index, warning = indexed_warning
+    return (
+        _LEVEL_ORDER.get(warning.get("level", ""), len(_LEVEL_ORDER)),
+        -(warning.get("impact") or -1),
+        -(warning.get("likelihood") or -1),
+        index,
     )
+
+
+def sort_warnings(warnings: list[dict]) -> list[dict]:
+    """Most severe first: level, then impact, then likelihood, matching the
+    priority Met Office's own docs describe for ranking warnings. Missing
+    impact/likelihood sort as least severe among ties rather than raising.
+    Feed order is preserved for anything left tied after all three.
+    """
+    return [w for _, w in sorted(enumerate(warnings), key=_sort_key)]
 
 
 async def fetch_warnings(client: httpx.AsyncClient, api_key: str) -> list[dict]:

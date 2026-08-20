@@ -8,11 +8,12 @@ import WarningBanner, {
 const makeWarning = (overrides = {}) => ({
   id: 'w1',
   level: 'AMBER',
-  weather_type: 'rain',
   headline: 'Heavy rain may cause flooding',
   issued: '2026-08-20T09:00:00Z',
   valid_from: '2026-08-21T06:00:00Z',
   valid_to: '2026-08-21T18:00:00Z',
+  impact: 2,
+  likelihood: 2,
   locations: ['Home'],
   ...overrides,
 })

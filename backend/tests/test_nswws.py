@@ -29,19 +29,21 @@ _OFFICE = {"name": "Guildford", "lat": 51.6, "lon": -0.2}
 def _feature(
     warning_id="w1",
     level="AMBER",
-    weather_type="rain",
     headline="Heavy rain may cause flooding",
     status=None,
     coordinates=None,
+    impact=2,
+    likelihood=2,
 ):
     properties = {
         "warningId": warning_id,
         "warningLevel": level,
-        "weatherType": weather_type,
         "warningHeadline": headline,
         "issuedDate": "2026-08-20T09:00:00Z",
         "validFromDate": "2026-08-21T06:00:00Z",
         "validToDate": "2026-08-21T18:00:00Z",
+        "warningImpact": impact,
+        "warningLikelihood": likelihood,
     }
     if status is not None:
         properties["warningStatus"] = status
@@ -68,15 +70,23 @@ def _make_client(payload):
     return client
 
 
-def _warning(level="AMBER", warning_id="w1", coordinates=None, headline="Heavy rain"):
+def _warning(
+    level="AMBER",
+    warning_id="w1",
+    coordinates=None,
+    headline="Heavy rain",
+    impact=2,
+    likelihood=2,
+):
     return {
         "id": warning_id,
         "level": level,
-        "weather_type": "rain",
         "headline": headline,
         "issued": "2026-08-20T09:00:00Z",
         "valid_from": "2026-08-21T06:00:00Z",
         "valid_to": "2026-08-21T18:00:00Z",
+        "impact": impact,
+        "likelihood": likelihood,
         "geometry": {
             "type": "MultiPolygon",
             "coordinates": coordinates or [_COVERS_HOME],
@@ -143,9 +153,14 @@ def test_parse_warnings_extracts_the_level():
     assert parse_warnings(_collection(_feature(level="RED")))[0]["level"] == "RED"
 
 
-def test_parse_warnings_extracts_the_weather_type():
-    result = parse_warnings(_collection(_feature(weather_type="wind")))
-    assert result[0]["weather_type"] == "wind"
+def test_parse_warnings_extracts_the_impact():
+    result = parse_warnings(_collection(_feature(impact=3)))
+    assert result[0]["impact"] == 3
+
+
+def test_parse_warnings_extracts_the_likelihood():
+    result = parse_warnings(_collection(_feature(likelihood=1)))
+    assert result[0]["likelihood"] == 1
 
 
 def test_parse_warnings_extracts_the_headline():
@@ -204,7 +219,7 @@ def test_parse_warnings_falls_back_to_a_composite_id():
     feature = _feature()
     del feature["properties"]["warningId"]
     result = parse_warnings(_collection(feature))
-    assert result[0]["id"] == "AMBER|rain|2026-08-20T09:00:00Z|Heavy rain may cause flooding"
+    assert result[0]["id"] == "AMBER|2026-08-20T09:00:00Z|Heavy rain may cause flooding"
 
 
 def test_parse_warnings_returns_multiple_warnings_in_feed_order():
@@ -301,9 +316,64 @@ def test_sort_warnings_empty_list():
     assert sort_warnings([]) == []
 
 
+def test_sort_warnings_breaks_a_level_tie_by_higher_impact():
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="low", impact=1),
+         _warning(level="AMBER", warning_id="high", impact=3)]
+    )
+    assert [w["id"] for w in result] == ["high", "low"]
+
+
+def test_sort_warnings_breaks_an_impact_tie_by_higher_likelihood():
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="low", impact=2, likelihood=1),
+         _warning(level="AMBER", warning_id="high", impact=2, likelihood=3)]
+    )
+    assert [w["id"] for w in result] == ["high", "low"]
+
+
+def test_sort_warnings_level_always_outranks_impact():
+    # A lower-impact RED still beats a higher-impact AMBER.
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="amber", impact=3),
+         _warning(level="RED", warning_id="red", impact=1)]
+    )
+    assert [w["id"] for w in result] == ["red", "amber"]
+
+
+def test_sort_warnings_missing_impact_sorts_as_least_severe():
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="unknown", impact=None),
+         _warning(level="AMBER", warning_id="known", impact=1)]
+    )
+    assert [w["id"] for w in result] == ["known", "unknown"]
+
+
+def test_sort_warnings_missing_impact_sorts_after_the_lowest_real_value():
+    # A missing rating must lose even to the lowest real rating NSWWS uses (1),
+    # not just to higher ones — feeding "unknown" first pins the direction
+    # regardless of input order, which a merely lower sentinel could still get
+    # backwards if the sentinel sits too close to a real minimum value.
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="unknown", impact=None, likelihood=2),
+         _warning(level="AMBER", warning_id="known", impact=1, likelihood=2)]
+    )
+    assert [w["id"] for w in result] == ["known", "unknown"]
+
+
+def test_sort_warnings_missing_likelihood_sorts_after_the_lowest_real_value():
+    result = sort_warnings(
+        [_warning(level="AMBER", warning_id="unknown", impact=2, likelihood=None),
+         _warning(level="AMBER", warning_id="known", impact=2, likelihood=1)]
+    )
+    assert [w["id"] for w in result] == ["known", "unknown"]
+
+
 # ---------------------------------------------------------------------------
-# Defensive parsing — the feed shape has not been seen against the live API,
-# so a feature missing any field must degrade to an empty value, never raise.
+# Defensive parsing — field names are confirmed against a real captured
+# response (see module docstring), but a captured sample is not a schema
+# guarantee, so a feature missing any field must still degrade cleanly rather
+# than raise.
 # ---------------------------------------------------------------------------
 
 
@@ -316,8 +386,18 @@ def test_parse_warnings_missing_level_becomes_empty_string():
     assert parse_warnings(_collection(_bare_feature()))[0]["level"] == ""
 
 
-def test_parse_warnings_missing_weather_type_becomes_empty_string():
-    assert parse_warnings(_collection(_bare_feature()))[0]["weather_type"] == ""
+def test_parse_warnings_missing_impact_becomes_none():
+    assert parse_warnings(_collection(_bare_feature()))[0]["impact"] is None
+
+
+def test_parse_warnings_missing_likelihood_becomes_none():
+    assert parse_warnings(_collection(_bare_feature()))[0]["likelihood"] is None
+
+
+def test_parse_warnings_non_numeric_impact_becomes_none():
+    feature = _bare_feature()
+    feature["properties"]["warningImpact"] = "moderate"
+    assert parse_warnings(_collection(feature))[0]["impact"] is None
 
 
 def test_parse_warnings_missing_headline_becomes_empty_string():

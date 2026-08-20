@@ -109,6 +109,32 @@ Feature: Met Office severe weather warnings backend
     When the warnings are sorted
     Then the amber warning is first
 
+  Scenario: A tie in level is broken by higher impact
+    Given two amber warnings with different warningImpact values
+    When the warnings are sorted
+    Then the higher-impact warning is first
+
+  Scenario: A tie in level and impact is broken by higher likelihood
+    Given two amber warnings with the same warningImpact but different warningLikelihood
+    When the warnings are sorted
+    Then the higher-likelihood warning is first
+
+  Scenario: Level always outranks impact
+    Given an amber warning with a higher warningImpact than a red warning
+    When the warnings are sorted
+    Then the red warning is still first
+
+  Scenario: A warning with no impact rating sorts as least severe among ties
+    Given two amber warnings, one with no warningImpact value
+    When the warnings are sorted
+    Then the warning with a warningImpact value is first
+  # This ordering — level, then impact, then likelihood — matches the priority
+  # Met Office's own docs describe for ranking warnings. The field names
+  # (warningImpact, warningLikelihood, and everything else this feature and
+  # weather_warning_banner.feature depend on) are confirmed against a real
+  # captured NSWWS response, not assumed — see services/nswws.py's module
+  # docstring for how and what remains unconfirmed.
+
   # --- Endpoint ---
 
   Scenario: Warnings are served from the weather cache
