@@ -11,6 +11,11 @@ here degrades to an empty list when no key is configured. That keeps the feature
 mergeable and testable before the key exists, and means adding the key to .env
 is the only step needed to switch it on.
 
+The base URL is likewise obtained at signup, not a fixed, guessable value — the
+docs say plainly "The URL ... will have been supplied to you when you signed up
+and were given your API key." It is therefore config, `MET_OFFICE_NSWWS_BASE_URL`,
+not a module constant, and fetch_warnings degrades the same way if it's missing.
+
 Field names and response shape are confirmed against the real "Issued" endpoint
 docs (metoffice.github.io/nswws-public-api/issued.html — unreachable from this
 development environment's network policy, pasted in by the user instead):
@@ -27,22 +32,27 @@ and an independently-found metoffice.gov.uk page describing impact as very
 low/low/medium/high corroborates higher = more severe, though the exact
 integer-to-label mapping is still unconfirmed.
 
-STILL OPEN, and more consequential than any field name: the GeoJSON URL this
-module hits is not a fixed endpoint. The real docs say plainly to use the URL
-supplied by the Atom feed's `<link rel="related">` element rather than
-composing it, because "the URL changes every time the feed is updated" and a
-stale one 404s. `NSWWS_BASE` below is still a placeholder guess — `fetch_warnings`
-needs to fetch and parse the Atom feed first to discover the current GeoJSON
-URL, then fetch that, which is also one more HTTP call per poll than assumed.
-Not yet implemented: this needs the Atom feed's own entry-point URL and XML
-shape, which hasn't been sourced yet either.
+The GeoJSON URL is not a fixed endpoint, confirmed against the real "Atom feed"
+docs (metoffice.github.io/nswws-public-api/atom-feed.html — unreachable from
+here, again pasted in by the user). `fetch_warnings` is a genuine two-step
+fetch: GET `{base_url}/v1.0/objects/feed` for the Atom feed, read the *feed-level*
+`<link rel="related">` element's `href` (the "Latest version of all issued
+warnings" URL, distinct from any `<entry>`'s own `rel="alternate"` link, which
+describes a single past change rather than the current full set), then GET
+that URL for the actual GeoJSON. The related URL rotates on every feed update —
+the docs explicitly warn that a cached one goes stale and 404s, so the feed
+must be re-fetched every poll rather than skipped once the URL is known once.
+That is two Met Office requests per 120s poll cycle rather than one, still
+within the docs' own "poll every 1-2 minutes" guidance.
 """
+
+import xml.etree.ElementTree as ElementTree
 
 import httpx
 
 from services.geo import point_in_geometry
 
-NSWWS_BASE = "https://api.metoffice.gov.uk/nswws"
+_ATOM_NS = "{http://www.w3.org/2005/Atom}"
 
 # The server already excludes CANCELLED and EXPIRED warnings from the Issued
 # endpoint's response (confirmed in the docs), so this is a defensive backstop
@@ -170,17 +180,54 @@ def sort_warnings(warnings: list[dict]) -> list[dict]:
     return [w for _, w in sorted(enumerate(warnings), key=_sort_key)]
 
 
-async def fetch_warnings(client: httpx.AsyncClient, api_key: str) -> list[dict]:
+def parse_feed_related_url(feed_xml: str) -> str | None:
+    """Extract the "latest issued warnings" GeoJSON URL from an NSWWS Atom feed.
+
+    This is the feed-level `<link rel="related">` element — a direct child of
+    `<feed>`, not of any `<entry>`. `ElementTree.findall` with a plain tag name
+    only matches direct children, which is what keeps this from ever picking up
+    an `<entry>`'s own `rel="alternate"` link (a single past change, not the
+    current full set) by mistake.
+
+    Returns None on anything unusable — malformed XML, or a well-formed feed
+    with no matching link — so a bad or unexpected response degrades to no
+    warnings for this poll rather than raising out of the poll loop.
+    """
+    try:
+        root = ElementTree.fromstring(feed_xml)
+    except ElementTree.ParseError:
+        return None
+
+    for link in root.findall(f"{_ATOM_NS}link"):
+        if link.get("rel") == "related":
+            return link.get("href")
+
+    return None
+
+
+async def fetch_warnings(client: httpx.AsyncClient, api_key: str, base_url: str) -> list[dict]:
     """Fetch live UK severe weather warnings from NSWWS.
 
-    Returns an empty list if no API key is configured.
+    Returns an empty list if no API key or base URL is configured — both are
+    obtained at signup (see module docstring), not guessable.
+
+    A genuine two-step fetch: the Atom feed for the current "latest issued
+    warnings" URL, then that URL for the actual GeoJSON. The feed must be
+    re-fetched every call rather than cached, because the URL it returns
+    rotates and a stale one 404s.
     """
-    if not api_key:
+    if not api_key or not base_url:
         return []
 
-    resp = await client.get(
-        f"{NSWWS_BASE}/warnings",
-        headers={"x-api-key": api_key},
-    )
+    headers = {"x-api-key": api_key}
+
+    feed_resp = await client.get(f"{base_url}/v1.0/objects/feed", headers=headers)
+    feed_resp.raise_for_status()
+
+    warnings_url = parse_feed_related_url(feed_resp.text)
+    if warnings_url is None:
+        return []
+
+    resp = await client.get(warnings_url, headers=headers)
     resp.raise_for_status()
     return parse_warnings(resp.json())

@@ -433,7 +433,7 @@ async def fetch_weather_data() -> dict:
         # actually rely on every morning.
         try:
             raw_warnings = await fetch_warnings(
-                http, settings.met_office_nswws_api_key
+                http, settings.met_office_nswws_api_key, settings.met_office_nswws_base_url
             )
             points = [
                 {"name": display_name(loc), "lat": loc["lat"], "lon": loc["lon"]}
