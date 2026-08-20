@@ -1062,8 +1062,15 @@ def _open_meteo_response(
     }
 
 
-def _patched_fetch(schedule=None, response=None, now=datetime(2025, 1, 6, 7, 30)):
-    """Patch weather's schedule, clock and outbound calls for fetch_weather_data."""
+_UNSET = object()
+
+
+def _patched_fetch(schedule=None, response=_UNSET, now=datetime(2025, 1, 6, 7, 30)):
+    """Patch weather's schedule, clock and outbound calls for fetch_weather_data.
+
+    `response` uses a sentinel rather than None so that an empty dict — the
+    degenerate-payload case — is passed through instead of being replaced.
+    """
     from unittest.mock import AsyncMock
 
     return (
@@ -1073,7 +1080,9 @@ def _patched_fetch(schedule=None, response=None, now=datetime(2025, 1, 6, 7, 30)
         patch(
             "routers.weather.fetch_weather",
             new_callable=AsyncMock,
-            return_value=response or _open_meteo_response(),
+            return_value=(
+                _open_meteo_response() if response is _UNSET else response
+            ),
         ),
         patch(
             "routers.weather.fetch_location_name",
@@ -1310,3 +1319,108 @@ async def test_fetch_weather_data_survives_a_warnings_failure():
     # The forecast is what people rely on each morning; it must survive.
     assert result["warnings"] == []
     assert len(result["locations"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# fetch_weather_data — today and tomorrow must not be confused
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_weather_data_today_rainfall_is_todays():
+    # The fixture carries 4.2mm/60% today and 3.1mm/70% tomorrow. Reading the
+    # wrong index here would put tomorrow's rain on today's card.
+    result = await _run_fetch()
+    assert result["locations"][0]["daily_rainfall"] == {
+        "total_mm": 4.2,
+        "probability_percent": 60,
+    }
+
+
+async def test_fetch_weather_data_tomorrow_rainfall_is_tomorrows():
+    result = await _run_fetch()
+    assert result["tomorrow"]["locations"][0]["daily_rainfall"] == {
+        "total_mm": 3.1,
+        "probability_percent": 70,
+    }
+
+
+async def test_fetch_weather_data_today_rain_windows_are_todays():
+    probs = [0] * 48
+    for h in range(8, 12):
+        probs[h] = 80
+    result = await _run_fetch(response=_open_meteo_response(probs=probs))
+    assert result["locations"][0]["rain_windows"] == [
+        {"start_hour": 8, "end_hour": 12}
+    ]
+
+
+async def test_fetch_weather_data_today_ignores_tomorrows_rain():
+    probs = [0] * 48
+    for h in range(32, 36):
+        probs[h] = 80
+    result = await _run_fetch(response=_open_meteo_response(probs=probs))
+    assert result["locations"][0]["rain_windows"] == []
+
+
+async def test_fetch_weather_data_today_entry_carries_every_field():
+    result = await _run_fetch()
+    assert set(result["locations"][0]) == {
+        "name",
+        "icon",
+        "current",
+        "daily_high_celsius",
+        "daily_rainfall",
+        "rain_windows",
+    }
+
+
+async def test_fetch_weather_data_tomorrow_entry_carries_every_field():
+    result = await _run_fetch()
+    assert set(result["tomorrow"]["locations"][0]) == {
+        "name",
+        "icon",
+        "weather_description",
+        "daily_high_celsius",
+        "daily_rainfall",
+        "rain_windows",
+    }
+
+
+async def test_fetch_weather_data_tomorrow_icon_falls_back_when_only_one_code():
+    # A one-day daily block must not index past the end reaching for tomorrow.
+    response = _open_meteo_response()
+    response["daily"]["weather_code"] = [3]
+    result = await _run_fetch(response=response)
+    assert result["tomorrow"]["locations"][0]["icon"] == "cloud"
+
+
+async def test_fetch_weather_data_tomorrow_high_is_none_when_only_one_day():
+    response = _open_meteo_response()
+    response["daily"]["temperature_2m_max"] = [12.0]
+    result = await _run_fetch(response=response)
+    assert result["tomorrow"]["locations"][0]["daily_high_celsius"] is None
+
+
+def test_resolve_day_offset_defaults_to_today():
+    assert resolve_day_offset({"time": _times(24, 24)}) == 0
+
+
+async def test_fetch_weather_data_survives_a_response_with_no_blocks():
+    # Every field here is read with a .get fallback; this is the test that the
+    # fallbacks actually hold rather than raising inside the poll loop.
+    result = await _run_fetch(response={})
+    assert result["locations"][0]["daily_high_celsius"] is None
+    assert result["locations"][0]["rain_windows"] == []
+    assert result["tomorrow"]["locations"][0]["weather_description"] is None
+
+
+async def test_fetch_weather_data_missing_current_block_gives_a_sun_glyph():
+    # map_weather_icon's input defaults to code 0 — clear sky — when the current
+    # block carries no weather_code at all.
+    result = await _run_fetch(response={})
+    assert result["locations"][0]["icon"] == "sun"
+
+
+async def test_fetch_weather_data_missing_daily_block_gives_a_cloud_glyph():
+    result = await _run_fetch(response={})
+    assert result["tomorrow"]["locations"][0]["icon"] == "cloud"

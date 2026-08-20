@@ -124,6 +124,68 @@ describe('TomorrowCard — location block', () => {
     expect(screen.queryByText('8°C')).not.toBeInTheDocument()
   })
 
+  // The glyph is drawn from divs rather than an icon font, so these assert the
+  // branch is taken at all; the shapes themselves are inline styles that jsdom
+  // does not evaluate.
+  it('renders a block for a sun glyph', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        tomorrow: {
+          weekday: 'Wednesday',
+          locations: [makeTomorrowLocation({ icon: 'sun' })],
+        },
+      })
+    )
+    render(<TomorrowCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+    )
+  })
+
+  it('renders a block for a cloud glyph', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        tomorrow: {
+          weekday: 'Wednesday',
+          locations: [makeTomorrowLocation({ icon: 'cloud' })],
+        },
+      })
+    )
+    render(<TomorrowCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+    )
+  })
+
+  it('renders a block when the icon is missing entirely', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        tomorrow: {
+          weekday: 'Wednesday',
+          locations: [makeTomorrowLocation({ icon: undefined })],
+        },
+      })
+    )
+    render(<TomorrowCard />)
+    await waitFor(() =>
+      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+    )
+  })
+
+  it('hides the description when it is absent', async () => {
+    mockFetchOk(
+      makeApiResponse({
+        tomorrow: {
+          weekday: 'Wednesday',
+          locations: [makeTomorrowLocation({ weather_description: null })],
+        },
+      })
+    )
+    render(<TomorrowCard />)
+    await waitFor(() => expect(screen.getByText('17°C')).toBeInTheDocument())
+    expect(screen.queryByText('Light rain')).not.toBeInTheDocument()
+  })
+
   it('renders one block per tomorrow location', async () => {
     mockFetchOk(
       makeApiResponse({

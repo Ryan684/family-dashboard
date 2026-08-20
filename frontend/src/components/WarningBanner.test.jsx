@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import WarningBanner, { isBannerWorthy } from './WarningBanner'
+import WarningBanner, {
+  isBannerWorthy,
+  formatLocations,
+} from './WarningBanner'
 
 const makeWarning = (overrides = {}) => ({
   id: 'w1',
@@ -45,6 +48,34 @@ describe('WarningBanner — isBannerWorthy', () => {
 
   it('rejects a missing level', () => {
     expect(isBannerWorthy(undefined)).toBe(false)
+  })
+})
+
+describe('WarningBanner — formatLocations', () => {
+  it('returns an empty string for an empty list', () => {
+    expect(formatLocations([])).toBe('')
+  })
+
+  it('returns an empty string when the list is undefined', () => {
+    expect(formatLocations(undefined)).toBe('')
+  })
+
+  it('returns a single name unadorned', () => {
+    expect(formatLocations(['Home'])).toBe('Home')
+  })
+
+  it('joins two names with an ampersand', () => {
+    expect(formatLocations(['Home', 'Guildford'])).toBe('Home & Guildford')
+  })
+
+  it('comma-separates all but the last of three names', () => {
+    expect(formatLocations(['Home', 'Guildford', 'Woking'])).toBe(
+      'Home, Guildford & Woking'
+    )
+  })
+
+  it('keeps the final name last', () => {
+    expect(formatLocations(['A', 'B', 'C', 'D'])).toBe('A, B, C & D')
   })
 })
 
@@ -109,10 +140,22 @@ describe('WarningBanner — content', () => {
     await waitFor(() => expect(screen.getByText(/Amber/)).toBeInTheDocument())
   })
 
-  it('names a single affected location', async () => {
+  it('names a single affected location without a conjunction', async () => {
     mockFetchOk([makeWarning({ locations: ['Home'] })])
     render(<WarningBanner />)
     await waitFor(() => expect(screen.getByText(/Home/)).toBeInTheDocument())
+    expect(screen.getByText(/, Home$/)).toBeInTheDocument()
+  })
+
+  it('omits the location clause when no locations are given', async () => {
+    mockFetchOk([makeWarning({ locations: [] })])
+    render(<WarningBanner />)
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Heavy rain may cause flooding/)
+      ).toBeInTheDocument()
+    )
+    expect(screen.queryByText(/,\s*$/)).not.toBeInTheDocument()
   })
 
   it('joins two affected locations with an ampersand', async () => {
