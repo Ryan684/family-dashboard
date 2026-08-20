@@ -10,7 +10,7 @@ A wall-mounted family dashboard designed to ease the morning routine. Displays l
 
 - **Clock & date** — large, always-visible time and date display; the most prominent element on the screen, legible from across the room at a glance
 - **Travel ETAs** — per-commuter, schedule-driven routing. Each active commuter gets a card showing 2 fastest route alternatives with travel time, a brief route description (e.g. "via M25 and A3"), and colour-coded delay status (green / amber / red). Routes are multi-waypoint where applicable (e.g. home → dog daycare → nursery → work). Commuters who are WFH or off with no drops are hidden; the grid reflows. Traffic incident warnings for any incidents on or near a commuter's route are shown beneath their card.
-- **Weather** — current conditions and short forecast for home and commute destination locations
+- **Weather** — current conditions and the day's high, rainfall and likely rain hours, for home and commute destination locations
 - **Calendar** — upcoming events from shared family Google Calendar (today + tomorrow)
 - **Morning alert banner** — contextual message if a route has significant delay (e.g. "Leave 15 mins early")
 
@@ -64,7 +64,7 @@ Pass these notes to the frontend-design skill as context when building any UI co
 |---|---|---|
 | Travel — routes & ETAs | Google Maps Routes API (`computeRoutes`) | POST request with `computeAlternativeRoutes: true` returns 2 fastest routes. Each route includes travel time, static (no-traffic) duration, distance, and step-by-step navigation — road names extracted from step instructions to form a brief route description. Free tier: $200/month credit (well within personal dashboard usage). |
 | Travel — incident warnings | N/A | Google Maps Routes API does not provide a direct traffic incident endpoint. Incidents are always returned as an empty array. The frontend incident display remains in place for potential future provider additions. |
-| Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Hourly forecast + current conditions. |
+| Weather | Open-Meteo | Completely free, no API key required, excellent UK coverage. Current conditions plus daily aggregates; hourly precipitation probability is fetched only to derive rain windows, never displayed per hour. |
 | Calendar | Apple iCloud CalDAV | CalDAV protocol via Python `caldav` library. App-specific password auth — no OAuth, no browser flow, no credentials file. Free. |
 
 ### Calendar

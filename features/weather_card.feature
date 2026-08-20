@@ -47,10 +47,10 @@ Feature: Weather card frontend
     When the WeatherCard renders
     Then an error message is visible
 
-  Scenario: Daily rainfall is displayed as "Rain: X.X mm (Y%)"
+  Scenario: Daily rainfall is displayed as "Rain: X.X mm · Y% chance"
     Given the API returns a location with daily_rainfall total_mm 4.2 and probability_percent 60
     When the WeatherCard renders
-    Then "Rain: 4.2 mm (60%)" is displayed
+    Then "Rain: 4.2 mm · 60% chance" is displayed
 
   Scenario: Rainfall row is hidden when daily_rainfall is absent
     Given the API returns a location without a daily_rainfall field
