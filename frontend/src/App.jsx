@@ -5,6 +5,7 @@ import WeatherCard from './components/WeatherCard'
 import TomorrowCard from './components/TomorrowCard'
 import CalendarCard from './components/CalendarCard'
 import AlertBanner from './components/AlertBanner'
+import WarningBanner from './components/WarningBanner'
 
 const POLL_INTERVAL_MS = 60_000
 
@@ -92,7 +93,9 @@ function App() {
         {/* hero clock */}
         <ClockCard />
 
-        {/* alert strap */}
+        {/* alert straps — weather above traffic: a red weather warning outranks
+            a delay, and the weather is usually what caused the traffic */}
+        <WarningBanner />
         <AlertBanner travelData={travelData} />
 
         {/* content columns */}
