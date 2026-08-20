@@ -13,7 +13,11 @@ import { formatRainWindows } from '../weatherFormat'
 
    The 28px rhythm and the hairline between blocks are load-bearing: today's
    "Home" row and tomorrow's "Home" row land on a shared baseline, which is what
-   makes the pair read as a comparison rather than two unrelated lists. */
+   makes the pair read as a comparison rather than two unrelated lists.
+
+   The heading reads plainly "Tomorrow", matching the bare "Weather" / "Calendar"
+   labels elsewhere — the column header is already what tells the two apart, so a
+   weekday suffix was tried and then dropped as unneeded weight. */
 
 function TomorrowGlyph({ kind = 'cloud', size = 40 }) {
   const s = size
@@ -231,7 +235,7 @@ function TomorrowBlock({ location }) {
    overflow this column's width and wrap to two lines, which drops the first
    location block below its neighbour and breaks the shared baseline that makes
    the two columns read as a comparison. */
-function SectionHeading({ weekday }) {
+function SectionHeading() {
   return (
     <div
       style={{
@@ -251,9 +255,10 @@ function SectionHeading({ weekday }) {
           whiteSpace: 'nowrap',
         }}
       >
-        {/* The weekday is the differentiator — without it, two adjacent columns
-            of temperatures read as a duplication bug rather than a comparison. */}
-        Tomorrow{weekday ? ` · ${weekday}` : ''}
+        {/* The column header itself ("Tomorrow" vs "Weather") is enough to tell
+            the two apart — a weekday suffix here turned out to be unnecessary
+            weight the eye has to parse on every glance. */}
+        Tomorrow
       </div>
     </div>
   )
@@ -346,7 +351,7 @@ function TomorrowCard() {
   if (locations.length === 0) {
     return (
       <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        <SectionHeading weekday={tomorrow?.weekday} />
+        <SectionHeading />
         <div
           style={{
             display: 'flex',
@@ -366,7 +371,7 @@ function TomorrowCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <SectionHeading weekday={tomorrow.weekday} />
+      <SectionHeading />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {locations.map((loc, i) => (
           <div key={loc.name ?? i}>

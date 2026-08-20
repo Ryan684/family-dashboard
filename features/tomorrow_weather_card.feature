@@ -4,8 +4,9 @@ Feature: Tomorrow forecast card frontend
 
   It is deliberately quieter than the weather card: a 48px high rather than an
   88px current temperature, and no live conditions at all. Tomorrow is a
-  forecast, not a fact, and the weekday in its heading is what stops two columns
-  of temperatures reading as a duplication bug.
+  forecast, not a fact. The heading reads plainly "Tomorrow", matching the bare
+  "Weather" / "Calendar" labels elsewhere — the column header is already what
+  tells the two apart, so no weekday name is shown.
 
   Background:
     Given the /api/weather endpoint is available
@@ -15,10 +16,11 @@ Feature: Tomorrow forecast card frontend
     When the TomorrowCard renders
     Then a loading indicator is visible
 
-  Scenario: The heading names tomorrow's weekday
+  Scenario: The heading reads "Tomorrow"
     Given the API returns a tomorrow block with weekday "Wednesday"
     When the TomorrowCard renders
-    Then "Wednesday" is visible on screen
+    Then "Tomorrow" is visible on screen
+    And no weekday name is shown in the heading
 
   Scenario: Location name is displayed
     Given the API returns a tomorrow location named "Home"

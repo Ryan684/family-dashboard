@@ -71,18 +71,19 @@ describe('TomorrowCard — loading and error states', () => {
 })
 
 describe('TomorrowCard — heading', () => {
-  it("names tomorrow's weekday", async () => {
-    mockFetchOk(makeApiResponse())
-    render(<TomorrowCard />)
-    await waitFor(() =>
-      expect(screen.getByText(/Wednesday/)).toBeInTheDocument()
-    )
-  })
-
   it('labels the section as Tomorrow', async () => {
     mockFetchOk(makeApiResponse())
     render(<TomorrowCard />)
-    await waitFor(() => expect(screen.getByText(/Tomorrow/)).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('Tomorrow')).toBeInTheDocument()
+    )
+  })
+
+  it('does not show a weekday name in the heading', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<TomorrowCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText(/Wednesday/)).not.toBeInTheDocument()
   })
 })
 
