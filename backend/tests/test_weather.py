@@ -1208,3 +1208,105 @@ async def test_fetch_weather_data_tomorrow_follows_tomorrows_modes():
     # Wednesday today (both home); Thursday tomorrow: Ryan office, Robyn wfh.
     result = await _run_fetch(now=datetime(2025, 1, 8, 7, 30))
     assert len(result["tomorrow"]["locations"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Endpoint — /api/weather/warnings
+# ---------------------------------------------------------------------------
+
+
+_CACHED_WARNING = {
+    "id": "w1",
+    "level": "AMBER",
+    "weather_type": "rain",
+    "headline": "Heavy rain may cause flooding",
+    "issued": "2026-08-20T09:00:00Z",
+    "valid_from": "2026-08-21T06:00:00Z",
+    "valid_to": "2026-08-21T18:00:00Z",
+    "locations": ["Home"],
+}
+
+
+def test_warnings_endpoint_serves_the_cached_warnings():
+    import routers.weather as weather_module
+
+    weather_module._cache = {"locations": [], "warnings": [_CACHED_WARNING]}
+    resp = client.get("/api/weather/warnings")
+    assert resp.json()["warnings"][0]["headline"] == "Heavy rain may cause flooding"
+    weather_module._cache = None
+
+
+def test_warnings_endpoint_empty_cache_returns_empty_list():
+    import routers.weather as weather_module
+
+    weather_module._cache = None
+    assert client.get("/api/weather/warnings").json() == {"warnings": []}
+
+
+def test_warnings_endpoint_cache_without_warnings_key_returns_empty_list():
+    # A cache written before this feature shipped, e.g. mid rolling deploy.
+    import routers.weather as weather_module
+
+    weather_module._cache = {"locations": [_CACHED_LOCATION]}
+    assert client.get("/api/weather/warnings").json() == {"warnings": []}
+    weather_module._cache = None
+
+
+def test_warnings_endpoint_returns_yellow_warnings():
+    # The API stays truthful about what the Met Office issued; the decision to
+    # hide yellow lives in the banner.
+    import routers.weather as weather_module
+
+    yellow = {**_CACHED_WARNING, "level": "YELLOW"}
+    weather_module._cache = {"locations": [], "warnings": [yellow]}
+    resp = client.get("/api/weather/warnings")
+    assert resp.json()["warnings"][0]["level"] == "YELLOW"
+    weather_module._cache = None
+
+
+def test_warnings_endpoint_has_no_is_stale_flag():
+    import routers.weather as weather_module
+
+    weather_module._cache = {"locations": [], "warnings": []}
+    assert "is_stale" not in client.get("/api/weather/warnings").json()
+    weather_module._cache = None
+
+
+@patch("routers.weather._get_now")
+def test_weather_endpoint_still_carries_warnings_inline(mock_now):
+    import routers.weather as weather_module
+
+    weather_module._cache = {"locations": [], "warnings": [_CACHED_WARNING]}
+    mock_now.return_value = datetime(2025, 1, 1, 7, 30, 0)
+    assert len(client.get("/api/weather").json()["warnings"]) == 1
+    weather_module._cache = None
+
+
+async def test_fetch_weather_data_without_a_key_returns_no_warnings():
+    result = await _run_fetch()
+    assert result["warnings"] == []
+
+
+async def test_fetch_weather_data_survives_a_warnings_failure():
+    from unittest.mock import AsyncMock
+
+    from routers.weather import fetch_weather_data
+
+    patches = _patched_fetch()
+    for p in patches:
+        p.start()
+    boom = patch(
+        "routers.weather.fetch_warnings",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("NSWWS down"),
+    )
+    boom.start()
+    try:
+        result = await fetch_weather_data()
+    finally:
+        boom.stop()
+        for p in patches:
+            p.stop()
+    # The forecast is what people rely on each morning; it must survive.
+    assert result["warnings"] == []
+    assert len(result["locations"]) > 0
