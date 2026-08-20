@@ -394,28 +394,12 @@ function TravelCard({
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--f-mono)',
-            fontSize: 18,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: 'var(--ink-dim)',
-            fontWeight: 500,
-          }}
-        >
-          Commute
-        </div>
-        {isStale && <StaleTag />}
-      </div>
-
+      {/* No "Commute" label — see WeatherCard for the rationale. isStale is
+          always false whenever App actually mounts this card (the travel
+          section is hidden entirely rather than shown stale), so this row is
+          dead in production; it exists purely so TravelCard's own tests can
+          exercise the stale state as a component in isolation. */}
+      {isStale && <StaleTag />}
       <div
         style={{
           display: 'grid',

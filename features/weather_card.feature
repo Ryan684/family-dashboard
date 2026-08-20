@@ -96,3 +96,12 @@ Feature: Weather card frontend
     Given the API response has is_stale false
     When the WeatherCard renders
     Then no stale data warning is visible
+
+  Scenario: No "Weather" column label is shown
+    Given the API returns a locations list
+    When the WeatherCard renders
+    Then no "Weather" section label is visible
+    # The card's content — temperatures, rain figures — already identifies the
+    # column at a glance; the label was redundant on every render. Dropping it
+    # also reclaims real vertical space, which matters when the traffic and
+    # weather alert straps are both up — see dashboard_layout.feature.

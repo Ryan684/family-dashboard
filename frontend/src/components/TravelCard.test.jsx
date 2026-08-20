@@ -505,6 +505,20 @@ describe('TravelCard — stale indicator', () => {
   })
 })
 
+describe('TravelCard — no column label', () => {
+  it('does not render a "Commute" section label', () => {
+    render(
+      <TravelCard
+        loading={false}
+        commuters={[makeCommuter()]}
+        isStale={false}
+        error={null}
+      />
+    )
+    expect(screen.queryByText('Commute')).not.toBeInTheDocument()
+  })
+})
+
 // ── Departure time display ───────────────────────────────────────────────────
 
 describe('TravelCard — departure time display', () => {

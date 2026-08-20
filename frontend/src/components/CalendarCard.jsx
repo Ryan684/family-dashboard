@@ -211,18 +211,10 @@ function CalendarCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <div
-        style={{
-          fontFamily: 'var(--f-mono)',
-          fontSize: 18,
-          letterSpacing: '0.22em',
-          textTransform: 'uppercase',
-          color: 'var(--ink-dim)',
-          fontWeight: 500,
-        }}
-      >
-        Calendar
-      </div>
+      {/* No "Calendar" label — see WeatherCard for the rationale. This card
+          has no stale state of its own to surface (calendar staleness only
+          ever means "cache not primed yet", handled by the loading branch
+          above), so the row is gone unconditionally. */}
       <EventGroup
         heading="Today"
         events={data.today}

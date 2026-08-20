@@ -316,27 +316,14 @@ function WeatherCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--f-mono)',
-            fontSize: 18,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: 'var(--ink-dim)',
-            fontWeight: 500,
-          }}
-        >
-          Weather
-        </div>
-        {data.is_stale && <StaleTag />}
-      </div>
+      {/* No "Weather" label: the column's content — temperatures, rain figures —
+          already identifies it at a glance, and the label was pure redundancy
+          on every render. The row still appears when stale, because that IS
+          new information, not decoration — and reclaiming it in the common
+          case is what keeps the second location's detail on screen when the
+          traffic and weather alert straps are both up (weather's own window
+          contains travel's, so this row is never occupied during that case). */}
+      {data.is_stale && <StaleTag />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {locations.map((loc, i) => (
           <div key={loc.name ?? i}>

@@ -15,9 +15,13 @@ import { formatRainWindows } from '../weatherFormat'
    "Home" row and tomorrow's "Home" row land on a shared baseline, which is what
    makes the pair read as a comparison rather than two unrelated lists.
 
-   The heading reads plainly "Tomorrow", matching the bare "Weather" / "Calendar"
-   labels elsewhere — the column header is already what tells the two apart, so a
-   weekday suffix was tried and then dropped as unneeded weight. */
+   No column label, here or on any card — the content shape (a 48px high next
+   to a description, versus today's 88px current reading) already tells the
+   two apart at a glance, so a text label was pure redundancy. Dropping it
+   also reclaims the row's height, which matters more here than it looks:
+   removing it consistently, on every card, is what keeps the weather
+   column's second location fully visible on the rare morning both alert
+   straps are up. */
 
 function TomorrowGlyph({ kind = 'cloud', size = 40 }) {
   const s = size
@@ -229,41 +233,6 @@ function TomorrowBlock({ location }) {
   )
 }
 
-/* No StaleTag here, deliberately. This column only ever renders beside the
-   weather column, both read /api/weather, so both go stale at the same moment —
-   a second "cached" tag is duplication. It also would not fit: heading plus tag
-   overflow this column's width and wrap to two lines, which drops the first
-   location block below its neighbour and breaks the shared baseline that makes
-   the two columns read as a comparison. */
-function SectionHeading() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}
-    >
-      <div
-        style={{
-          fontFamily: 'var(--f-mono)',
-          fontSize: 18,
-          letterSpacing: '0.22em',
-          textTransform: 'uppercase',
-          color: 'var(--ink-dim)',
-          fontWeight: 500,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {/* The column header itself ("Tomorrow" vs "Weather") is enough to tell
-            the two apart — a weekday suffix here turned out to be unnecessary
-            weight the eye has to parse on every glance. */}
-        Tomorrow
-      </div>
-    </div>
-  )
-}
-
 const POLL_INTERVAL_MS = 60_000
 
 function TomorrowCard() {
@@ -351,7 +320,6 @@ function TomorrowCard() {
   if (locations.length === 0) {
     return (
       <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        <SectionHeading />
         <div
           style={{
             display: 'flex',
@@ -371,7 +339,6 @@ function TomorrowCard() {
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <SectionHeading />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {locations.map((loc, i) => (
           <div key={loc.name ?? i}>

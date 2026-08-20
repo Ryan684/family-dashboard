@@ -110,6 +110,15 @@ describe('WeatherCard — stale indicator', () => {
   })
 })
 
+describe('WeatherCard — no column label', () => {
+  it('does not render a "Weather" section label', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<WeatherCard />)
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText('Weather')).not.toBeInTheDocument()
+  })
+})
+
 describe('WeatherCard — location block', () => {
   it('displays the location name', async () => {
     mockFetchOk(makeApiResponse())

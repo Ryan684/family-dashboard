@@ -98,11 +98,14 @@ function App() {
 
             Both can be mounted at once (needs a red route AND an amber+ weather
             warning live simultaneously — only possible 06:30-09:30, since a red
-            route requires travel to be shown). Confirmed by rendering it: the
-            weather column's second location loses its description, high and
-            rain windows under DashColumn's bottom fade — no overflow or visual
-            break, just less detail visible on an already rare morning. Accepted
-            rather than adding untested conditional padding; see
+            route requires travel to be shown). No card carries a column label
+            (see each card's own "no column label" scenario), which reclaims a
+            row's height per card and keeps the weather column's second
+            location's description visible even with both straps up — but its
+            high temperature and rain windows can still be lost under
+            DashColumn's bottom fade. No overflow or visual break either way,
+            just reduced detail on an already rare morning. Accepted rather
+            than adding untested conditional padding; see
             weather_warning_banner.feature's "both straps active" scenario. */}
         <WarningBanner />
         <AlertBanner travelData={travelData} />

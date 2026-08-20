@@ -102,17 +102,22 @@ Feature: Severe weather warning banner
     When the WarningBanner renders
     Then the warning is still visible
 
-  Scenario: Both straps active — accepted trade-off, not a bug
+  Scenario: Both straps active — a narrowed, accepted trade-off
     Given a red travel route makes the traffic alert visible
     And an amber-or-worse weather warning makes this banner visible
     When the dashboard renders
     Then both straps are shown, weather warning above traffic alert
-    And the weather column's second location may lose its description, high
-      temperature and rain windows under the bottom fade, because the two
-      straps together leave less vertical room for the content columns
-    # Confirmed by rendering the dashboard at 1920x1080: nothing overflows or
-    # breaks visually, the second location's detail is simply not visible.
-    # This combination requires a red route (only possible while travel is
-    # shown) and a live amber-or-worse warning at the same time, so it is
-    # confined to the 06:30-09:30 commute window. Accepted rather than adding
-    # conditional banner padding with no scenario of its own to justify it.
+    And the weather column's second location keeps its description, but its
+      high temperature and rain windows may still be lost under the bottom
+      fade, because the two straps together leave less vertical room than
+      the content columns want
+    # Confirmed by rendering the dashboard at 1920x1080. No card carries a
+    # column label (see weather_card.feature, travel_card.feature,
+    # calendar_card.feature, tomorrow_weather_card.feature), which reclaims
+    # one row's height per card and was enough to keep the description
+    # visible — a real improvement over the original all-or-nothing loss,
+    # though the numeric detail can still be cut. This combination requires
+    # a red route (only possible while travel is shown) and a live
+    # amber-or-worse warning at the same time, so it is confined to the
+    # 06:30-09:30 commute window. Accepted rather than adding conditional
+    # banner padding with no scenario of its own to justify it.

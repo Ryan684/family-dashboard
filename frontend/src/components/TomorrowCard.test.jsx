@@ -70,16 +70,15 @@ describe('TomorrowCard — loading and error states', () => {
   })
 })
 
-describe('TomorrowCard — heading', () => {
-  it('labels the section as Tomorrow', async () => {
+describe('TomorrowCard — no column label', () => {
+  it('does not render a "Tomorrow" section label', async () => {
     mockFetchOk(makeApiResponse())
     render(<TomorrowCard />)
-    await waitFor(() =>
-      expect(screen.getByText('Tomorrow')).toBeInTheDocument()
-    )
+    await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
+    expect(screen.queryByText('Tomorrow')).not.toBeInTheDocument()
   })
 
-  it('does not show a weekday name in the heading', async () => {
+  it('does not show a weekday name anywhere', async () => {
     mockFetchOk(makeApiResponse())
     render(<TomorrowCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())

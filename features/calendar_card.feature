@@ -77,3 +77,8 @@ Feature: CalendarCard frontend component
     Given the API returns an event today with travel set to null
     When the CalendarCard renders
     Then no travel indicator is shown for that event
+
+  Scenario: No "Calendar" column label is shown
+    Given the API returns events for today
+    When the CalendarCard renders
+    Then no "Calendar" section label is visible

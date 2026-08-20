@@ -4,9 +4,14 @@ Feature: Tomorrow forecast card frontend
 
   It is deliberately quieter than the weather card: a 48px high rather than an
   88px current temperature, and no live conditions at all. Tomorrow is a
-  forecast, not a fact. The heading reads plainly "Tomorrow", matching the bare
-  "Weather" / "Calendar" labels elsewhere — the column header is already what
-  tells the two apart, so no weekday name is shown.
+  forecast, not a fact.
+
+  It carries no column label at all — no card on the dashboard does. The
+  content shape (a 48px high next to a description, versus today's 88px
+  current reading) already tells the columns apart, so a text label was pure
+  redundancy. Removing it, consistently across every card, is also what
+  reclaims the vertical room that keeps a second weather location's detail
+  visible when the traffic and weather alert straps are both up.
 
   Background:
     Given the /api/weather endpoint is available
@@ -16,11 +21,11 @@ Feature: Tomorrow forecast card frontend
     When the TomorrowCard renders
     Then a loading indicator is visible
 
-  Scenario: The heading reads "Tomorrow"
+  Scenario: No "Tomorrow" column label is shown
     Given the API returns a tomorrow block with weekday "Wednesday"
     When the TomorrowCard renders
-    Then "Tomorrow" is visible on screen
-    And no weekday name is shown in the heading
+    Then no "Tomorrow" section label is visible
+    And no weekday name is shown anywhere
 
   Scenario: Location name is displayed
     Given the API returns a tomorrow location named "Home"

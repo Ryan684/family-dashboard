@@ -72,6 +72,15 @@ describe('CalendarCard — loading and error states', () => {
   })
 })
 
+describe('CalendarCard — no column label', () => {
+  it('does not render a "Calendar" section label', async () => {
+    mockCalendar()
+    render(<CalendarCard />)
+    await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument())
+    expect(screen.queryByText('Calendar')).not.toBeInTheDocument()
+  })
+})
+
 describe('CalendarCard — Today section', () => {
   it('renders a "Today" heading', async () => {
     mockCalendar()
