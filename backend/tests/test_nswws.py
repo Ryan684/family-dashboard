@@ -299,3 +299,89 @@ def test_sort_warnings_puts_an_unknown_level_last():
 
 def test_sort_warnings_empty_list():
     assert sort_warnings([]) == []
+
+
+# ---------------------------------------------------------------------------
+# Defensive parsing — the feed shape has not been seen against the live API,
+# so a feature missing any field must degrade to an empty value, never raise.
+# ---------------------------------------------------------------------------
+
+
+def _bare_feature():
+    """A feature with a properties block but nothing useful in it."""
+    return {"type": "Feature", "properties": {"warningId": "bare"}}
+
+
+def test_parse_warnings_missing_level_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["level"] == ""
+
+
+def test_parse_warnings_missing_weather_type_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["weather_type"] == ""
+
+
+def test_parse_warnings_missing_headline_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["headline"] == ""
+
+
+def test_parse_warnings_missing_issued_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["issued"] == ""
+
+
+def test_parse_warnings_missing_valid_from_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["valid_from"] == ""
+
+
+def test_parse_warnings_missing_valid_to_becomes_empty_string():
+    assert parse_warnings(_collection(_bare_feature()))[0]["valid_to"] == ""
+
+
+def test_parse_warnings_missing_geometry_becomes_empty_dict():
+    assert parse_warnings(_collection(_bare_feature()))[0]["geometry"] == {}
+
+
+def test_parse_warnings_extracts_the_issued_date():
+    result = parse_warnings(_collection(_feature()))
+    assert result[0]["issued"] == "2026-08-20T09:00:00Z"
+
+
+def test_parse_warnings_skips_a_bad_feature_and_keeps_later_ones():
+    # A malformed feature must not abandon the rest of the feed.
+    result = parse_warnings(
+        _collection({"type": "Feature"}, _feature(warning_id="good"))
+    )
+    assert [w["id"] for w in result] == ["good"]
+
+
+def test_parse_warnings_keeps_features_after_a_cancelled_one():
+    result = parse_warnings(
+        _collection(_feature(warning_id="dead", status="Cancelled"),
+                    _feature(warning_id="live"))
+    )
+    assert [w["id"] for w in result] == ["live"]
+
+
+# ---------------------------------------------------------------------------
+# Defensive matching and fetching
+# ---------------------------------------------------------------------------
+
+
+def test_filter_warning_without_a_geometry_is_excluded():
+    warning = {key: value for key, value in _warning().items() if key != "geometry"}
+    assert filter_warnings_for_points([warning], [_HOME]) == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_warnings_requests_the_warnings_endpoint():
+    client = _make_client(_collection())
+    await fetch_warnings(client, "secret-key")
+    assert client.get.call_args[0][0].endswith("/warnings")
+
+
+@pytest.mark.asyncio
+async def test_fetch_warnings_requests_the_nswws_host():
+    from services.nswws import NSWWS_BASE
+
+    client = _make_client(_collection())
+    await fetch_warnings(client, "secret-key")
+    assert client.get.call_args[0][0].startswith(NSWWS_BASE)

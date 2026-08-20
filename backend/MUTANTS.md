@@ -339,6 +339,61 @@ sleep whose correctness is guaranteed by the config test that validates
 
 ---
 
+## `services/geo.py` — Met Office warning area matching
+
+**No surviving mutants.** All mutants of `point_in_ring`, `point_in_polygon` and
+`point_in_geometry` are killed.
+
+Two rounds were needed and the reason is worth recording, because it is a trap any future
+change to this file will fall into. The first test suite used only axis-aligned rectangles,
+which left six survivors in the edge-intersection arithmetic: on a vertical edge the
+`(lon2 - lon1)` term is zero, so the whole expression collapses and mutating the operators
+around it changes nothing. Adding a triangle with a genuine diagonal killed two more but not
+all, because that triangle had vertices at latitude 0, where `lat - lat1` and `lat + lat1`
+are also identical. `_OFFSET_TRIANGLE` in `tests/test_geo.py` — a diagonal clear of the
+equator — is what finally pins the arithmetic.
+
+**Keep both diagonal fixtures.** Real Met Office warning areas are all diagonals; a suite
+of rectangles cannot tell whether this function works.
+
+---
+
+## `services/nswws.py` — Met Office severe weather warnings
+
+### `x_parse_warnings__mutmut_18`, `__mutmut_20`, `__mutmut_24` (survived)
+
+**What was mutated:** The default for a missing `warningStatus` key, changed from `""` to
+`None`, to no default, or to `"XXXX"`.
+
+**Why acceptable:** Genuinely equivalent. The value is used only to test membership of
+`_DEAD_STATUSES` (`{"cancelled", "expired"}`), so the default's only requirement is that it
+is not one of those two. `""`, `"none"` and `"xxxx"` all satisfy it and all produce the same
+decision: a warning carrying no status is in force. Killing these would mean asserting on a
+sentinel that never reaches the caller.
+
+### `x_sort_warnings__mutmut_11`, `__mutmut_13`, `__mutmut_16` (survived)
+
+**What was mutated:** The default for a missing `level` key inside the sort key lambda,
+changed from `""` to `None`, to no default, or to `"XXXX"`.
+
+**Why acceptable:** Genuinely equivalent, for the same reason. The value is immediately
+looked up in `_LEVEL_ORDER`, which contains only `RED`, `AMBER` and `YELLOW`; every possible
+default misses and falls back to `len(_LEVEL_ORDER)`, sorting the warning last. The
+behaviour under test — an unrecognised or absent level sorts after every known one — is
+covered by `test_sort_warnings_puts_an_unknown_level_last`.
+
+### Everything else is killed
+
+The first mutmut run left 34 survivors across this module; 28 of them were real test gaps in
+the defensive parsing, not equivalents, and are now covered. They all had the same shape: the
+suite only ever parsed *well-formed* features, so every `.get(key, default)` fallback was
+unreachable. Since this module parses a feed shape that has not yet been seen against the
+live API — the key is obtained by application and does not exist yet — those fallbacks are
+the most likely code here to matter in practice. `_bare_feature` in `tests/test_nswws.py`
+covers them.
+
+---
+
 ## `scripts/deploy.sh` — mutation testing not applicable
 
 **Tool:** mutmut operates on Python source files only. `scripts/deploy.sh` is a bash script

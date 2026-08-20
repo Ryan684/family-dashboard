@@ -203,8 +203,25 @@ Fill in every value. The ones you need:
 | `APPLE_CALDAV_USERNAME` | Your Apple ID email |
 | `APPLE_CALDAV_PASSWORD` | appleid.apple.com → Sign-In and Security → App-Specific Passwords → generate one for "Family Dashboard" |
 | `APPLE_CALDAV_CALENDAR_NAME` | Name of the shared iCloud calendar (e.g. `Family`) |
+| `MET_OFFICE_NSWWS_API_KEY` | Optional — Met Office contact form, requesting access to the NSWWS Public API. Leave blank until it arrives; the warnings banner simply stays hidden |
 
 Save and exit nano: `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+**9.2 Adding a credential to a Pi that is already running.** `deploy.sh` never touches
+`.env`, so a variable added to `.env.example` in a later commit will deploy with no value
+on the device. To add one, SSH in and edit the file in place, then restart:
+
+```bash
+cd ~/projects/family-dashboard
+nano .env                       # add the new line
+sudo systemctl restart family-dashboard
+```
+
+Optional variables — `HERE_API_KEY`, `MET_OFFICE_NSWWS_API_KEY` — can be left out
+entirely; the features they drive stay switched off and nothing else is affected.
+Variables marked "Required — no default" in `.env.example` are read at import time and
+the backend will refuse to start without them, so never deploy a commit that adds one
+without editing `.env` in the same sitting.
 
 **9.2** Create the commute schedule:
 
