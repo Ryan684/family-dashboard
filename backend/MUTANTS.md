@@ -420,12 +420,19 @@ unreachable. Since this module parses a feed shape that had not yet been seen ag
 live API, those fallbacks were the most likely code here to matter in practice. `_bare_feature`
 in `tests/test_nswws.py` covers them.
 
-**Field names were subsequently corrected against a real captured response** (found via
-GitHub code search once the API's own docs site proved unreachable from this environment —
-see the module docstring for the source and what it does and doesn't confirm).
-`weatherType` never existed in the real payload and was removed; `warningImpact` and
-`warningLikelihood` were real fields this module had been silently discarding, and are now
-captured and used as the documented tie-breakers after `level` in `sort_warnings`.
+**Field names were subsequently corrected against the real "Issued" and "Atom feed" endpoint
+docs**, pasted in directly after the API's own docs site proved unreachable from this
+environment's network policy (see the module docstring for exactly what is confirmed).
+`weatherType` does exist — as a list of strings (e.g. `["THUNDERSTORM"]`), not the bare
+string this module assumed on an earlier pass through a third-party client's sample data
+that simply hadn't captured the field; it is parsed defensively with an `isinstance` guard
+for that reason. `warningImpact` and `warningLikelihood` are real fields this module had
+been silently discarding, and are now captured and used as the documented tie-breakers
+after `level` in `sort_warnings`. `fetch_warnings` was also rewritten as a genuine two-step
+Atom-feed-then-GeoJSON fetch (`parse_feed_related_url` extracts the feed-level related
+link) once the real Atom feed docs showed the GeoJSON URL is not a fixed endpoint — that
+rewrite introduced no new survivors; every mutant of `parse_feed_related_url` and the
+rewritten `fetch_warnings` is killed.
 
 ---
 

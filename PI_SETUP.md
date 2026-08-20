@@ -204,6 +204,7 @@ Fill in every value. The ones you need:
 | `APPLE_CALDAV_PASSWORD` | appleid.apple.com → Sign-In and Security → App-Specific Passwords → generate one for "Family Dashboard" |
 | `APPLE_CALDAV_CALENDAR_NAME` | Name of the shared iCloud calendar (e.g. `Family`) |
 | `MET_OFFICE_NSWWS_API_KEY` | Optional — Met Office contact form, requesting access to the NSWWS Public API. Leave blank until it arrives; the warnings banner simply stays hidden |
+| `MET_OFFICE_NSWWS_BASE_URL` | Optional — issued alongside the key at the same time, not a fixed value. Copy it in exactly as given; leave blank with the key until both arrive |
 
 Save and exit nano: `Ctrl+O`, `Enter`, `Ctrl+X`.
 
@@ -217,8 +218,8 @@ nano .env                       # add the new line
 sudo systemctl restart family-dashboard
 ```
 
-Optional variables — `HERE_API_KEY`, `MET_OFFICE_NSWWS_API_KEY` — can be left out
-entirely; the features they drive stay switched off and nothing else is affected.
+Optional variables — `HERE_API_KEY`, `MET_OFFICE_NSWWS_API_KEY`, `MET_OFFICE_NSWWS_BASE_URL`
+— can be left out entirely; the features they drive stay switched off and nothing else is affected.
 Variables marked "Required — no default" in `.env.example` are read at import time and
 the backend will refuse to start without them, so never deploy a commit that adds one
 without editing `.env` in the same sitting.

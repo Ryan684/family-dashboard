@@ -304,7 +304,9 @@ Never commit `.env`. Commit `.env.example` with placeholder values only.
 GOOGLE_MAPS_API_KEY=your_key_here
 
 # Met Office severe weather warnings — optional, blank means no warnings banner
+# Base URL is issued alongside the key at signup, not a fixed value
 MET_OFFICE_NSWWS_API_KEY=
+MET_OFFICE_NSWWS_BASE_URL=
 
 # Shared home location
 HOME_LAT=51.XXXX

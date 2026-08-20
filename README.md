@@ -52,6 +52,7 @@ Edit `.env` and fill in your values:
 | `WEATHER_POLL_WINDOW_END` | **Yes** | End of weather polling window — no default, must be set (e.g. `22:00`) |
 | `CALENDAR_POLL_INTERVAL_SECONDS` | **Yes** | Re-fetch calendar this often within the travel window — no default (e.g. `1800`) |
 | `MET_OFFICE_NSWWS_API_KEY` | No | Met Office severe weather warnings. Leave blank and the warnings banner never appears |
+| `MET_OFFICE_NSWWS_BASE_URL` | No | Issued alongside the key at signup, not a fixed value. Leave blank with the key — either blank disables warnings |
 
 Coordinates are decimal degrees (e.g. `51.5074`, `-0.1278`). Travel and calendar stop refreshing outside their poll window. Weather refreshes from `POLL_WINDOW_START` until `WEATHER_POLL_WINDOW_END` — Open-Meteo is free with no API key, so extending the weather window all day has no cost impact. All caches are primed immediately on startup so the dashboard is never empty after a service restart.
 
