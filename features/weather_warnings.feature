@@ -37,6 +37,19 @@ Feature: Met Office severe weather warnings backend
     When the feed is parsed
     Then the warning has an id, level, weather type, headline and geometry
 
+  Scenario: Weather type is a list of hazards, not a single value
+    Given the feed returns a warning with weatherType ["WIND", "RAIN"]
+    When the feed is parsed
+    Then the warning's weather types are ["WIND", "RAIN"]
+    # A warning can carry more than one hazard at once — confirmed by the real
+    # API docs, where the example is itself a single-element list, ["THUNDERSTORM"].
+
+  Scenario: A weatherType that is not a list is treated as absent
+    Given the feed returns a warning with weatherType as a bare string
+    When the feed is parsed
+    Then the warning's weather types are empty
+    # Guards against silently iterating a string character-by-character.
+
   Scenario: An empty feature collection parses to no warnings
     Given the feed returns no features
     When the feed is parsed
@@ -53,12 +66,12 @@ Feature: Met Office severe weather warnings backend
     Then the warning level is "AMBER"
 
   Scenario: A cancelled warning is discarded
-    Given the feed returns a warning with status "Cancelled"
+    Given the feed returns a warning with status "CANCELLED"
     When the feed is parsed
     Then no warnings are returned
 
   Scenario: An expired warning is discarded
-    Given the feed returns a warning with status "Expired"
+    Given the feed returns a warning with status "EXPIRED"
     When the feed is parsed
     Then no warnings are returned
 
@@ -66,6 +79,10 @@ Feature: Met Office severe weather warnings backend
     Given the feed returns a warning with no status field
     When the feed is parsed
     Then one warning is returned
+  # The real API's Issued endpoint already excludes CANCELLED and EXPIRED
+  # warnings from its response — confirmed in the docs — so this filter is a
+  # defensive backstop against a future schema change, not something the real
+  # feed is expected to ever need in practice.
 
   # --- Matching warnings to our locations ---
 

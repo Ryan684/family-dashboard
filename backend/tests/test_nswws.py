@@ -34,6 +34,7 @@ def _feature(
     coordinates=None,
     impact=2,
     likelihood=2,
+    weather_type=("RAIN",),
 ):
     properties = {
         "warningId": warning_id,
@@ -44,6 +45,7 @@ def _feature(
         "validToDate": "2026-08-21T18:00:00Z",
         "warningImpact": impact,
         "warningLikelihood": likelihood,
+        "weatherType": list(weather_type),
     }
     if status is not None:
         properties["warningStatus"] = status
@@ -77,6 +79,7 @@ def _warning(
     headline="Heavy rain",
     impact=2,
     likelihood=2,
+    weather_types=("rain",),
 ):
     return {
         "id": warning_id,
@@ -87,6 +90,7 @@ def _warning(
         "valid_to": "2026-08-21T18:00:00Z",
         "impact": impact,
         "likelihood": likelihood,
+        "weather_types": list(weather_types),
         "geometry": {
             "type": "MultiPolygon",
             "coordinates": coordinates or [_COVERS_HOME],
@@ -161,6 +165,28 @@ def test_parse_warnings_extracts_the_impact():
 def test_parse_warnings_extracts_the_likelihood():
     result = parse_warnings(_collection(_feature(likelihood=1)))
     assert result[0]["likelihood"] == 1
+
+
+def test_parse_warnings_extracts_the_weather_types():
+    result = parse_warnings(_collection(_feature(weather_type=("THUNDERSTORM",))))
+    assert result[0]["weather_types"] == ["THUNDERSTORM"]
+
+
+def test_parse_warnings_extracts_multiple_weather_types():
+    result = parse_warnings(_collection(_feature(weather_type=("WIND", "RAIN"))))
+    assert result[0]["weather_types"] == ["WIND", "RAIN"]
+
+
+def test_parse_warnings_missing_weather_type_becomes_empty_list():
+    assert parse_warnings(_collection(_bare_feature()))[0]["weather_types"] == []
+
+
+def test_parse_warnings_non_list_weather_type_becomes_empty_list():
+    # Defends against the classic string/list mixup: iterating a bare string
+    # would silently produce one bogus single-character "type" per character.
+    feature = _feature()
+    feature["properties"]["weatherType"] = "RAIN"
+    assert parse_warnings(_collection(feature))[0]["weather_types"] == []
 
 
 def test_parse_warnings_extracts_the_headline():

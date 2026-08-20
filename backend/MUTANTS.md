@@ -399,6 +399,18 @@ counterpart specifically pin "missing loses even to the real minimum (1)", which
 observable fact about the sentinel; a `+1` mutant here was a real gap and is now killed by
 those two tests.
 
+### `x_parse_warnings__mutmut_58`, `__mutmut_60` (survived)
+
+**What was mutated:** The default for a missing `weatherType` key, changed from `[]` to
+`None`, or to no default (also `None`).
+
+**Why acceptable:** Genuinely equivalent by construction. The very next line is
+`weather_types if isinstance(weather_types, list) else []`, so any non-list default —
+`None` included — is normalised to `[]` regardless of what the `.get()` default was. The
+defensive `isinstance` check exists specifically so a malformed or absent field can never
+reach the caller as anything but a list, which makes the `.get()` default itself
+unobservable.
+
 ### Everything else is killed
 
 The first mutmut run left 34 survivors across this module; 28 of them were real test gaps in
