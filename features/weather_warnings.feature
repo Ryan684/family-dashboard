@@ -14,6 +14,19 @@ Feature: Met Office severe weather warnings backend
   120-second weather cadence already matches the Met Office's own guidance of
   polling every one to two minutes, and they are served from the same cache.
 
+  The base URL, like the key, is issued at signup rather than a fixed or
+  guessable value — the docs say plainly it "will have been supplied to you
+  when you signed up and were given your API key." It is therefore config,
+  optional for the same reason as the key: absent, the feature degrades to
+  no warnings rather than the backend failing to start.
+
+  Fetching warnings is a genuine two-step request, confirmed against the real
+  Atom feed endpoint docs: first the Atom feed, to read the current "latest
+  version of all issued warnings" URL from its feed-level related link, then
+  that URL for the actual GeoJSON. The feed must be re-fetched on every poll
+  rather than cached, because the URL it hands back rotates and a stale one
+  404s.
+
   Background:
     Given the home location is configured with a latitude and longitude
 
@@ -21,14 +34,58 @@ Feature: Met Office severe weather warnings backend
 
   Scenario: No API key means no request is made
     Given no Met Office API key is configured
+    But a Met Office base URL is configured
     When warnings are fetched
     Then no HTTP request is made
     And an empty warning list is returned
 
-  Scenario: The API key is sent as a header
+  Scenario: No base URL means no request is made
     Given a Met Office API key is configured
+    But no Met Office base URL is configured
     When warnings are fetched
-    Then the request carries the key in an x-api-key header
+    Then no HTTP request is made
+    And an empty warning list is returned
+  # The base URL is account-specific and cannot be hardcoded (see above), so
+  # it is treated as exactly as required as the key — either missing is a
+  # complete short circuit, not a partial one.
+
+  Scenario: Fetching warnings is a two-step request
+    Given a Met Office API key and base URL are configured
+    When warnings are fetched
+    Then exactly two HTTP requests are made
+    And the first request is to the Atom feed endpoint
+    And the second request is to the URL the feed's related link supplied
+
+  Scenario: The second request uses the feed's own URL, not a composed one
+    Given the Atom feed's related link points to a URL this app did not construct
+    When warnings are fetched
+    Then the second request is made to that exact URL
+  # The related URL rotates on every feed update — composing it from a
+  # pattern rather than reading it from the feed would eventually 404.
+
+  Scenario: The API key is sent as a header on both requests
+    Given a Met Office API key and base URL are configured
+    When warnings are fetched
+    Then both requests carry the key in an x-api-key header
+
+  Scenario: An entry's own link is never mistaken for the feed's related link
+    Given the Atom feed contains an entry with its own alternate link
+    When warnings are fetched
+    Then the second request still uses the feed-level related link
+  # A per-entry rel="alternate" link describes one past change, not the
+  # current full set of warnings — confirmed by the real Atom feed docs,
+  # which describe the feed-level rel="related" link separately.
+
+  Scenario: A feed with no related link yields no warnings
+    Given the Atom feed has no related link
+    When warnings are fetched
+    Then no second HTTP request is made
+    And an empty warning list is returned
+
+  Scenario: A malformed feed yields no warnings
+    Given the Atom feed response is not valid XML
+    When warnings are fetched
+    Then an empty warning list is returned
 
   # --- Parsing the feed ---
 

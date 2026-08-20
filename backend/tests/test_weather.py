@@ -36,6 +36,11 @@ class _MockSettings:
     commuter_1_work_lon = -0.2
     commuter_2_work_lat = 51.7
     commuter_2_work_lon = -0.3
+    # Empty, deliberately: this is what exercises fetch_warnings's own
+    # no-key/no-base-url short circuit, rather than the broad `except
+    # Exception` around it catching an AttributeError for the wrong reason.
+    met_office_nswws_api_key = ""
+    met_office_nswws_base_url = ""
 
 
 _MOCK_SETTINGS = _MockSettings()
