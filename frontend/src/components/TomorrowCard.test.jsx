@@ -107,6 +107,16 @@ describe('TomorrowCard — location block', () => {
     )
   })
 
+  // The headline figure already IS the day's high, so a separate "High:" line
+  // would just repeat it — the shared component only shows that line when a
+  // location also carries a `current` reading distinct from the high.
+  it('does not show a separate "High:" line', async () => {
+    mockFetchOk(makeApiResponse())
+    render(<TomorrowCard />)
+    await waitFor(() => expect(screen.getByText('17°C')).toBeInTheDocument())
+    expect(screen.queryByText(/High:/)).not.toBeInTheDocument()
+  })
+
   it('does not render a current temperature', async () => {
     mockFetchOk(
       makeApiResponse({
@@ -138,7 +148,7 @@ describe('TomorrowCard — location block', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() =>
-      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+      expect(screen.getByTestId('weather-location-block')).toBeInTheDocument()
     )
   })
 
@@ -153,7 +163,7 @@ describe('TomorrowCard — location block', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() =>
-      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+      expect(screen.getByTestId('weather-location-block')).toBeInTheDocument()
     )
   })
 
@@ -168,7 +178,7 @@ describe('TomorrowCard — location block', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() =>
-      expect(screen.getByTestId('tomorrow-location-block')).toBeInTheDocument()
+      expect(screen.getByTestId('weather-location-block')).toBeInTheDocument()
     )
   })
 
@@ -200,7 +210,7 @@ describe('TomorrowCard — location block', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() =>
-      expect(screen.getAllByTestId('tomorrow-location-block')).toHaveLength(2)
+      expect(screen.getAllByTestId('weather-location-block')).toHaveLength(2)
     )
   })
 })
@@ -265,7 +275,7 @@ describe('TomorrowCard — rain windows', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
-    expect(screen.queryByTestId('tomorrow-rain-windows')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('rain-windows')).not.toBeInTheDocument()
   })
 
   it('does not show a rain window row when rain_windows is absent', async () => {
@@ -279,7 +289,7 @@ describe('TomorrowCard — rain windows', () => {
     )
     render(<TomorrowCard />)
     await waitFor(() => expect(screen.getByText('Home')).toBeInTheDocument())
-    expect(screen.queryByTestId('tomorrow-rain-windows')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('rain-windows')).not.toBeInTheDocument()
   })
 })
 
