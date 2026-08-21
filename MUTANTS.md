@@ -219,7 +219,7 @@ Same pattern as documented in WeatherCard and CalendarCard below: `if (!cancelle
 
 Added to surface the `is_stale` flag (previously ignored by this component). All survivors are `ObjectLiteral`/`StringLiteral` mutations to the badge's inline `style={{...}}` objects (lines 95–114), identical to Category 1 documented at the top of this file: JSDOM doesn't render CSS, so no test can observe a mutated style value. The `{data.is_stale && <StaleTag />}` conditional itself (the actual logic) is fully killed — no surviving mutants on that line.
 
-### `components/TomorrowCard.jsx`, `components/WarningBanner.jsx`, `components/StaleTag.jsx` (session weather-code-feature-review)
+### `components/TomorrowCard.jsx`, `components/WarningBanner.jsx`, `components/StaleTag.jsx` (session weather-code-feature-review) — SUPERSEDED, see below
 
 Stryker: 213 survivors across the three files, in two categories.
 
@@ -250,6 +250,45 @@ presentation.
 | `icon ?? 'cloud'` → `icon && 'cloud'` (`TomorrowCard.jsx:130`) | 1 | Selects a different glyph, which is a style-only difference in jsdom |
 | `i > 0` separator guard (`TomorrowCard.jsx:373`) | 4 | The separator is an unstyled `aria-hidden` div with no text content |
 | `data?.tomorrow` → `data.tomorrow` (`TomorrowCard.jsx:341`) | 1 | Unreachable — the loading branch returns before this line while `data` is null |
+
+**Note (shared-component refactor, see below): `TomorrowGlyph`/`TomorrowBlock` no longer
+exist.** The user asked for tomorrow's card to render through the exact same component as
+today's rather than a deliberately-smaller lookalike; `TomorrowCard.jsx`'s own copies were
+deleted and it now imports `LocationBlock`/`WeatherGlyph` from the new
+`WeatherLocationBlock.jsx`. The line numbers and per-file counts above no longer correspond to
+the current files — kept for history, superseded by the section immediately below.
+
+### `components/WeatherLocationBlock.jsx`, `components/WeatherCard.jsx`, `components/TomorrowCard.jsx` (session weather-code-feature-review — shared-component merge)
+
+`LocationBlock` and `WeatherGlyph` were extracted from `WeatherCard.jsx` into a new
+`WeatherLocationBlock.jsx`; `TomorrowCard.jsx`'s separate `TomorrowBlock`/`TomorrowGlyph` were
+deleted and it now renders through the same `LocationBlock`, passing it tomorrow's forecast
+shape (no `current` field) instead of today's. A scoped Stryker run (`mutate` limited to these
+three files) gives 183 survivors, 79 killed — same shape as the superseded section above, now
+consolidated into one shared file plus the two thin card wrappers.
+
+| Mutant class | Count | Justification |
+|--------|----------|---------------|
+| `StringLiteral` on inline style values | 90 | jsdom applies no CSS — unobservable, same class as every other component |
+| `ObjectLiteral` → `{}` on style objects | 27 | Same |
+| `ArithmeticOperator` in `WeatherGlyph` geometry (`s * 0.18` etc.) | 22 | Same — pure layout maths for a CSS-drawn glyph, now shared rather than duplicated between the two cards |
+| `ArrowFunction` in the rain glyph's raindrop `.map()` | 1 | Same glyph-geometry class — three positioned divs, no behaviour |
+| `cancelled` guards / `}, [])` deps in both cards' poll effects | 8 | Pre-existing accepted class, unchanged by this refactor — see `WeatherCard.jsx` above |
+| `if (loading)` / `if (error)` / `if (locations.length === 0)` root guards | 6 | Pre-existing: each of the three early-return branches renders `role="status"` or `role="alert"`, so a guard that's wrongly skipped still falls through to a *different* branch carrying the same role, which the tests assert on. Not introduced by this refactor — the guard structure is byte-identical to the pre-refactor file. |
+| `i > 0` separator guard (both cards) | 4 | The separator is an unstyled `aria-hidden` div with no text content |
+| `loc.name ?? i` → `loc.name && i` (React `key` prop) | 2 | The `key` prop is never rendered or asserted on |
+| `icon ?? 'cloud'` → `icon && 'cloud'` (`WeatherLocationBlock.jsx`) | 1 | Selects a different glyph — style-only difference in jsdom. One call site now, not two, since both cards share `LocationBlock` |
+| `data?.tomorrow?.locations` / `data?.locations` optional chaining | 2 | Unreachable — the loading/error branches return before this line while `data` is null |
+| `useState(true)` → `useState(false)` for `loading` | 2 | The initial-render-only difference is covered indirectly by the loading-state test, which doesn't distinguish "started true" from "started false, immediately set true" — pre-existing, unchanged by this refactor |
+
+**New logic introduced by the merge, and killed — not documented, because nothing survived:**
+`current ? current.temperature_celsius : daily_high_celsius` (headline figure selection),
+`current ? current.weather_description : location.weather_description` (description
+selection), and `{current && <span>High: …</span>}` (the new conditional that stops tomorrow's
+card from showing a redundant "High:" line repeating its own headline figure). All three are
+exercised by `WeatherCard.test.jsx`'s existing `current`-path tests and
+`TomorrowCard.test.jsx`'s no-`current`-path tests, including the new
+`'does not show a separate "High:" line'` test added for this change.
 
 ### `components/TravelCard.jsx` (Session 12)
 
