@@ -2,13 +2,18 @@ Feature: Tomorrow forecast card frontend
   The TomorrowCard occupies the column freed when the travel section is hidden,
   showing tomorrow's forecast beside today's so the two read as a comparison.
 
-  It is deliberately quieter than the weather card: a 48px high rather than an
-  88px current temperature, and no live conditions at all. Tomorrow is a
-  forecast, not a fact.
+  It renders through the exact same shared location-block component as the
+  weather card — same 88px headline figure, same fonts, same spacing — fed
+  tomorrow's forecast data instead of today's. Tomorrow's payload carries no
+  "current" reading (a future day has no live conditions), so the component's
+  one visible difference is data-driven rather than a separate design: the
+  headline figure falls back to the day's high, and the "High: X°C" sub-line
+  is omitted since it would just repeat the headline number. Everything else
+  — the glyph, the rain figure, the rain-window caption — is identical code
+  to today's card, not a lookalike.
 
   It carries no column label at all — no card on the dashboard does. The
-  content shape (a 48px high next to a description, versus today's 88px
-  current reading) already tells the columns apart, so a text label was pure
+  content already identifies the column at a glance, so a text label was pure
   redundancy. Removing it, consistently across every card, is also what
   reclaims the vertical room that keeps a second weather location's detail
   visible when the traffic and weather alert straps are both up.
@@ -37,16 +42,27 @@ Feature: Tomorrow forecast card frontend
     When the TomorrowCard renders
     Then "17°C" is displayed
 
+  Scenario: No separate "High:" line duplicates the headline figure
+    Given the API returns a tomorrow location with daily high 17°C
+    When the TomorrowCard renders
+    Then no "High:" text is visible on screen
+  # The shared component shows a separate "High:" line only when a location
+  # also carries a live current reading distinct from it (today's card).
+  # Tomorrow's headline figure IS the high, so a second line repeating the
+  # same number would be pure duplication.
+
   Scenario: Weather description is displayed
     Given the API returns a tomorrow location with description "Light rain"
     When the TomorrowCard renders
     Then the weather description "Light rain" is displayed
 
-  Scenario: No current temperature is rendered
+  Scenario: Only tomorrow's own data is rendered, never today's
     Given the API returns today's locations with current temperature 8°C
     And a tomorrow location with daily high 17°C
     When the TomorrowCard renders
     Then "8°C" is not visible on screen
+  # Confirms TomorrowCard reads only the payload's tomorrow.locations, never
+  # today's locations — the two arrays share a response but must never mix.
 
   Scenario: Daily rainfall is displayed
     Given the API returns a tomorrow location with daily_rainfall total_mm 3.1 and probability_percent 70
@@ -104,7 +120,7 @@ Feature: Tomorrow forecast card frontend
     Then no stale data warning is visible
 
   # The weather card, which always renders beside this one and reads the same
-  # endpoint, already carries the indicator; a second one is duplication. It also
-  # does not fit — heading plus tag overflow this column and wrap to two lines,
-  # dropping the first location block below its neighbour and breaking the shared
-  # baseline that makes the two columns read as a comparison.
+  # endpoint, already carries the indicator; a second one is duplication and
+  # would also break the shared baseline the two columns need to read as a
+  # comparison — an extra tag on one column but not the other pushes its first
+  # location block down relative to its neighbour.
